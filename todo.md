@@ -7,9 +7,10 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 - [x] Curriculum: `shared/curriculum/sounds.json` (45 klanken, 6 categorieën, verwarringsparen)
 - [x] `staticwebapp.config.json` + GitHub Actions workflow
 - [x] GitHub repo aangemaakt (`ArjanAssink/DuoLexie`)
-- [ ] Push naar GitHub — **geblokkeerd**: `gh` token mist `workflow` scope → draai `gh auth refresh -h github.com -s workflow`
-- [ ] Azure Static Web App aanmaken (Free, West Europe, app=`app`, output=`dist`) + deploy groen
-- [ ] Custom domain + CNAME instellen (welk (sub)domein? → Arjan)
+- [x] Push naar GitHub
+- [ ] Azure Static Web App aanmaken → zie [docs/azure-setup.md](docs/azure-setup.md) (→ Arjan)
+- [ ] Dubbele workflow opruimen na SWA-aanmaak (Azure genereert er zelf één)
+- [ ] Custom domain + CNAME instellen → zie docs/azure-setup.md (→ Arjan)
 
 ## Phase 1 — Eerste speelbare versie (lokaal, geen backend)
 - [x] Padscherm: fases → units → lessen, lineaire unlock, edelstenen + weekdoel (5 van 7)
