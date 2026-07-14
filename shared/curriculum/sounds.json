@@ -1,0 +1,74 @@
+{
+  "categories": [
+    {
+      "id": "kort",
+      "name": "Korte klanken",
+      "abbr": "KO",
+      "color1": "#E83E5A",
+      "color2": "#A31030",
+      "sounds": ["a", "e", "o", "u", "i"]
+    },
+    {
+      "id": "lang",
+      "name": "Lange klanken",
+      "abbr": "LA",
+      "color1": "#1E88E5",
+      "color2": "#0D47A1",
+      "sounds": ["aa", "ee", "oo", "uu"]
+    },
+    {
+      "id": "twee",
+      "name": "Twee tekens",
+      "abbr": "TW",
+      "color1": "#43A047",
+      "color2": "#1B5E20",
+      "sounds": ["ei", "ij", "ie", "au", "ou", "oe", "eu", "ui", "uw", "ch", "ng", "nk"]
+    },
+    {
+      "id": "drie",
+      "name": "Drie tekens",
+      "abbr": "DR",
+      "color1": "#8E24AA",
+      "color2": "#4A148C",
+      "sounds": ["aai", "ooi", "oei", "auw", "ouw"]
+    },
+    {
+      "id": "vier",
+      "name": "Vier tekens",
+      "abbr": "VI",
+      "color1": "#D81B60",
+      "color2": "#880E4F",
+      "sounds": ["eeuw", "ieuw"]
+    },
+    {
+      "id": "mede",
+      "name": "Medeklinkers",
+      "abbr": "ME",
+      "color1": "#E65100",
+      "color2": "#BF360C",
+      "sounds": ["b", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "r", "s", "t", "v", "w", "z"]
+    }
+  ],
+  "confusionPairs": [
+    ["ei", "ij"],
+    ["au", "ou"],
+    ["aai", "ooi"],
+    ["auw", "ouw"],
+    ["eeuw", "ieuw"],
+    ["eu", "ui"],
+    ["eu", "uu"],
+    ["ui", "uu"],
+    ["oe", "eu"],
+    ["ng", "nk"],
+    ["f", "v"],
+    ["s", "z"],
+    ["b", "d"],
+    ["p", "b"],
+    ["m", "n"],
+    ["a", "aa"],
+    ["e", "ee"],
+    ["o", "oo"],
+    ["u", "uu"],
+    ["i", "ie"]
+  ]
+}
