@@ -36,7 +36,8 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 - [ ] vite-plugin-pwa: installeerbaar, offline audio-precache
 
 ## Phase 3 — Accounts & sync
-- [ ] Cosmos DB free tier account + containers `auth`/`data`
+- [x] Cosmos DB account aangemaakt (West Europe; check: free tier discount "Applied")
+- [ ] Database `duolexie` (shared manual 1000 RU/s) + containers `auth` (pk `/email`) en `data` (pk `/familyId`)
 - [ ] `api/` package: register/login (bcryptjs, JWT-cookie), profiles + PIN, progress sync
 - [ ] Registratie/login + profielkiezer met avatars
 - [ ] Outbox-sync (idempotent op sessionResult-id); lokale voortgang migreren naar profiel
