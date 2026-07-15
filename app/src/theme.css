@@ -186,6 +186,9 @@ button {
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
+/* When Frida sits beside the path, absolute positioning must win over
+   .frida-tap's relative (the ha! bubbles anchor to it either way) */
+.frida-tap.frida-path { position: absolute; }
 .frida-tap .frida-fig { transform-origin: 50% 100%; }
 .frida-tap .laugh-face { opacity: 0; }
 .frida-tap .ha {
