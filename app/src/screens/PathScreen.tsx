@@ -3,6 +3,7 @@ import type { Lesson, Unit } from '@shared/src/types'
 import { path, allLessons } from '../data/path'
 import { useProgress, daysThisWeek } from '../state/progress'
 import { Frida } from '../components/Frida'
+import { FridaTap } from '../components/FridaTap'
 import {
   LessonIcon,
   GemIcon,
@@ -87,9 +88,7 @@ export function PathScreen() {
                 </button>
               </div>
               <div className="path-section">
-                {unitHasActive(unit) && (
-                  <Frida expression="sass" className="frida-path" alt="Frida kijkt toe" />
-                )}
+                {unitHasActive(unit) && <FridaTap className="frida-path" />}
                 {unit.lessons.map((lesson, i) => {
                   const state = coinState(lesson)
                   const clickable = state !== 'locked'

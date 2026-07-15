@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #E9E0CC; font-family: 'Nunito', sans-serif; color: #42281A; }
+  a { color: #C4651C; } a:hover { color: #8F4712; }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; justify-content: center; padding: 24px 0;">
+<div data-screen-label="Leerpad home" style="width: 420px; background: #FDF8EE; border-radius: 28px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(66,40,26,0.18); position: relative;">
+
+  <!-- stat bar -->
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 12px 22px;">
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M12,2 L21,9 L12,22 L3,9 Z" fill="#4FC3E8"></path><path d="M12,2 L21,9 L12,12 L3,9 Z" fill="#7ED6F0"></path></svg>
+      <span style="font-weight: 900; font-size: 17px; color: #3FB6DB;">0</span>
+    </div>
+    <img src="avatar/frida-head-grumpy.svg" alt="Frida" style="width: 46px; height: 38px; object-fit: contain;">
+    <div style="display: flex; align-items: center; gap: 7px;">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12,2 C13,7 17,8 17,14 A5,5 0 0 1 7,14 C7,10 9,9 9,6 C10,8 11,8 12,2 Z" fill="#F5883C"></path><path d="M12,10 C13,12 14,12.5 14,15 A2.2,2.2 0 0 1 9.6,15 C9.6,13 11,12.5 12,10 Z" fill="#F7DE4A"></path></svg>
+      <span style="font-weight: 900; font-size: 17px; color: #F5883C;">0/5</span>
+    </div>
+    <button style="background: none; border: 2px solid #EADFC8; border-radius: 12px; padding: 4px 10px; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 16px; color: #42281A; cursor: pointer;">Aa</button>
+  </div>
+
+  <!-- unit header card -->
+  <div style="margin: 8px 20px 6px 20px; background: #F5A03C; border-radius: 18px; box-shadow: 0 4px 0 #D9812A; display: flex; align-items: stretch;">
+    <div style="flex: 1; padding: 14px 18px; display: flex; flex-direction: column; gap: 2px;">
+      <span style="font-weight: 800; font-size: 12px; letter-spacing: 1.5px; color: #FFE3BC; text-transform: uppercase;">Deel 1 · Korte klanken</span>
+      <span style="font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 22px; color: #FFFFFF; line-height: 1.1;">De klinkers</span>
+    </div>
+    <div style="width: 2px; background: #D9812A; margin: 10px 0;"></div>
+    <button aria-label="Overzicht" style="background: none; border: none; padding: 0 18px; cursor: pointer; display: grid; place-items: center;">
+      <svg viewBox="0 0 24 24" width="26" height="26"><rect x="4" y="4" width="16" height="3.4" rx="1.7" fill="#FFFFFF"></rect><rect x="4" y="10.3" width="16" height="3.4" rx="1.7" fill="#FFFFFF"></rect><rect x="4" y="16.6" width="10" height="3.4" rx="1.7" fill="#FFFFFF"></rect></svg>
+    </button>
+  </div>
+
+  <!-- path -->
+  <div style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 26px; padding: 26px 0 10px 0;">
+
+    <!-- Frida beside the path -->
+    <img src="avatar/frida-sass.svg" alt="Frida kijkt toe" style="position: absolute; left: 34px; top: 150px; width: 128px;">
+
+    <!-- Luister: active -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; margin-left: 0px;">
+      <div style="position: relative; display: grid; place-items: center;">
+        <div style="position: absolute; width: 96px; height: 96px; border-radius: 50%; border: 5px solid #BFE4E0;"></div>
+        <button aria-label="Luister — start" style="width: 74px; height: 74px; border-radius: 50%; border: none; background: #2FA79B; box-shadow: 0 7px 0 #22857B; cursor: pointer; display: grid; place-items: center;">
+          <svg viewBox="0 0 24 24" width="34" height="34"><path d="M12,3 L14.7,8.6 L20.8,9.4 L16.4,13.7 L17.5,19.8 L12,16.9 L6.5,19.8 L7.6,13.7 L3.2,9.4 L9.3,8.6 Z" fill="#FFFFFF"></path></svg>
+        </button>
+      </div>
+      <span style="font-weight: 900; font-size: 14px; color: #2FA79B;">Luister</span>
+    </div>
+
+    <!-- Flits: locked -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; margin-left: 130px;">
+      <button aria-label="Flits — vergrendeld" style="width: 64px; height: 64px; border-radius: 50%; border: none; background: #E7DCC4; box-shadow: 0 6px 0 #D3C5A6; cursor: pointer; display: grid; place-items: center;">
+        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M13,2 L6,13 L11,13 L10,22 L18,10 L12.5,10 Z" fill="#B7A886"></path></svg>
+      </button>
+      <span style="font-weight: 900; font-size: 14px; color: #B7A886;">Flits</span>
+    </div>
+
+    <!-- Mix: locked -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; margin-left: 40px;">
+      <button aria-label="Mix — vergrendeld" style="width: 64px; height: 64px; border-radius: 50%; border: none; background: #E7DCC4; box-shadow: 0 6px 0 #D3C5A6; cursor: pointer; display: grid; place-items: center;">
+        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M4,7 H9 L15,17 H20" stroke="#B7A886" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path><path d="M4,17 H9 L15,7 H20" stroke="#B7A886" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path><path d="M18,4.5 L21,7 L18,9.5 M18,14.5 L21,17 L18,19.5" stroke="#B7A886" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </button>
+      <span style="font-weight: 900; font-size: 14px; color: #B7A886;">Mix</span>
+    </div>
+
+    <!-- Uitdaging: locked -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; margin-left: 150px;">
+      <button aria-label="Uitdaging — vergrendeld" style="width: 64px; height: 64px; border-radius: 50%; border: none; background: #E7DCC4; box-shadow: 0 6px 0 #D3C5A6; cursor: pointer; display: grid; place-items: center;">
+        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M7,4 H17 V6 H20 V9 C20,11 18.5,12.5 16.7,12.9 C16,15 14.5,16.4 13,16.8 V19 H16 V21 H8 V19 H11 V16.8 C9.5,16.4 8,15 7.3,12.9 C5.5,12.5 4,11 4,9 V6 H7 Z M4,9 C4,10 4.8,10.8 6,11 L6,8 H4 Z M20,9 C20,10 19.2,10.8 18,11 L18,8 H20 Z" fill="#B7A886" fill-rule="evenodd"></path></svg>
+      </button>
+      <span style="font-weight: 900; font-size: 14px; color: #B7A886;">Uitdaging</span>
+    </div>
+  </div>
+
+  <!-- letters divider -->
+  <div style="display: flex; align-items: center; gap: 14px; padding: 18px 26px 10px 26px;">
+    <div style="flex: 1; height: 2px; background: #EADFC8;"></div>
+    <span style="font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 18px; letter-spacing: 3px; color: #B7A886;">m · s · k · r · t</span>
+    <div style="flex: 1; height: 2px; background: #EADFC8;"></div>
+  </div>
+
+  <!-- next unit teaser -->
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 26px 0; margin-left: -60px;">
+    <button aria-label="Volgende les — vergrendeld" style="width: 64px; height: 64px; border-radius: 50%; border: none; background: #E7DCC4; box-shadow: 0 6px 0 #D3C5A6; cursor: pointer; display: grid; place-items: center;">
+      <svg viewBox="0 0 24 24" width="30" height="30"><path d="M12,3 L14.7,8.6 L20.8,9.4 L16.4,13.7 L17.5,19.8 L12,16.9 L6.5,19.8 L7.6,13.7 L3.2,9.4 L9.3,8.6 Z" fill="#B7A886"></path></svg>
+    </button>
+    <span style="font-weight: 900; font-size: 14px; color: #B7A886;">Luister</span>
+  </div>
+
+  <!-- bottom nav -->
+  <div style="border-top: 2px solid #EADFC8; background: #FFFFFF; display: flex; justify-content: space-around; align-items: center; padding: 10px 12px;">
+    <button aria-label="Leerpad" style="background: #E4F3F1; border: 2px solid #9ED4CD; border-radius: 14px; padding: 7px 14px; cursor: pointer; display: grid; place-items: center;">
+      <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12,3 L21,10 V21 H14 V15 H10 V21 H3 V10 Z" fill="#F5A03C"></path><path d="M12,3 L21,10 H3 Z" fill="#E2542F"></path></svg>
+    </button>
+    <button aria-label="Letters" style="background: none; border: none; cursor: pointer; font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 22px; color: #B7A886; padding: 7px 14px;">Aa</button>
+    <button aria-label="Beloningen" style="background: none; border: none; cursor: pointer; padding: 7px 14px; display: grid; place-items: center;">
+      <svg viewBox="0 0 24 24" width="28" height="28"><rect x="4" y="8" width="16" height="11" rx="2" fill="#D3C5A6"></rect><rect x="4" y="8" width="16" height="4.5" fill="#B7A886"></rect><rect x="10.5" y="10" width="3" height="4" rx="1" fill="#FDF8EE"></rect></svg>
+    </button>
+    <button aria-label="Profiel" style="background: none; border: none; cursor: pointer; padding: 7px 14px; display: grid; place-items: center;">
+      <svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="8.5" r="4" fill="#D3C5A6"></circle><path d="M4,20 C4,15.5 8,14 12,14 C16,14 20,15.5 20,20 Z" fill="#D3C5A6"></path></svg>
+    </button>
+  </div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:480,&quot;height&quot;:980}}"></script>
+</body>
+</html>

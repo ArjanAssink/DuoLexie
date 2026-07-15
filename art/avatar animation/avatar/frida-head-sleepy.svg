@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="42 22 156 124">
+            <ellipse cx="120" cy="90" rx="64" ry="56" fill="#F5A03C"></ellipse>
+            <ellipse cx="153" cy="88" rx="22" ry="21" fill="#FFF1DB"></ellipse>
+            <path d="M94,28 Q70,28 54,36 Q48,40 50,48 Q54,70 62,84 Q66,90 71,84 Q82,68 88,46 Q92,34 94,28 Z" fill="#DD7E1F"></path>
+            <path d="M146,28 Q170,28 186,36 Q192,40 190,48 Q186,70 178,84 Q174,90 169,84 Q158,68 152,46 Q148,34 146,28 Z" fill="#DD7E1F"></path>
+            <path d="M120,35 C107,35 101,48 100,64 C99,80 96,93 88,104 C99,114 141,114 152,104 C144,93 141,80 140,64 C139,48 133,35 120,35 Z" fill="#FFF1DB"></path>
+            <path d="M120,42 Q123,49 129,54 Q123,59 120,66 Q117,59 111,54 Q117,49 120,42 Z" fill="#F5A03C"></path>
+            <ellipse cx="88" cy="86" rx="20" ry="18" fill="#D9761C" opacity="0.5"></ellipse>
+            <path d="M74,86 Q88,96 102,86" stroke="#B65E14" stroke-width="5" stroke-linecap="round" fill="none"></path>
+            <path d="M138,86 Q152,96 166,86" stroke="#CFA26B" stroke-width="5" stroke-linecap="round" fill="none"></path>
+            <text x="174" y="48" font-family="&#39;Baloo 2&#39;, &#39;Arial Rounded MT Bold&#39;, sans-serif" font-weight="800" font-size="22" fill="#45232F">z</text>
+            <text x="188" y="33" font-family="&#39;Baloo 2&#39;, &#39;Arial Rounded MT Bold&#39;, sans-serif" font-weight="800" font-size="15" fill="#45232F" opacity="0.6">z</text>
+            <ellipse cx="120" cy="126" rx="40" ry="28" fill="#FFF1DB"></ellipse>
+            <rect x="102" y="108" width="36" height="21" rx="10.5" fill="#45232F"></rect>
+            <ellipse cx="112" cy="114" rx="3.5" ry="2.5" fill="#6E4657"></ellipse>
+            <path d="M108,140 Q120,145 132,140" stroke="#E4C193" stroke-width="4" stroke-linecap="round" fill="none"></path>
+          </svg>

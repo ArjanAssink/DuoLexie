@@ -176,7 +176,52 @@ button {
   left: 34px;
   top: 150px;
   width: 128px;
+}
+
+/* Tappable Frida with laugh animation — art/avatar animation/frida-laugh.html */
+.frida-tap {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.frida-tap .frida-fig { transform-origin: 50% 100%; }
+.frida-tap .laugh-face { opacity: 0; }
+.frida-tap .ha {
+  position: absolute;
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: #45232F;
+  opacity: 0;
   pointer-events: none;
+}
+.frida-tap .ha1 { left: -6px; top: 26px; font-size: 22px; }
+.frida-tap .ha2 { right: -14px; top: 14px; font-size: 27px; }
+.frida-tap .ha3 { right: -26px; top: 66px; font-size: 18px; }
+.frida-tap.laughing .normal-face { opacity: 0; }
+.frida-tap.laughing .laugh-face { opacity: 1; }
+.frida-tap.laughing .frida-fig { animation: fridaLaugh 1s ease; }
+.frida-tap.laughing .ha { animation: fridaHa 1s ease-out forwards; }
+.frida-tap.laughing .ha2 { animation-delay: 0.18s; }
+.frida-tap.laughing .ha3 { animation-delay: 0.36s; }
+
+@keyframes fridaLaugh {
+  0%   { transform: scale(1) rotate(0deg); }
+  15%  { transform: scale(1.07, 0.9) rotate(-3deg); }
+  35%  { transform: scale(0.95, 1.07) rotate(3deg) translateY(-9px); }
+  55%  { transform: scale(1.05, 0.93) rotate(-2deg); }
+  75%  { transform: scale(0.98, 1.03) rotate(1.5deg) translateY(-4px); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes fridaHa {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.5) rotate(0deg); }
+  25%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-30px) scale(1.2) rotate(10deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .frida-tap.laughing .frida-fig, .frida-tap.laughing .ha { animation: none; }
+  .frida-tap.laughing .ha { opacity: 1; }
 }
 .coin-item {
   display: flex;
