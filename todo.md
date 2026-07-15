@@ -37,7 +37,9 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 
 ## Phase 3 — Accounts & sync
 - [x] Cosmos DB account aangemaakt (West Europe; check: free tier discount "Applied")
-- [ ] Database `duolexie` (shared manual 1000 RU/s) + containers `auth` (pk `/email`) en `data` (pk `/familyId`)
+- [x] Database `duolexie` + containers `auth`/`data`
+- [x] Env vars op SWA (`COSMOS_ENDPOINT`, `COSMOS_KEY`, `JWT_SECRET`) — geverifieerd via `/api/health`
+- [x] `api/` package opgezet met `/api/health` canary (env + Cosmos-check)
 - [ ] `api/` package: register/login (bcryptjs, JWT-cookie), profiles + PIN, progress sync
 - [ ] Registratie/login + profielkiezer met avatars
 - [ ] Outbox-sync (idempotent op sessionResult-id); lokale voortgang migreren naar profiel
