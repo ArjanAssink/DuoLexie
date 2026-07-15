@@ -11,8 +11,8 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 - [x] Azure Static Web App aangemaakt — live op https://jolly-wave-019071410.7.azurestaticapps.net
 - [x] Dubbele workflow opgeruimd (Azure-gegenereerde behouden)
 - [x] CNAME `duolexie.assink.io` → jolly-wave-019071410.7.azurestaticapps.net
-- [ ] Custom domain toevoegen in SWA portal (Custom domains → Add) zodat SSL-cert wordt aangemaakt
-- [ ] Regio-check: SWA mogelijk in Central US aangemaakt → beslissen: laten staan of opnieuw aanmaken in West Europe
+- [x] Custom domain live: **https://duolexie.assink.io** (SSL automatisch)
+- [x] Regio-besluit: SWA blijft staan (EUAP-resourcegroep alleen metadata-eigenaardigheid; Cosmos staat in West Europe)
 
 ## Phase 1 — Eerste speelbare versie (lokaal, geen backend)
 - [x] Padscherm: fases → units → lessen, lineaire unlock, edelstenen + weekdoel (5 van 7)
