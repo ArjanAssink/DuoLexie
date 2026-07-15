@@ -7,6 +7,7 @@ import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
 import { Klankenjacht } from '../games/Klankenjacht'
 import { playEffect } from '../audio/audio'
+import { Frida } from '../components/Frida'
 
 export interface GameResult {
   answers: AnswerRecord[]
@@ -54,7 +55,11 @@ export function GameScreen() {
   if (reward) {
     return (
       <div className="reward-screen">
-        <div className="mascot">🦊</div>
+        <Frida
+          expression={reward.newRecord ? 'head-celebrating' : 'happy'}
+          className="frida"
+          alt="Frida is blij"
+        />
         {reward.newRecord && <div className="record-banner">NIEUW RECORD!</div>}
         <h1>{reward.perfect ? 'Perfect!' : 'Goed gedaan!'}</h1>
         {reward.score !== undefined && (

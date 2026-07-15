@@ -4,6 +4,7 @@ import type { GameResult } from '../screens/GameScreen'
 import { buildFlitsDeck } from '../engine/exerciseSelector'
 import { useProgress } from '../state/progress'
 import { playEffect } from '../audio/audio'
+import { Frida } from '../components/Frida'
 
 const ROUND_SECONDS = 60
 
@@ -73,7 +74,7 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
           <button className="quit" onClick={onQuit}>✕</button>
         </div>
         <div className="game-stage">
-          <div className="mascot" style={{ fontSize: 90 }}>🦊</div>
+          <Frida expression="sass" width={150} alt="Frida" />
           <h1 style={{ textAlign: 'center' }}>⚡ Flitsen!</h1>
           <p style={{ textAlign: 'center', maxWidth: 320 }}>
             Lees elke klank hardop, zo snel als je kunt.
