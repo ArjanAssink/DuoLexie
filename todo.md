@@ -21,7 +21,8 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 - [x] Lokale voortgang in IndexedDB (zustand persist): stats per klank, EWMA, mastery
 - [x] Audio met TTS-fallback zolang opnames ontbreken
 - [x] Opnamestudio `/opnemen` (dev-only) + `tools/convert-audio.mjs`
-- [x] Lettertype-toggle (dyslexievriendelijke spatiëring), NL UI, mascotte v0 (🦊 emoji)
+- [x] Lettertype-toggle (dyslexievriendelijke spatiëring), NL UI
+- [x] Frida-redesign geïmplementeerd (art/design_handoff_leerpad): warm licht thema, coin-pad, statbalk, bottom nav, Frida-mascotte + favicons/manifest
 - [ ] Klanken inspreken (Fase-1-klanken minimaal) en mp3's committen
 - [ ] End-to-end test in browser: les afronden, herladen, voortgang blijft staan
 - [ ] Testen op haar eigen tablet/device
