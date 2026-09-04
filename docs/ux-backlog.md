@@ -4,6 +4,26 @@ Working list for the app-feel polish pass (not new features — see [todo.md](..
 for those). Verified on an iPad Pro 11 viewport via Playwright screenshots, since that's
 one of her real devices. Ordered by priority; pull from the top.
 
+## Resuming this in a new session
+
+1. Read this whole file first — the priority order and the notes at the bottom (screenshot
+   method, verification commands, commit-per-item convention).
+2. Read `git log --oneline -10` for recent context; the last few commits are this same
+   polish pass and show the pattern to follow (one focused CSS change, verified, own commit).
+3. Pick the first unchecked `[ ]` item and work it: reproduce/screenshot the issue first,
+   don't assume — a couple of "problems" I assumed going in turned out fine once actually
+   screenshotted (see PathScreen note on the height-cap item).
+4. After each item: `npx tsc --noEmit -p app`, `npm run build` (from `app/`), and
+   `npx playwright test tests/e2e/path-to-lesson.spec.ts --project=desktop` (from `app/`)
+   before committing. Then commit that one item, update its checkbox + note in this file
+   in the same commit, and push — the live site redeploys automatically via GitHub Actions
+   (Azure Static Web Apps) a couple minutes after a push to `main`.
+5. Keep going down the list. Add newly-noticed issues to the bottom of the priority list
+   rather than fixing them inline, unless they're trivial — keeps the list an honest queue.
+6. `git identity`: commits should be authored as `Arjan Assink <assink@gmail.com>` (this
+   repo's convention), not a work email — check `git log -1 --format='%an <%ae>'` after
+   your first commit to confirm the local git config resolved correctly.
+
 Mark `[ ]` → `[x]` when shipped, with a one-line note on what changed. If a screenshot
 shows the item isn't actually a problem, mark `[x]` with "verified fine, no change" —
 don't leave it ambiguous for the next pass.
@@ -33,10 +53,6 @@ something new.
   `getBoundingClientRect()` inspection + screenshots on both PathScreen (unaffected, its
   content still exceeds the cap) and Klankenjacht (now a properly centered, compact,
   phone-proportioned card — closer to how Duolingo's own desktop/tablet layout reads).
-- [ ] **Bottom nav reachability** — `.bottomnav` (Leerpad/Aa/Beloningen/Profiel) renders
-  at the end of normal document flow, not fixed/sticky. On a long path (many units) it's
-  only reachable by scrolling all the way down. Check whether that's intentional (nav
-  rarely used mid-session) or should be sticky like `.statbar` already is.
 - [ ] **Bottom nav reachability** — `.bottomnav` (Leerpad/Aa/Beloningen/Profiel) renders
   at the end of normal document flow, not fixed/sticky. On a long path (many units) it's
   only reachable by scrolling all the way down. Check whether that's intentional (nav
