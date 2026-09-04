@@ -60,12 +60,21 @@ img { -webkit-user-drag: none; user-drag: none; }
   padding-right: env(safe-area-inset-right);
 }
 
-/* Desktop: card centered on darker surround */
+/* Desktop/tablet: card centered on darker surround. Capped height (not just
+   min-height: 100vh) so short-content screens (a game round) don't stretch
+   into a mostly-empty card on a tall viewport like an iPad in portrait —
+   PathScreen's own content still grows the card past the cap when longer. */
 @media (min-width: 540px) {
-  body { background: var(--bg-desktop); }
+  body {
+    background: var(--bg-desktop);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
   .app {
     margin: 24px auto;
-    min-height: calc(100vh - 48px);
+    min-height: min(calc(100vh - 48px), 820px);
     border-radius: 28px;
     overflow: hidden;
     box-shadow: 0 10px 40px rgba(66, 40, 26, 0.18);
@@ -378,7 +387,6 @@ button:disabled { cursor: default; }
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 100vh;
   padding: 0 16px 30px;
 }
 .game-header {
@@ -503,7 +511,6 @@ button:disabled { cursor: default; }
   align-items: center;
   justify-content: center;
   flex: 1;
-  min-height: 100vh;
   gap: 18px;
   text-align: center;
   padding: 0 16px;

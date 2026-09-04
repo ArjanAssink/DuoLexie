@@ -8,21 +8,35 @@ Mark `[ ]` → `[x]` when shipped, with a one-line note on what changed. If a sc
 shows the item isn't actually a problem, mark `[x]` with "verified fine, no change" —
 don't leave it ambiguous for the next pass.
 
+**Standing aesthetic reference: Duolingo.** That's the explicit target feel — chunky
+3D-pressed buttons, a bounded/centered play area (not edge-to-edge on wide viewports),
+mascot-driven celebration, generous but purposeful whitespace, playful but legible type.
+When in doubt about a polish decision, ask "what would Duolingo do here" before inventing
+something new.
+
 ## Priority order
 
 - [x] **Game-stage elements were phone-sized on tablet** — speaker button, answer tiles,
   flashcard, and prompt heading used fixed/vw-only sizing, leaving Klankenjacht/Flitsen
   looking sparse on a tall iPad viewport. Clamped to vh too. (commit 4ebfbc3)
-- [ ] **Outer app-shell stretches to full viewport height on tablet** — `.app` uses
-  `min-height: calc(100vh - 48px)`, so on a tall iPad the "card" itself is much taller
-  than its content, which is what causes the leftover empty margin even after the
-  game-stage fix above. Likely fix: cap `.app`'s height on the desktop/tablet media
-  query and center it vertically, similar to how width is already capped at 480px.
-  **Risk**: PathScreen can have long scrollable content (many units) — capping height
-  means switching from "the whole page scrolls" to "an inner scroll container," which
-  needs checking against the sticky statbar/bottomnav and the Frida-tap absolute
-  positioning (already fragile — two prior bugs there this session). Needs a real
-  screenshot pass on PathScreen at various scroll depths before/after, not just GameScreen.
+- [x] **Outer app-shell stretched to full viewport height on tablet** — `.app` used
+  `min-height: calc(100vh - 48px)`, so on a tall iPad the "card" was much taller than its
+  content even after the game-stage fix above. Capped `.app`'s min-height at
+  `min(calc(100vh - 48px), 820px)` and vertically+horizontally centered it on `body`
+  (flex). **Gotcha hit and fixed**: `.game-screen` and `.reward-screen` each had their
+  *own* independent `min-height: 100vh`, which silently overrode the `.app` cap since a
+  child forcing itself taller makes the flex-column parent grow to match — removed both,
+  `flex: 1` alone is enough since they're direct children of `.app`'s flex column.
+  Second gotcha: `body`'s `min-height: 100%` (chained from `html, body`) didn't reliably
+  resolve to a full viewport height once `body` became `display: flex` — replaced with an
+  explicit `min-height: 100vh` on body inside the same media query. Verified via
+  `getBoundingClientRect()` inspection + screenshots on both PathScreen (unaffected, its
+  content still exceeds the cap) and Klankenjacht (now a properly centered, compact,
+  phone-proportioned card — closer to how Duolingo's own desktop/tablet layout reads).
+- [ ] **Bottom nav reachability** — `.bottomnav` (Leerpad/Aa/Beloningen/Profiel) renders
+  at the end of normal document flow, not fixed/sticky. On a long path (many units) it's
+  only reachable by scrolling all the way down. Check whether that's intentional (nav
+  rarely used mid-session) or should be sticky like `.statbar` already is.
 - [ ] **Bottom nav reachability** — `.bottomnav` (Leerpad/Aa/Beloningen/Profiel) renders
   at the end of normal document flow, not fixed/sticky. On a long path (many units) it's
   only reachable by scrolling all the way down. Check whether that's intentional (nav
