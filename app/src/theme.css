@@ -418,11 +418,11 @@ button:disabled { cursor: default; }
   justify-content: center;
   gap: 26px;
 }
-.game-stage h1, .game-stage h2 { color: var(--text); }
+.game-stage h1, .game-stage h2 { color: var(--text); font-size: clamp(22px, 3.2vh, 32px); text-align: center; }
 
 .flash-card {
-  width: min(78vw, 340px);
-  height: min(52vw, 240px);
+  width: min(78vw, 420px);
+  height: min(52vw, 34vh, 300px);
   background: white;
   color: var(--text);
   border-radius: 22px;
@@ -430,7 +430,7 @@ button:disabled { cursor: default; }
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: clamp(64px, 22vw, 120px);
+  font-size: clamp(64px, min(22vw, 16vh), 150px);
   font-weight: 800;
   box-shadow: 0 8px 0 var(--hairline);
 }
@@ -444,12 +444,14 @@ button:disabled { cursor: default; }
 .grade-buttons button { flex: 1; max-width: 220px; }
 
 .prompt-speaker {
-  width: 130px;
-  height: 130px;
+  /* scales with available height too, so it doesn't stay phone-sized and
+     leave the stage looking sparse on a tall tablet viewport */
+  width: clamp(130px, 20vh, 200px);
+  height: clamp(130px, 20vh, 200px);
   border-radius: 50%;
   background: var(--gem-blue);
   box-shadow: 0 8px 0 #2E93B3;
-  font-size: 60px;
+  font-size: clamp(60px, 9vh, 92px);
   color: white;
   transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
   animation: speakerPulse 0.4s ease-out both;
@@ -466,15 +468,15 @@ button:disabled { cursor: default; }
   grid-template-columns: repeat(2, 1fr);
   gap: 14px;
   width: 100%;
-  max-width: 400px;
+  max-width: min(90vw, 480px);
 }
 .tile {
   background: white;
   color: var(--text);
   font-family: var(--font-display);
-  font-size: 44px;
+  font-size: clamp(44px, 6vh, 60px);
   font-weight: 800;
-  padding: 22px 10px;
+  padding: clamp(22px, 4vh, 34px) 10px;
   border-radius: 22px;
   box-shadow: 0 6px 0 var(--hairline);
   transition: transform 0.08s ease-out;
