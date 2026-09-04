@@ -15,4 +15,9 @@ export default defineConfig({
       allow: ['..'],
     },
   },
+  define: {
+    // cache-busts /audio/sounds/*.mp3 on every deploy — iOS Safari holds
+    // onto cached media resources more stubbornly than Cache-Control implies
+    __AUDIO_VERSION__: JSON.stringify(String(Date.now())),
+  },
 })

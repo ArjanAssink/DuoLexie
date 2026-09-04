@@ -30,7 +30,7 @@ function speak(soundId: string): Promise<void> {
 async function loadClip(soundId: string): Promise<HTMLAudioElement | null> {
   const cached = clipCache.get(soundId)
   if (cached) return cached
-  const audio = new Audio(`/audio/sounds/${soundId}.mp3`)
+  const audio = new Audio(`/audio/sounds/${soundId}.mp3?v=${__AUDIO_VERSION__}`)
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
