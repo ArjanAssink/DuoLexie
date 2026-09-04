@@ -89,9 +89,18 @@ something new.
   "NIEUW RECORD!" banner variant specifically (Flitsen-only, needs a beaten speed record to
   trigger) — it's one extra centered text line on the same layout, low risk if the base
   layout is already fine.
-- [ ] **Landscape orientation** — the whole app appears tuned for portrait only. Tablets
-  (her iPad) get used in landscape often. Check whether the app is unusable, just
-  awkward, or fine in landscape, and whether it's worth constraining vs. adapting.
+- [x] **Landscape orientation** — verified fine, no change. Screenshotted PathScreen and
+  Klankenjacht at `devices['iPad Pro 11 landscape']` (1194×834): the existing centered-card
+  treatment (`.app { max-width: 480px }`, centered on the darker surround) already applies
+  to any viewport ≥540px wide, landscape tablet included — it just letterboxes the same
+  portrait-proportioned card on the sides, nothing squished or broken. **False alarm caught
+  and disproved**: first pass, a default-resolution screenshot upscaled through ffmpeg's
+  nearest-neighbor filter made the "Flits" path-node label visually read as "Elits" (looked
+  like a real clipping bug against Frida's mascot image). `boundingBox()` on both elements
+  showed no rect overlap, and a native crop at `deviceScaleFactor: 3` (no resampling)
+  confirmed the label renders correctly as "Flits" — the missing "F" was a scaling artifact,
+  not app behavior. Lesson: don't trust nearest-neighbor-upscaled crops for font legibility,
+  re-render at higher deviceScaleFactor instead of scaling up a low-res crop.
 - [ ] **Tap target sizing for a 9-year-old** — spot-check that coins, tiles, and buttons
   meet a comfortable minimum touch-target size (roughly 44-48px+) at actual device scale,
   not just desktop viewport math.
