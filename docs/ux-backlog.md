@@ -75,9 +75,20 @@ something new.
   202×57 each (well past the 44-48px minimum), progress-track 304×16, timer-big 58×35 —
   all comfortably sized, nothing overlapping or squished, the vh-clamp from the earlier
   game-stage fix reads fine here too.
-- [ ] **Reward/completion screen not yet visually checked** — `.reward-screen` in
-  GameScreen.tsx, shown after finishing a lesson. Confirm Frida image, confetti,
-  record banner, and stat lines look right on tablet.
+- [x] **Reward/completion screen not yet visually checked** — verified fine, no change.
+  `.reward-screen` isn't URL-routable (it's local `useState` in `GameScreen`), so scripted
+  a full Klankenjacht round on iPad Pro 11 (`#/les/fase1-u1-l1`) by hooking
+  `HTMLMediaElement.prototype.play` to read the target sound's real filename straight off
+  `el.src` — network-response sniffing doesn't work here since `audio.ts` caches and reuses
+  `<audio>` elements per soundId, so a repeated sound never fires a new request. Frida image
+  (180×195), heading, and the "Verder" button (129×57) all render correctly centered with
+  no overlap. Confetti does spill past the card into the surrounding desktop background —
+  that's `canvas-confetti`'s own full-viewport canvas, unrelated to `.app`'s bounds and
+  unchanged by the earlier `overflow:hidden` fix, and it matches the stated Duolingo
+  reference (their celebrations burst across the whole screen too). Didn't chase the
+  "NIEUW RECORD!" banner variant specifically (Flitsen-only, needs a beaten speed record to
+  trigger) — it's one extra centered text line on the same layout, low risk if the base
+  layout is already fine.
 - [ ] **Landscape orientation** — the whole app appears tuned for portrait only. Tablets
   (her iPad) get used in landscape often. Check whether the app is unusable, just
   awkward, or fine in landscape, and whether it's worth constraining vs. adapting.
