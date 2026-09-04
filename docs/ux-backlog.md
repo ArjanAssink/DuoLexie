@@ -101,9 +101,22 @@ something new.
   confirmed the label renders correctly as "Flits" — the missing "F" was a scaling artifact,
   not app behavior. Lesson: don't trust nearest-neighbor-upscaled crops for font legibility,
   re-render at higher deviceScaleFactor instead of scaling up a low-res crop.
-- [ ] **Tap target sizing for a 9-year-old** — spot-check that coins, tiles, and buttons
-  meet a comfortable minimum touch-target size (roughly 44-48px+) at actual device scale,
-  not just desktop viewport math.
+- [x] **Tap target sizing for a 9-year-old** — measured every interactive element's real
+  `getBoundingClientRect()` on iPad Pro 11 (not just desktop viewport math). Found and
+  fixed three genuinely undersized targets: `.bottomnav` button (was 56×40-42),
+  `.statbar .aa-toggle` (was 44×30 — width was fine, height wasn't), and
+  `.game-header .quit` (was 34×40). Added `min-width: 44px; min-height: 44px;` (plus
+  `display: grid; place-items: center` where missing) to all three so the glyph/icon stays
+  centered in a guaranteed-size hit box regardless of font-metric variance. Re-measured:
+  all now ≥44×44. Everything else spot-checked was already comfortable: path coins 64×64
+  (locked) / 74×74 (active), tappable Frida 128×145, Klankenjacht answer tiles 141×164,
+  speaker replay 200×200, Flitsen grade buttons 202×57.
+  **Two false positives caught along the way, both from measuring too early**: coins
+  first read as 26-38px because `.coin-item`'s `coinPop` entrance animation was still
+  mid-flight when I measured (`getBoundingClientRect()` during a CSS transform-scale
+  animation returns the *current interpolated* size, not the rest state) — waiting ~800ms
+  for the 0.4s animation to settle before measuring fixed it. Lesson for future passes:
+  always let entrance animations finish before trusting a boundingBox() reading.
 
 ## Notes for whoever (or whichever future loop iteration) picks this up
 
