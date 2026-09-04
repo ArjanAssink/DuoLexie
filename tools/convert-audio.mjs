@@ -45,6 +45,10 @@ function convert(input, output, filterChain) {
   return statSync(output).size >= 1000
 }
 
+// silenceremove cuts right at the threshold crossing, jumping straight from
+// silence to whatever amplitude that sample happens to be — an audible click.
+// A short fade-in smooths that cut edge.
+const FADE_IN = 'afade=t=in:d=0.015'
 const LOUDNORM = 'loudnorm=I=-16:TP=-1.5:LRA=11'
 const untrimmed = []
 
@@ -57,12 +61,12 @@ for (const file of webms) {
   const peak = measurePeakDb(input)
   const threshold = Math.min(-30, Math.max(-70, peak - 20))
   console.log(`${file} -> ${output} (peak ${peak}dB, silence threshold ${threshold}dB)`)
-  let ok = convert(input, output, `silenceremove=start_periods=1:start_threshold=${threshold}dB,${LOUDNORM}`)
+  let ok = convert(input, output, `silenceremove=start_periods=1:start_threshold=${threshold}dB,${FADE_IN},${LOUDNORM}`)
   if (!ok) {
     // even the adaptive threshold swallowed the whole clip (a brief, quiet
     // utterance) — fall back to just normalizing, which can't drop everything
     console.log(`  silence-trim produced empty output for ${file}, retrying without it`)
-    ok = convert(input, output, LOUDNORM)
+    ok = convert(input, output, `${FADE_IN},${LOUDNORM}`)
     if (ok) untrimmed.push(file)
   }
   renameSync(input, join(rawDir, file))
