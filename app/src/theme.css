@@ -76,8 +76,20 @@ img { -webkit-user-drag: none; user-drag: none; }
     margin: 24px auto;
     min-height: min(calc(100vh - 48px), 820px);
     border-radius: 28px;
-    overflow: hidden;
     box-shadow: 0 10px 40px rgba(66, 40, 26, 0.18);
+  }
+  /* .app can't use overflow: hidden to clip these corners — an ancestor with
+     overflow != visible breaks position: sticky for descendants (it silently
+     stops .statbar/.bottomnav from sticking, since they compute their stuck
+     position relative to .app's own box instead of the viewport, and .app
+     never scrolls internally). Round the chrome's own corners instead. */
+  .statbar {
+    border-top-left-radius: 28px;
+    border-top-right-radius: 28px;
+  }
+  .bottomnav {
+    border-bottom-left-radius: 28px;
+    border-bottom-right-radius: 28px;
   }
 }
 

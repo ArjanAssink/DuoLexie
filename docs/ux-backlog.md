@@ -53,10 +53,21 @@ something new.
   `getBoundingClientRect()` inspection + screenshots on both PathScreen (unaffected, its
   content still exceeds the cap) and Klankenjacht (now a properly centered, compact,
   phone-proportioned card — closer to how Duolingo's own desktop/tablet layout reads).
-- [ ] **Bottom nav reachability** — `.bottomnav` (Leerpad/Aa/Beloningen/Profiel) renders
-  at the end of normal document flow, not fixed/sticky. On a long path (many units) it's
-  only reachable by scrolling all the way down. Check whether that's intentional (nav
-  rarely used mid-session) or should be sticky like `.statbar` already is.
+- [x] **Bottom nav reachability** — screenshotted a long path on iPad Pro 11 mid-scroll:
+  turned out **both** `.bottomnav` and `.statbar` were broken, not just the nav (the
+  backlog's assumption that `.statbar` "already is" sticky was wrong — verified it
+  scrolled fully off-screen too, `boundingBox().y` went from `24` to `-3440`). Root cause:
+  `.app`'s desktop/tablet rule (`@media (min-width: 540px)`) had `overflow: hidden` to
+  clip content to the rounded card corners — but an ancestor with `overflow != visible`
+  breaks `position: sticky` on descendants even when that ancestor never actually clips
+  anything itself (here `.app` has no `max-height`, so it just grows with content; the
+  `overflow: hidden` was doing nothing but breaking sticky). Fix: removed `overflow:
+  hidden` from `.app`, gave `.statbar`/`.bottomnav` their own matching
+  `border-top-*-radius`/`border-bottom-*-radius: 28px` in that same media query so the
+  rounded-card look is preserved without needing the parent clip. Verified both now stay
+  pinned mid-scroll (`statbar.y` stays `0`, `bottomnav.y` stays `viewport height - 72`)
+  and corners look clean at both scroll extremes; phone-width breakpoint untouched, no
+  regression there. (commit pending)
 - [ ] **Flitsen screen not yet visually checked** — only Klankenjacht was screenshotted
   so far. Confirm the flashcard sizing fix actually looks right in context (grade
   buttons, timer, progress bar layout).
