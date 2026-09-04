@@ -6,7 +6,7 @@ import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
 import { Klankenjacht } from '../games/Klankenjacht'
-import { playEffect } from '../audio/audio'
+import { haptic, playEffect } from '../audio/audio'
 import { Frida } from '../components/Frida'
 
 export interface GameResult {
@@ -49,6 +49,7 @@ export function GameScreen() {
     })
     setReward({ gems: gems + (newRecord ? 10 : 0), xp, perfect, newRecord, score: result.score })
     playEffect('fanfare')
+    haptic(newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
     confetti({ particleCount: newRecord ? 220 : 120, spread: 85, origin: { y: 0.7 } })
   }
 

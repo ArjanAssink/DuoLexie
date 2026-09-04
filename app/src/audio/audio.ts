@@ -28,14 +28,17 @@ function speak(soundId: string): Promise<void> {
 }
 
 async function loadClip(soundId: string): Promise<HTMLAudioElement | null> {
-  if (clipCache.has(soundId)) return clipCache.get(soundId)!
+  const cached = clipCache.get(soundId)
+  if (cached) return cached
   const audio = new Audio(`/audio/sounds/${soundId}.mp3`)
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
     audio.load()
   })
-  clipCache.set(soundId, result)
+  // only cache success — a miss may just mean the clip hasn't been recorded
+  // yet, and shouldn't be remembered as permanently missing for the session
+  if (result) clipCache.set(soundId, result)
   return result
 }
 
@@ -70,5 +73,14 @@ export function playEffect(kind: 'good' | 'bad' | 'fanfare'): void {
     })
   } catch {
     // audio is never worth crashing a game over
+  }
+}
+
+/** Light haptic buzz where supported (Android Chrome); no-op on iOS Safari, which lacks the API. */
+export function haptic(pattern: number | number[] = 12): void {
+  try {
+    navigator.vibrate?.(pattern)
+  } catch {
+    // vibration is a nice-to-have, never worth crashing a game over
   }
 }

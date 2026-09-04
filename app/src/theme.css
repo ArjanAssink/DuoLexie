@@ -37,7 +37,10 @@ html, body {
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
 }
+
+img { -webkit-user-drag: none; user-drag: none; }
 
 .app {
   font-family: var(--font-ui);
@@ -49,6 +52,12 @@ html, body {
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  /* feels like an installed app, not a webpage: no text selection or callout menus */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* Desktop: card centered on darker surround */
@@ -82,6 +91,17 @@ button {
   touch-action: manipulation;
   color: inherit;
   background: none;
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+}
+/* generic press feedback; specific buttons (btn-primary, tile, coin…) override with their own.
+   :where() keeps :not(:disabled) from out-specificity-ing those class-based overrides. */
+button:active:where(:not(:disabled)) { transform: scale(0.94); }
+button:disabled { cursor: default; }
+
+/* mouse/trackpad users get a hover cue; touch devices never match `hover: hover` */
+@media (hover: hover) and (pointer: fine) {
+  button:where(:not(:disabled)):hover { opacity: 0.88; }
+  button:where(:not(:disabled)):active { opacity: 1; }
 }
 
 /* Chunky 3D buttons: hard shadow, press = sink */
@@ -98,6 +118,29 @@ button {
 .btn-bad { background: var(--red-orange); box-shadow: 0 5px 0 var(--red-orange-shadow); }
 .btn-bad:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--red-orange-shadow); }
 
+/* ---------- screen transitions ---------- */
+@keyframes screenEnter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.game-screen, .reward-screen { animation: screenEnter 0.3s cubic-bezier(.22,.9,.35,1) both; }
+
+@keyframes coinPop {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+.coin-item { animation: coinPop 0.4s cubic-bezier(.34,1.56,.64,1) both; }
+
+@keyframes cardIn {
+  from { opacity: 0; transform: scale(0.85) rotate(-2deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.flash-card { animation: cardIn 0.22s cubic-bezier(.22,.9,.35,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .game-screen, .reward-screen, .coin-item, .flash-card, .prompt-speaker { animation: none; }
+}
+
 /* ---------- stat bar ---------- */
 .statbar {
   position: sticky;
@@ -107,7 +150,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 22px 12px;
+  padding: calc(18px + env(safe-area-inset-top)) 22px 12px;
 }
 .statbar .stat {
   display: flex;
@@ -165,6 +208,7 @@ button {
 /* ---------- lesson path ---------- */
 .path-section {
   position: relative;
+  z-index: 0; /* contains .path-track's negative z-index so it stays behind the coins, not the whole app */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -176,6 +220,23 @@ button {
   left: 34px;
   top: 150px;
   width: 128px;
+}
+
+/* dotted road connecting the lesson coins, measured from real DOM positions */
+.path-track {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+}
+.path-track path {
+  fill: none;
+  stroke: var(--locked-shadow);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 22;
 }
 
 /* Tappable Frida with laugh animation — art/avatar animation/frida-laugh.html */
@@ -256,6 +317,7 @@ button {
   height: 96px;
   border-radius: 50%;
   border: 5px solid var(--teal-ring);
+  pointer-events: none;
 }
 .coin-item.active .coin {
   width: 74px;
@@ -295,10 +357,10 @@ button {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 10px 12px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   margin-top: auto;
 }
-.bottomnav button { padding: 7px 14px; display: grid; place-items: center; }
+.bottomnav button { padding: 7px 14px; display: grid; place-items: center; border-radius: 14px; }
 .bottomnav .nav-active {
   background: var(--teal-pill);
   border: 2px solid var(--teal-pill-border);
@@ -390,8 +452,14 @@ button {
   font-size: 60px;
   color: white;
   transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
+  animation: speakerPulse 0.4s ease-out both;
 }
 .prompt-speaker:active { transform: translateY(4px); box-shadow: 0 4px 0 #2E93B3; }
+@keyframes speakerPulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
 
 .tile-grid {
   display: grid;
@@ -455,8 +523,6 @@ button {
 
 /* ---------- recording studio ---------- */
 .studio { padding: 20px; }
-.studio table { width: 100%; border-collapse: collapse; }
-.studio td { padding: 6px 8px; border-bottom: 1px solid var(--hairline); }
 .studio .big-sound {
   font-family: var(--font-display);
   font-size: 64px;
@@ -464,4 +530,21 @@ button {
   text-align: center;
   margin: 16px 0;
 }
-.studio-controls { display: flex; gap: 12px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+.studio-controls {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg); padding: 14px 0; margin: 0 0 8px;
+}
+.studio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+}
+.studio-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 4px; border: 1px solid var(--hairline); border-radius: 8px;
+  background: none; cursor: pointer; font-family: inherit;
+}
+.studio-cell-active { border-color: #E83E5A; border-width: 2px; }
+.studio-cell-id { font-weight: 800; font-size: 18px; }
+.studio-cell-status { font-size: 13px; }

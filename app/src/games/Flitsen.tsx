@@ -3,7 +3,7 @@ import type { Lesson, AnswerRecord } from '@shared/src/types'
 import type { GameResult } from '../screens/GameScreen'
 import { buildFlitsDeck } from '../engine/exerciseSelector'
 import { useProgress } from '../state/progress'
-import { playEffect } from '../audio/audio'
+import { haptic, playEffect } from '../audio/audio'
 import { Frida } from '../components/Frida'
 
 const ROUND_SECONDS = 60
@@ -63,6 +63,7 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
     const ms = performance.now() - shownAt.current
     answers.current.push({ soundId: deck[idx % deck.length], correct, ms })
     playEffect(correct ? 'good' : 'bad')
+    haptic(correct ? 12 : [10, 40, 10])
     setIdx((i) => i + 1)
     shownAt.current = performance.now()
   }
@@ -108,7 +109,7 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
         <div style={{ fontSize: 20, fontWeight: 800 }}>
           ⚡ {correctSoFar} {record > 0 && <span style={{ opacity: 0.6 }}>· record {record}</span>}
         </div>
-        <div className="flash-card">{currentSound}</div>
+        <div className="flash-card" key={idx}>{currentSound}</div>
         <div className="grade-buttons">
           <button className="btn-bad" onClick={() => grade(false)}>Nog even</button>
           <button className="btn-primary" onClick={() => grade(true)}>Goed!</button>

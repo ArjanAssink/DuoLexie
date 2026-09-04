@@ -3,7 +3,7 @@ import type { Lesson, AnswerRecord } from '@shared/src/types'
 import type { GameResult } from '../screens/GameScreen'
 import { buildExercises, type Exercise } from '../engine/exerciseSelector'
 import { useProgress } from '../state/progress'
-import { playSound, playEffect } from '../audio/audio'
+import { playSound, playEffect, haptic } from '../audio/audio'
 
 interface Props {
   lesson: Lesson
@@ -33,12 +33,20 @@ export function Klankenjacht({ lesson, onComplete, onQuit }: Props) {
   }, [lesson.id])
 
   const current = queue[0]
+  const [pulseKey, setPulseKey] = useState(0)
 
   useEffect(() => {
     if (!current) return
     shownAt.current = performance.now()
     playSound(current.targetSound)
+    setPulseKey((k) => k + 1)
   }, [current])
+
+  function replay() {
+    if (!current) return
+    playSound(current.targetSound)
+    setPulseKey((k) => k + 1)
+  }
 
   async function tap(option: string) {
     if (!current || busy.current) return
@@ -53,6 +61,7 @@ export function Klankenjacht({ lesson, onComplete, onQuit }: Props) {
     })
     setFeedback({ tapped: option, correct })
     playEffect(correct ? 'good' : 'bad')
+    haptic(correct ? 12 : [10, 40, 10])
 
     if (!correct) {
       // let her hear the right answer before moving on
@@ -86,7 +95,7 @@ export function Klankenjacht({ lesson, onComplete, onQuit }: Props) {
       </div>
       <div className="game-stage">
         <h2>Welke klank hoor je?</h2>
-        <button className="prompt-speaker" onClick={() => playSound(current.targetSound)}>
+        <button className="prompt-speaker" key={pulseKey} onClick={replay}>
           🔊
         </button>
         <div className="tile-grid">
