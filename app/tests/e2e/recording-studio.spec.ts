@@ -3,9 +3,12 @@ import { test, expect } from '@playwright/test'
 test.describe('recording studio auto-chain', () => {
   test.beforeEach(async ({ page, context }) => {
     await context.grantPermissions(['microphone'])
-    // the dev server may have real recorded mp3s on disk from actual sessions —
-    // force a clean "nothing recorded yet" slate so the test is deterministic
-    await page.route('**/audio/sounds/*.mp3', (route) => route.fulfill({ status: 404 }))
+    // simulate every sound already having a take on disk — this is the exact
+    // situation (redoing a bad batch) where the auto-chain used to silently
+    // stop instead of advancing, because it only chained across *gaps*
+    await page.route('**/audio/sounds/*.mp3', (route) =>
+      route.fulfill({ status: 200, contentType: 'audio/mpeg', body: Buffer.from([]) }),
+    )
     // stub the File System Access directory picker — no real OS dialog in CI/headless
     await page.addInitScript(() => {
       ;(window as any).showDirectoryPicker = async () => ({
@@ -21,10 +24,11 @@ test.describe('recording studio auto-chain', () => {
     })
   })
 
-  test('stop-and-continue advances to the next sound and keeps recording', async ({ page }) => {
+  test('stop-and-continue advances to the next sound and keeps recording, even when every sound already has a take', async ({ page }) => {
     await page.goto('/#/opnemen')
     await page.getByRole('button', { name: /Kies map/ }).click()
     await expect(page.getByText('Map gekozen')).toBeVisible()
+    await expect(page.getByText('45/45 klanken opgenomen')).toBeVisible()
 
     const bigSound = page.locator('.big-sound')
     const firstSound = await bigSound.textContent()
@@ -39,7 +43,6 @@ test.describe('recording studio auto-chain', () => {
     // immediately start recording it again — no separate click needed
     await expect(page.getByRole('button', { name: /Klaar → volgende/ })).toBeVisible()
     await expect(bigSound).not.toHaveText(firstSound ?? '')
-    await expect(page.getByText('1/45 klanken opgenomen')).toBeVisible()
   })
 
   test('stoppen zonder door te gaan halts the chain without advancing', async ({ page }) => {
@@ -47,10 +50,13 @@ test.describe('recording studio auto-chain', () => {
     await page.getByRole('button', { name: /Kies map/ }).click()
     await expect(page.getByText('Map gekozen')).toBeVisible()
 
+    const bigSound = page.locator('.big-sound')
+    const firstSound = await bigSound.textContent()
+
     await page.getByRole('button', { name: '🔴 Opnemen' }).click()
     await page.getByRole('button', { name: 'stoppen zonder door te gaan' }).click()
 
     await expect(page.getByRole('button', { name: '🔴 Opnemen' })).toBeVisible()
-    await expect(page.getByText('1/45 klanken opgenomen')).toBeVisible()
+    await expect(bigSound).toHaveText(firstSound ?? '')
   })
 })
