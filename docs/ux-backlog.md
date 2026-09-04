@@ -68,9 +68,13 @@ something new.
   pinned mid-scroll (`statbar.y` stays `0`, `bottomnav.y` stays `viewport height - 72`)
   and corners look clean at both scroll extremes; phone-width breakpoint untouched, no
   regression there. (commit pending)
-- [ ] **Flitsen screen not yet visually checked** — only Klankenjacht was screenshotted
-  so far. Confirm the flashcard sizing fix actually looks right in context (grade
-  buttons, timer, progress bar layout).
+- [x] **Flitsen screen not yet visually checked** — verified fine, no change. Screenshotted
+  both the intro card and an active round on iPad Pro 11 (`#/les/fase1-u1-l2`, a direct
+  hash nav straight to a Flitsen lesson — `GameScreen` doesn't gate on lock/progress state,
+  only `PathScreen`'s coin does). Measured real boxes: flash-card 420×300, grade buttons
+  202×57 each (well past the 44-48px minimum), progress-track 304×16, timer-big 58×35 —
+  all comfortably sized, nothing overlapping or squished, the vh-clamp from the earlier
+  game-stage fix reads fine here too.
 - [ ] **Reward/completion screen not yet visually checked** — `.reward-screen` in
   GameScreen.tsx, shown after finishing a lesson. Confirm Frida image, confetti,
   record banner, and stat lines look right on tablet.
