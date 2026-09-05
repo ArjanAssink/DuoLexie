@@ -31,8 +31,9 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 ## Phase 2 — Volledige v1-spellenset + PWA
 - [ ] Welke klank? (zie teken → tik het juiste geluid)
 - [ ] Woordbouwer (woord bouwen uit klank-tegels, mkm eerst)
-- [ ] Hardop lezen (woord lezen, zelf nakijken met opname)
-- [ ] Woordenlijsten per klank (`shared/curriculum/words/`) + opnames
+- [x] Hardop lezen — swipe-kaart in plaats van tap-knoppen: woord verschijnt, wordt na een korte pauze uitgesproken (TTS-fallback, net als klanken — `/audio/words/{id}.mp3` klaarzet voor als opnames er zijn), sleep rechts (goed, "ding") of links (nog even, scheet-buzz via WebAudio); geen re-queue bij fout (leesbeurt, geen drilloop); elk woord telt mee voor de EWMA van al zijn klanken. Node verschijnt pas per unit zodra er ≥4 woorden met de tot-dan-toe geleerde klanken beschikbaar zijn (`words.ts` → `wordsForPool`). Geverifieerd in browser: volledige les (kok/tas/… ) van kaart tot beloningsscherm, progressiebalk, geen console errors/React-warnings.
+- [x] Woordenlijsten per klank — `shared/curriculum/words.json` (was al aanwezig, nu voor het eerst gebruikt) dekt kort/lang/twee/drie; **nog uit te breiden** voor vier/mede-categorie zodra die fases content krijgen
+- [ ] **Review nodig (Arjan):** stem/backend kiezen voor bulk woord-audio — zie vergelijking https://claude.ai/code/artifact/12e0af9c-368a-4d27-954e-5ee143df7edc (Piper vs Google Translate vs Azure/Google Cloud), script in `tools/generate-word-audio.mjs`; tot dan speelt Hardop lezen via browser-TTS
 - [ ] Eindbaas + Schatkist nodes op het pad
 - [ ] vite-plugin-pwa: installeerbaar, offline audio-precache
 
@@ -49,7 +50,16 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 - [ ] Fases 4–7 content (tweelingklanken, ch/ng/nk, drie/vier tekens, woordenrijk)
 - [ ] Klankzoeker + Woordenvangst (ei/ij, au/ou spelling)
 - [ ] Ouderdashboard: heatmap per klank, actieve-klanken-configuratie
-- [ ] Stickerboek + winkeltje
+- [ ] Stickerboek
+
+### Speler-avatar & winkel (zie plan.md §12)
+- [x] `AvatarView`: layered SVG rig (body/head/eyes/hair), `crop` prop (full / topbar), placeholder art — geverifieerd in browser (Playwright): kleuren + kapsel wisselen live, persisteert over reload (IndexedDB), geen console errors
+- [x] `state/avatar.ts`: avatarConfig, persisted zoals progress.ts (ownedItems volgt bij de shop-stap)
+- [x] Topbar: `Frida` in `.statbar` vervangen door `<AvatarView crop="topbar">`, tikbaar naar AvatarScreen; bottomnav "Profiel" navigeert ook naar /avatar
+- [x] `AvatarScreen`: volledige bovenlijf-weergave, kleurkeuzes (huid/ogen/haar), kapsel-picker (kort/krullen/staart/lang)
+- [x] Accessoire-slots (oorbellen, bril, hoed) in de rig + `AvatarConfig.equipped` — geverifieerd: 3 items tegelijk dragen (bril + pet + oorbellen) rendert correct gestapeld
+- [x] Shop: `shopItems.json` catalogus (7 items), `spendGems` op progress.ts, `ShopScreen` per categorie — geverifieerd: kopen trekt gems af, niet-betaalbare items zijn uitgeschakeld en doen niets bij een tik, gedragen/eigendom-status en persistente over reload kloppen, geen console errors
+- [x] Echte kunst-pas: placeholder-vormen vervangen door verfijnde hand-getekende SVG (rechtstreeks in code, niet via de design-canvas — lagen moeten pixelperfect uitlijnen tussen huid/oog/haarkleuren, kapsels en accessoires; vlakke shading i.p.v. gradients omdat meerdere AvatarViews tegelijk renderen). Geverifieerd in browser: 4 kapsels, meerdere kleurcombinaties, alle 7 accessoires los en gestapeld, ook op winkel-thumbnail-schaal — geen console errors
 
 ## Later
 - [ ] Fase 8 zinnen: Verdwijnzinnen (RAP-stijl), Zinnenbouwer

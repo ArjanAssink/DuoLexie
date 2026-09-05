@@ -1,0 +1,9 @@
+[
+  { "id": "oorbellen-stip", "slot": "oorbellen", "name": "Stip-oorbellen", "price": 20 },
+  { "id": "oorbellen-hart", "slot": "oorbellen", "name": "Hart-oorbellen", "price": 25 },
+  { "id": "bril-rond", "slot": "bril", "name": "Ronde bril", "price": 30 },
+  { "id": "bril-ster", "slot": "bril", "name": "Sterrenbril", "price": 45 },
+  { "id": "hoed-pet", "slot": "hoed", "name": "Pet", "price": 35 },
+  { "id": "hoed-strik", "slot": "hoed", "name": "Strik", "price": 30 },
+  { "id": "hoed-kroon", "slot": "hoed", "name": "Kroontje", "price": 60 }
+]

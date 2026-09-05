@@ -60,7 +60,7 @@ v1 game details:
 - **Klankenjacht** — hear a clip (replayable) → tap the right grapheme tile from 3–6 options. Wrong: tile shakes, correct tile pulses + plays, item re-queued. Distractors scale from random to her personal confusion pairs (ei/ij, au/ou, f/v, s/z, b/d, ng/nk…).
 - **Welke klank?** — mirror: see one grapheme → tap the speaker button that plays the matching sound (3–4 audio options). Fully self-checking, no speech needed.
 - **Woordbouwer** — hear a word → assemble it from **klank-chunk tiles** (`b · oo · m`, segmented by klank, never by letter — the RID-aligned detail). Scales: mkm → clusters → two syllables; distractor tiles from confusion pairs.
-- **Hardop lezen** — word appears untimed; she reads aloud; taps the word to hear the family recording as self-check; grades Goed/Nog even.
+- **Hardop lezen** — word card appears; she reads it aloud; shortly after, it's pronounced (family recording once available, TTS fallback for now) as her self-check; she **swipes the card right (goed) or left (nog even)** to grade herself, Tinder-style. Swipe right plays a cheerful "ding"; swipe left plays a silly "fart" buzz — playful, not punitive, matching design principle 5. Untimed, no re-queue on miss (unlike Klankenjacht) — it's a read-through, not a drill-to-mastery loop. Each word's answer is recorded against *all* its constituent klanken (not just one), so word-reading performance also feeds the per-klank mastery/EWMA system. Only appears once a unit's cumulative sound pool covers ≥4 words from `shared/curriculum/words.json`.
 
 ---
 
@@ -95,7 +95,7 @@ Principles: reward effort and self-beating, never social comparison; no punitive
 - **Records board:** klanken-per-minuut per category, best week, gold sounds.
 - Explicitly excluded: hearts/lives, leaderboards, timers in accuracy games.
 
-**v2:** Schatkisten → stickers for a **Stickerboek** (collection completion), Winkeltje (spend gems on mascot outfits/themes), profile titles ("Klankenkenner → Woordenwonder → Zinnenster").
+**v2:** Schatkisten → stickers for a **Stickerboek** (collection completion), Winkeltje (spend gems on player-avatar accessories, see §12), profile titles ("Klankenkenner → Woordenwonder → Zinnenster").
 
 **v3:** speech recognition silently scored alongside self-grading before trusting it; weekly "letter from Flits" recap.
 
@@ -174,7 +174,7 @@ Dev-only route `/opnemen` (mounted when `import.meta.env.DEV`): lists every need
 
 **Phase 3 — Accounts & sync:** Cosmos free-tier account, `api/` package (auth/profiles/progress), register/login + profile picker with avatar/PIN, outbox sync engine, migrate existing local progress into the first profile.
 
-**Phase 4 — v2 content & parent dashboard:** Fases 4–7, **Klankzoeker** + **Woordenvangst**, parent dashboard (per-sound accuracy/speed heatmap, active-sound configuration), stickerboek + winkeltje.
+**Phase 4 — v2 content & parent dashboard:** Fases 4–7, **Klankzoeker** + **Woordenvangst**, parent dashboard (per-sound accuracy/speed heatmap, active-sound configuration), stickerboek + winkeltje, **speler-avatar & shop** (§12).
 
 **Later:** Fase 8 zinnen (**Verdwijnzinnen**, **Zinnenbouwer**), speech recognition silently scored alongside self-grading, placement flow refinements.
 
@@ -184,6 +184,52 @@ Dev-only route `/opnemen` (mounted when `import.meta.env.DEV`): lists every need
 - Phase 1: complete a full lesson end-to-end in the browser (audio plays, grading works, gems/record persist across reload via IndexedDB).
 - Phase 3: register → create profile → play lesson → open site on a second device/browser → login → progress present. Kill network mid-session → finish lesson → reconnect → outbox flushes (verify sessionResult docs in Cosmos Data Explorer, replay is idempotent).
 - Real user test: watch her play; the design review that matters most.
+
+## 12. Speler-avatar & winkel (v2)
+
+**Decisions locked in with the user (this session):**
+- The player avatar (her own customizable character) replaces Frida in the top bar. Frida stays as the separate companion mascot — path tap-to-laugh, celebration screens, encouragement — unchanged.
+- One currency: existing **edelstenen/gems** fund avatar purchases too. No second "coins" balance.
+- All customization is **shop-only** in v1 — no free unlocks tied to lesson/unit milestones (may revisit later once the shop exists).
+
+### Avatar anatomy
+Two crop levels of the *same* rig, not two separately drawn assets:
+- **Volledig** (customization screen): heup tot boven het hoofd — full torso, arms, head.
+- **Topbar**: further cropped to shoulders + face only, same proportions, via viewBox/container crop.
+
+### Customizable traits (v1)
+- Huidskleur, oogkleur, haarkleur — swatches, applied as an SVG fill on the relevant layer(s).
+- Kapsel — a small set of interchangeable hair shapes, each recolorable.
+- Accessoires — oorbellen, bril, hoed(en) — one optional overlay layer per slot (or none equipped).
+
+### Technical approach: layered SVG rig
+Mirrors how Frida was built (hand-drawn SVG, layered groups) rather than a new rendering stack:
+- One base SVG viewBox with named layer groups: `body`, `head`, `eyes`, `hair`, `earrings`, `glasses`, `hat`.
+- Color traits are CSS custom properties (`--skin`, `--eye-color`, `--hair-color`) set inline from avatar state and referenced by `fill` in the SVG paths — recoloring never swaps art.
+- Hairstyle/accessory choice swaps *which* SVG group renders for that slot (small catalog per slot), not a full redraw.
+- `AvatarView` component: `{ config, crop: 'full' | 'topbar' }` renders the same rig; only the crop differs.
+
+### Data model
+New `state/avatar.ts` store (same zustand + IndexedDB pattern as `progress.ts`):
+- `avatarConfig: { skinColor, eyeColor, hairColor, hairstyle, equipped: { earrings?, glasses?, hat? } }`
+- `ownedItems: string[]` — ids of purchased hairstyles/accessories (colors stay free/always available)
+- Reuse existing `gems` balance from `progress.ts`; add a `spendGems` action guarded against overspending.
+
+### Shop (Winkeltje)
+- Static catalog, e.g. `shared/curriculum/shopItems.json`: `{ id, category: 'hairstyle'|'earrings'|'glasses'|'hat', name, price, svgLayer }`.
+- New `ShopScreen`: grid per category, price in edelstenen, greyed out + price if unaffordable, "Gekocht ✓" once owned, tap to preview on the avatar before buying.
+- Purchase = deduct gems, add id to `ownedItems`; equip immediately or leave equipping to the customization screen.
+
+### UI changes
+- `PathScreen.tsx:170` — replace `<Frida expression="head-grumpy" className="frida-head" />` with `<AvatarView config={avatarConfig} crop="topbar" />` in the same `.statbar` slot; tappable → navigates to a new `AvatarScreen`.
+- New `AvatarScreen`: full hip-up avatar preview, trait pickers (color swatches, hairstyle carousel), entry points into the shop per accessory category.
+- Frida (`FridaTap`, celebration screens, `GameScreen` encouragement) — untouched.
+
+### Phasing
+1. **Rig + default look** — build `AvatarView` with one starting skin/eye/hair/hairstyle default, swap it into the top bar in place of Frida. Placeholder geometric art first (simple shapes) to prove the layering + crop mechanism end-to-end before investing in real art.
+2. **Customization screen** — full hip-up view, color pickers, hairstyle switch — still placeholder art, everything free to try (no shop yet), so the interaction can be tested with her.
+3. **Shop** — `ownedItems`/`spendGems`, shop catalog + `ShopScreen`, gating hairstyles/accessories behind gems, purchase flow.
+4. **Real art pass** — replace placeholder shapes with hand-drawn SVG layers (base body/head, 3–5 hairstyles, a few earrings/glasses/hats) via the same design-handoff pipeline used for Frida (`design` skill → `.dc.html` canvas → exported SVGs into `app/public/avatar/player/`).
 
 ## Open items for the user (not blocking)
 

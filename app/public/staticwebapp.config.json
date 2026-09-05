@@ -15,6 +15,24 @@
       "headers": {
         "Cache-Control": "no-store"
       }
+    },
+    {
+      "route": "/assets/*",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "route": "/",
+      "headers": {
+        "Cache-Control": "no-cache"
+      }
+    },
+    {
+      "route": "/index.html",
+      "headers": {
+        "Cache-Control": "no-cache"
+      }
     }
   ]
 }

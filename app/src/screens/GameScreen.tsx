@@ -6,6 +6,7 @@ import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
 import { Klankenjacht } from '../games/Klankenjacht'
+import { HardopLezen } from '../games/HardopLezen'
 import { haptic, playEffect } from '../audio/audio'
 import { Frida } from '../components/Frida'
 
@@ -75,6 +76,11 @@ export function GameScreen() {
     )
   }
 
-  const Game = lesson.gameType === 'flitsen' ? Flitsen : Klankenjacht
+  const Game =
+    lesson.gameType === 'flitsen'
+      ? Flitsen
+      : lesson.gameType === 'hardop-lezen'
+        ? HardopLezen
+        : Klankenjacht
   return <Game lesson={lesson} onComplete={handleComplete} onQuit={() => navigate('/')} />
 }

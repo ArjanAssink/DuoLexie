@@ -14,6 +14,18 @@ export interface Curriculum {
   confusionPairs: [string, string][]
 }
 
+export interface Word {
+  id: string
+  text: string
+  category: CategoryId
+  /** klanken this word is built from — a word is eligible once all of these are in the pool */
+  klanken: string[]
+}
+
+export interface WordCurriculum {
+  words: Word[]
+}
+
 export type GameType = 'flitsen' | 'klankenjacht' | 'welke-klank' | 'woordbouwer' | 'hardop-lezen'
 
 export type LessonKind = 'les' | 'flits-uitdaging' | 'herhaling' | 'eindbaas'
@@ -84,4 +96,23 @@ export interface SessionResult {
   /** klanken per minuut, for Flitsen rounds */
   score?: number
   newRecord?: boolean
+}
+
+export type HairStyle = 'kort' | 'krullen' | 'staart' | 'lang'
+
+export type AccessorySlot = 'oorbellen' | 'bril' | 'hoed'
+
+export interface AvatarConfig {
+  skinColor: string
+  eyeColor: string
+  hairColor: string
+  hairstyle: HairStyle
+  equipped: Partial<Record<AccessorySlot, string>>
+}
+
+export interface ShopItem {
+  id: string
+  slot: AccessorySlot
+  name: string
+  price: number
 }

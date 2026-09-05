@@ -1,5 +1,6 @@
 import type { Lesson, SoundStats } from '@shared/src/types'
 import { confusablesOf, categoryOf } from '../curriculum'
+import { wordsForPool } from '../words'
 import { reviewWeight } from './stats'
 
 export interface Exercise {
@@ -114,6 +115,15 @@ export function buildExercises(
       ...pickDistractors(targetSound, lesson.soundPool, statsMap, optionCount - 1),
     ]),
   }))
+}
+
+/** Hardop lezen deck: a shuffled slice of the words readable with this lesson's sound pool. */
+export function buildWordExercises(lesson: Lesson): string[] {
+  const eligible = wordsForPool(lesson.soundPool)
+  const count = Math.min(lesson.exerciseCount || 8, eligible.length)
+  return shuffle(eligible)
+    .slice(0, count)
+    .map((w) => w.id)
 }
 
 /** Flitsen deck: the whole pool shuffled, weak sounds appearing twice */

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import type { Lesson, Unit } from '@shared/src/types'
 import { path, allLessons } from '../data/path'
 import { useProgress, daysThisWeek } from '../state/progress'
-import { Frida } from '../components/Frida'
+import { useAvatar } from '../state/avatar'
+import { AvatarView } from '../components/AvatarView'
 import { FridaTap } from '../components/FridaTap'
 import {
   LessonIcon,
@@ -146,6 +147,7 @@ export function PathScreen() {
   const practiceDays = useProgress((s) => s.practiceDays)
   const font = useProgress((s) => s.settings.font)
   const toggleFont = useProgress((s) => s.toggleFont)
+  const avatarConfig = useAvatar((s) => s.config)
 
   const firstOpenIdx = allLessons.findIndex((l) => !completedLessons[l.id])
   const activeLessonId = firstOpenIdx === -1 ? null : allLessons[firstOpenIdx].id
@@ -167,7 +169,9 @@ export function PathScreen() {
         <span className="stat gems">
           <GemIcon /> {gems}
         </span>
-        <Frida expression="head-grumpy" className="frida-head" />
+        <button className="avatar-btn" aria-label="Mijn avatar" onClick={() => navigate('/avatar')}>
+          <AvatarView config={avatarConfig} crop="topbar" className="avatar-head" />
+        </button>
         <span className="stat streak" title="Weekdoel: 5 van de 7 dagen">
           <FlameIcon /> {daysThisWeek(practiceDays)}/5
         </span>
@@ -222,10 +226,10 @@ export function PathScreen() {
         <button className="nav-letters" aria-label="Letters">
           Aa
         </button>
-        <button aria-label="Beloningen">
+        <button aria-label="Beloningen" onClick={() => navigate('/winkel')}>
           <ChestIcon />
         </button>
-        <button aria-label="Profiel">
+        <button aria-label="Profiel" onClick={() => navigate('/avatar')}>
           <PersonIcon />
         </button>
       </nav>

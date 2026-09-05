@@ -31,6 +31,15 @@ export function MixIcon({ size = 28, fill }: IconProps) {
   )
 }
 
+export function BookIcon({ size = 28, fill }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size}>
+      <path d="M4,5 C4,4 5,3.4 7,3.4 C9,3.4 11,4 12,5.2 L12,19.5 C11,18.4 9,17.8 7,17.8 C5,17.8 4,18.4 4,19.5 Z" fill={fill} />
+      <path d="M20,5 C20,4 19,3.4 17,3.4 C15,3.4 13,4 12,5.2 L12,19.5 C13,18.4 15,17.8 17,17.8 C19,17.8 20,18.4 20,19.5 Z" fill={fill} />
+    </svg>
+  )
+}
+
 export function TrophyIcon({ size = 28, fill }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size}>
@@ -108,6 +117,8 @@ export function LessonIcon({ title, fill, size }: { title: string; fill: string;
       return <MixIcon fill={fill} size={size ?? 28} />
     case 'Uitdaging':
       return <TrophyIcon fill={fill} size={size ?? 28} />
+    case 'Lezen':
+      return <BookIcon fill={fill} size={size ?? 28} />
     default:
       return <StarIcon fill={fill} size={size ?? 30} />
   }

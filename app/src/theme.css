@@ -144,7 +144,7 @@ button:disabled { cursor: default; }
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.game-screen, .reward-screen { animation: screenEnter 0.3s cubic-bezier(.22,.9,.35,1) both; }
+.game-screen, .reward-screen, .avatar-screen, .shop-screen { animation: screenEnter 0.3s cubic-bezier(.22,.9,.35,1) both; }
 
 @keyframes coinPop {
   from { opacity: 0; transform: scale(0.4); }
@@ -159,7 +159,7 @@ button:disabled { cursor: default; }
 .flash-card { animation: cardIn 0.22s cubic-bezier(.22,.9,.35,1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-screen, .reward-screen, .coin-item, .flash-card, .prompt-speaker { animation: none; }
+  .game-screen, .reward-screen, .avatar-screen, .shop-screen, .coin-item, .flash-card, .prompt-speaker { animation: none; }
 }
 
 /* ---------- stat bar ---------- */
@@ -182,7 +182,13 @@ button:disabled { cursor: default; }
 }
 .statbar .stat.gems { color: var(--gem-blue); }
 .statbar .stat.streak { color: var(--streak-orange); }
-.statbar .frida-head { width: 46px; height: 38px; object-fit: contain; }
+.statbar .avatar-btn {
+  border-radius: 16px;
+  padding: 2px;
+  display: grid;
+  place-items: center;
+}
+.statbar .avatar-head { width: 52px; height: 40px; display: block; }
 .statbar .aa-toggle {
   border: 2px solid var(--hairline);
   border-radius: 12px;
@@ -502,6 +508,59 @@ button:disabled { cursor: default; }
   100% { transform: scale(1); }
 }
 
+/* ---------- hardop lezen (swipe card) ---------- */
+.swipe-arena {
+  position: relative;
+  width: min(80vw, 320px);
+  height: min(50vw, 34vh, 220px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.word-card {
+  position: absolute;
+  inset: 0;
+  background: white;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(32px, 12vw, 64px);
+  color: var(--text);
+  box-shadow: 0 8px 0 var(--hairline);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  will-change: transform;
+}
+.word-card:active { cursor: grabbing; }
+.swipe-stamp {
+  position: absolute;
+  top: 10px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: 1px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 3px solid;
+  pointer-events: none;
+  z-index: 2;
+}
+.swipe-stamp-right { right: 4px; color: var(--teal); border-color: var(--teal); transform: rotate(8deg); }
+.swipe-stamp-left { left: 4px; color: var(--red-orange); border-color: var(--red-orange); transform: rotate(-8deg); }
+.swipe-hint {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  max-width: 280px;
+  margin: 0;
+}
+
 .tile-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -534,6 +593,134 @@ button:disabled { cursor: default; }
   50% { transform: scale(1.12); }
   100% { transform: scale(1); }
 }
+
+/* ---------- avatar (customization screen) ---------- */
+.avatar-screen, .shop-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 0 20px 30px;
+  gap: 22px;
+}
+.avatar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+}
+.avatar-header .quit {
+  font-size: 24px;
+  color: var(--muted);
+  padding: 4px 10px;
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.avatar-header h1 {
+  font-size: 22px;
+  margin: 0;
+  flex: 1;
+}
+.shop-gems {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 900;
+  font-size: 16px;
+  color: var(--gem-blue);
+  flex: 0 0 auto;
+}
+.shop-cta { align-self: center; }
+.avatar-stage {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+}
+.avatar-big { width: min(56vw, 220px); height: auto; }
+.avatar-picker h2 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 10px;
+}
+.hairstyle-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.hairstyle-btn {
+  width: 64px;
+  height: 56px;
+  border-radius: 14px;
+  border: 2px solid var(--hairline);
+  background: white;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+.hairstyle-btn svg { width: 46px; height: 36px; }
+.hairstyle-btn.selected { border-color: var(--teal-pill-border); background: var(--teal-pill); }
+.swatch-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.swatch {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+}
+.swatch.selected {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px var(--teal-pill), 0 3px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- winkel (shop) ---------- */
+.shop-tabs { display: flex; gap: 8px; }
+.shop-tab {
+  flex: 1;
+  padding: 10px;
+  border-radius: 12px;
+  border: 2px solid var(--hairline);
+  background: white;
+  font-weight: 800;
+  color: var(--muted);
+}
+.shop-tab.selected {
+  border-color: var(--teal-pill-border);
+  background: var(--teal-pill);
+  color: var(--text);
+}
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.shop-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px 12px;
+  border-radius: 16px;
+  border: 2px solid var(--hairline);
+  background: white;
+}
+.shop-item svg { width: 64px; height: 48px; }
+.shop-item-name { font-weight: 800; font-size: 14px; }
+.shop-item-price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--gem-blue);
+}
+.shop-item.equipped { border-color: var(--teal); background: var(--teal-pill); }
+.shop-item.equipped .shop-item-price { color: var(--teal-shadow); }
+.shop-item.unaffordable { opacity: 0.5; }
 
 /* ---------- reward ---------- */
 .reward-screen {

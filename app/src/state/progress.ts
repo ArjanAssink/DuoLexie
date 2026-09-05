@@ -31,6 +31,8 @@ interface ProgressState {
   settings: { font: 'standaard' | 'dyslexie' }
 
   toggleFont: () => void
+  /** Deducts gems for a shop purchase; returns false (no-op) if the balance is insufficient. */
+  spendGems: (amount: number) => boolean
   completeLesson: (args: {
     lessonId: string
     answers: AnswerRecord[]
@@ -55,6 +57,13 @@ export const useProgress = create<ProgressState>()(
         set((s) => ({
           settings: { font: s.settings.font === 'standaard' ? 'dyslexie' : 'standaard' },
         })),
+
+      spendGems: (amount) => {
+        const s = get()
+        if (s.gems < amount) return false
+        set({ gems: s.gems - amount })
+        return true
+      },
 
       completeLesson: ({ lessonId, answers, gems, xp, score }) => {
         const s = get()

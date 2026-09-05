@@ -1,5 +1,6 @@
 import type { Fase, Lesson, Unit } from '@shared/src/types'
 import { curriculum } from '../curriculum'
+import { wordsForPool } from '../words'
 
 interface UnitDef {
   title: string
@@ -73,9 +74,12 @@ const FASE_DEFS: FaseDef[] = [
   },
 ]
 
+/** A "Lezen" (Hardop lezen) node only makes sense once its pool covers a handful of real words. */
+const MIN_WORDS_FOR_LEZEN = 4
+
 function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): Lesson[] {
   const pool = cumulative
-  return [
+  const lessons: Lesson[] = [
     {
       id: `${unitId}-l1`,
       unitId,
@@ -117,6 +121,22 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
       exerciseCount: 0,
     },
   ]
+
+  const eligibleWords = wordsForPool(pool)
+  if (eligibleWords.length >= MIN_WORDS_FOR_LEZEN) {
+    lessons.push({
+      id: `${unitId}-l5`,
+      unitId,
+      kind: 'les',
+      title: 'Lezen',
+      gameType: 'hardop-lezen',
+      newSounds: [],
+      soundPool: pool,
+      exerciseCount: Math.min(8, eligibleWords.length),
+    })
+  }
+
+  return lessons
 }
 
 function buildPath(): Fase[] {
