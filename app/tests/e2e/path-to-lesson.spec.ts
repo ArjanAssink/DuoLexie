@@ -21,16 +21,15 @@ test('clicking the active lesson coin opens the game', async ({ page }) => {
   expect(errors, `console/page errors: ${errors.join('\n')}`).toEqual([])
 })
 
-test('the first lesson is Klankenjacht and reacts to tapping a tile', async ({ page }) => {
+test('the first lesson is Klankkaarten and flipping the deck lands a card', async ({ page }) => {
   await page.goto('/')
   await page.locator('.coin-item.active .coin').click()
 
-  await expect(page.getByText('Welke klank hoor je?')).toBeVisible()
-  const firstTile = page.locator('.tile-grid button').first()
-  await expect(firstTile).toBeVisible()
-  await firstTile.click()
-  // tapping should apply a correct/wrong visual state, not do nothing
-  await expect(page.locator('.tile-grid button.correct, .tile-grid button.wrong').first()).toBeVisible()
+  const deckButton = page.locator('.kk-stack-wrap').first().locator('.kk-face-back')
+  await expect(deckButton).toBeVisible()
+  await deckButton.click()
+  // flipping should land a card face-up in the discard pile, not do nothing
+  await expect(page.locator('.kk-stack-wrap').nth(1).locator('.kk-face-front')).toBeVisible()
 })
 
 test('the recorded clip plays instead of falling back to TTS', async ({ page }) => {
@@ -41,9 +40,9 @@ test('the recorded clip plays instead of falling back to TTS', async ({ page }) 
 
   await page.goto('/')
   await page.locator('.coin-item.active .coin').click()
-  await expect(page.getByText('Welke klank hoor je?')).toBeVisible()
+  await page.locator('.kk-stack-wrap').first().locator('.kk-face-back').click()
 
-  // the round auto-plays the target sound on load; give the <audio> a moment to request it.
+  // the card lands ~420ms after the tap and plays its sound then; give the <audio> a moment to request it.
   // <audio> issues range requests, so a successful load is 200 or 206, never a fallback 404.
   await expect.poll(() => requestedUrls.length).toBeGreaterThan(0)
   const ok = requestedUrls.every((u) => /^(200|206) .*\/audio\/sounds\/[a-z]+\.mp3/.test(u))

@@ -46,7 +46,7 @@ Direction: **Lezen** = see letters → produce/recognize sound. **Luisteren** = 
 | # | Game | Direction | Level | Focus | Iteration |
 |---|---|---|---|---|---|
 | 1 | **Flitsen** | Lezen | klank+woord | **Speed** | v1 |
-| 2 | **Klankenjacht** | Luisteren | klank | Accuracy | v1 |
+| 2 | **Klankkaarten** (ported from [CardFlash](https://github.com/ArjanAssink/CardFlash)) | Lezen | klank | Exposure (no grading) | v1 |
 | 3 | **Welke klank?** | Lezen | klank | Accuracy | v1 |
 | 4 | **Woordbouwer** | Luisteren | woord | Accuracy | v1 |
 | 5 | **Hardop lezen** | Lezen | woord | Accuracy | v1 |
@@ -57,7 +57,7 @@ Direction: **Lezen** = see letters → produce/recognize sound. **Luisteren** = 
 
 v1 game details:
 - **Flitsen** — digital version of her RID flashcard practice. Grapheme (later word) flashes; she reads aloud; she/parent taps **Goed! / Nog even**; 60-second rounds; score = klanken per minuut with personal records ("Versla jezelf!"). Grading is trusted, not policed — same as RID home practice. Speech recognition slots in behind this same interface later.
-- **Klankenjacht** — hear a clip (replayable) → tap the right grapheme tile from 3–6 options. Wrong: tile shakes, correct tile pulses + plays, item re-queued. Distractors scale from random to her personal confusion pairs (ei/ij, au/ou, f/v, s/z, b/d, ng/nk…).
+- **Klankkaarten** — replaced Klankenjacht (tap-the-right-tile drill; wasn't landing as fun). Ported from the [CardFlash](https://github.com/ArjanAssink/CardFlash) repo: tap the deck, the top card 3D-flips and flies to the discard pile, running timer, until the whole pool is flipped. No grading (pure exposure — deliberately lighter than the app's other drills), restyled to DuoLexie's palette/tokens; the one addition over the original is playing the klank's own sound as each card lands, closing the teken→klank loop.
 - **Welke klank?** — mirror: see one grapheme → tap the speaker button that plays the matching sound (3–4 audio options). Fully self-checking, no speech needed.
 - **Woordbouwer** — hear a word → assemble it from **klank-chunk tiles** (`b · oo · m`, segmented by klank, never by letter — the RID-aligned detail). Scales: mkm → clusters → two syllables; distractor tiles from confusion pairs.
 - **Hardop lezen** — word card appears; she reads it aloud; shortly after, it's pronounced (family recording once available, TTS fallback for now) as her self-check; she **swipes the card right (goed) or left (nog even)** to grade herself, Tinder-style. Swipe right plays a cheerful "ding"; swipe left plays a silly "fart" buzz — playful, not punitive, matching design principle 5. Untimed, no re-queue on miss (unlike Klankenjacht) — it's a read-through, not a drill-to-mastery loop. Each word's answer is recorded against *all* its constituent klanken (not just one), so word-reading performance also feeds the per-klank mastery/EWMA system. Only appears once a unit's cumulative sound pool covers ≥4 words from `shared/curriculum/words.json`.

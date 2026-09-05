@@ -26,7 +26,7 @@ export interface WordCurriculum {
   words: Word[]
 }
 
-export type GameType = 'flitsen' | 'klankenjacht' | 'welke-klank' | 'woordbouwer' | 'hardop-lezen'
+export type GameType = 'flitsen' | 'klankkaarten' | 'welke-klank' | 'woordbouwer' | 'hardop-lezen'
 
 export type LessonKind = 'les' | 'flits-uitdaging' | 'herhaling' | 'eindbaas'
 

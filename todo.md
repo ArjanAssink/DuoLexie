@@ -17,7 +17,7 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 ## Phase 1 — Eerste speelbare versie (lokaal, geen backend)
 - [x] Padscherm: fases → units → lessen, lineaire unlock, edelstenen + weekdoel (5 van 7)
 - [x] Flitsen: 60s-rondes, Goed/Nog even, klanken-per-minuut records, NIEUW RECORD-viering
-- [x] Klankenjacht: hoor klank → tik teken, distractors uit verwarringsmatrix, re-queue bij fout
+- [x] ~~Klankenjacht~~ verwijderd (niet leuk genoeg bevonden) → vervangen door **Klankkaarten**, geport vanuit [CardFlash](https://github.com/ArjanAssink/CardFlash): tik de stapel om, kaart flipt en vliegt naar de aflegstapel, timer, geen score — geverifieerd in browser + e2e-suite (incl. snel overlappend tikken, geen dubbele afronding)
 - [x] Lokale voortgang in IndexedDB (zustand persist): stats per klank, EWMA, mastery
 - [x] Audio met TTS-fallback zolang opnames ontbreken
 - [x] Opnamestudio `/opnemen` (dev-only) + `tools/convert-audio.mjs`

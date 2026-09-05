@@ -5,7 +5,7 @@ import type { AnswerRecord } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
-import { Klankenjacht } from '../games/Klankenjacht'
+import { KlankKaarten } from '../games/KlankKaarten'
 import { HardopLezen } from '../games/HardopLezen'
 import { haptic, playEffect } from '../audio/audio'
 import { Frida } from '../components/Frida'
@@ -81,6 +81,6 @@ export function GameScreen() {
       ? Flitsen
       : lesson.gameType === 'hardop-lezen'
         ? HardopLezen
-        : Klankenjacht
+        : KlankKaarten
   return <Game lesson={lesson} onComplete={handleComplete} onQuit={() => navigate('/')} />
 }

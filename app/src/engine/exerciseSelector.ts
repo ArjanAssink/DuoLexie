@@ -126,6 +126,11 @@ export function buildWordExercises(lesson: Lesson): string[] {
     .map((w) => w.id)
 }
 
+/** Klankkaarten deck: the whole pool shuffled, once each — pure exposure, no weighting. */
+export function buildCardDeck(lesson: Lesson): string[] {
+  return shuffle(lesson.soundPool)
+}
+
 /** Flitsen deck: the whole pool shuffled, weak sounds appearing twice */
 export function buildFlitsDeck(lesson: Lesson, statsMap: Record<string, SoundStats>): string[] {
   const deck = [...lesson.soundPool]
