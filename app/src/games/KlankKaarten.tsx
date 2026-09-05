@@ -3,7 +3,7 @@ import type { Lesson } from '@shared/src/types'
 import type { GameResult } from '../screens/GameScreen'
 import { buildCardDeck } from '../engine/exerciseSelector'
 import { categoryOf } from '../curriculum'
-import { playSound, haptic } from '../audio/audio'
+import { haptic } from '../audio/audio'
 
 interface Props {
   lesson: Lesson
@@ -21,10 +21,9 @@ interface Flight {
 /**
  * Klankkaarten — ported from CardFlash (github.com/ArjanAssink/CardFlash):
  * tap the deck, the top card flips over and flies to the discard pile. Pure
- * exposure, no grading — replaces Klankenjacht's tap-the-right-tile drill,
- * which wasn't landing as fun. Restyled to DuoLexie's palette/tokens; the
- * only mechanical addition is playing the klank's own sound as each card
- * lands, closing the teken→klank loop the rest of the app always pairs.
+ * exposure, no grading, no narration — replaces Klankenjacht's tap-the-
+ * right-tile drill, which wasn't landing as fun. Restyled to DuoLexie's
+ * palette/tokens; the animation is CSS keyframes instead of a JS rAF loop.
  */
 export function KlankKaarten({ lesson, onComplete, onQuit }: Props) {
   const [deck, setDeck] = useState<string[]>([])
@@ -95,7 +94,6 @@ export function KlankKaarten({ lesson, onComplete, onQuit }: Props) {
       setFlights((f) => f.filter((fl) => fl.id !== id))
       setDiscardTop(sound)
       inFlight.current--
-      playSound(sound)
 
       if (isLast && inFlight.current === 0 && !finished.current) {
         finished.current = true

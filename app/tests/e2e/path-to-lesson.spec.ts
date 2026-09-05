@@ -32,19 +32,8 @@ test('the first lesson is Klankkaarten and flipping the deck lands a card', asyn
   await expect(page.locator('.kk-stack-wrap').nth(1).locator('.kk-face-front')).toBeVisible()
 })
 
-test('the recorded clip plays instead of falling back to TTS', async ({ page }) => {
-  const requestedUrls: string[] = []
-  page.on('response', (res) => {
-    if (res.url().includes('/audio/sounds/')) requestedUrls.push(`${res.status()} ${res.url()}`)
-  })
-
-  await page.goto('/')
-  await page.locator('.coin-item.active .coin').click()
-  await page.locator('.kk-stack-wrap').first().locator('.kk-face-back').click()
-
-  // the card lands ~420ms after the tap and plays its sound then; give the <audio> a moment to request it.
-  // <audio> issues range requests, so a successful load is 200 or 206, never a fallback 404.
-  await expect.poll(() => requestedUrls.length).toBeGreaterThan(0)
-  const ok = requestedUrls.every((u) => /^(200|206) .*\/audio\/sounds\/[a-z]+\.mp3/.test(u))
-  expect(ok, requestedUrls.join('\n')).toBe(true)
-})
+// The "recorded clip plays instead of falling back to TTS" regression test used to live
+// here, against Klankkaarten's card-landing sound. That narration was removed by request,
+// and no other lesson currently auto-plays klank audio (Flitsen and Klankkaarten are both
+// silent by design; Hardop lezen plays *word* audio, a separate code path). Re-add this
+// test once a klank-audio game exists again (Welke klank? / Woordbouwer, plan.md Phase 2).
