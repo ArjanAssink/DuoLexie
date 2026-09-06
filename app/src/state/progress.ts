@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { get as idbGet, set as idbSet, del as idbDel } from './idbStorage'
-import type { AnswerRecord, SoundStats } from '@shared/src/types'
+import type { AnswerRecord, SoundStats, WordResult, WordStats } from '@shared/src/types'
 import { applyAnswer, emptyStats } from '../engine/stats'
+import { applyWordResult, emptyWordStats } from '../engine/wordStats'
 import { localDay } from '../date'
 
 const idbStateStorage: StateStorage = {
@@ -21,6 +22,8 @@ interface ProgressState {
   xp: number
   completedLessons: Record<string, LessonCompletion>
   soundStats: Record<string, SoundStats>
+  /** Per-word reading history — see docs/reading-mechanics.md */
+  wordStats: Record<string, WordStats>
   /** klanken-per-minuut records, keyed by lesson id */
   records: Record<string, number>
   /** ISO dates (yyyy-mm-dd) with at least one completed lesson */
@@ -36,6 +39,8 @@ interface ProgressState {
     gems: number
     xp: number
     score?: number
+    /** Hardop lezen only — per-word reads, one per swiped card */
+    wordResults?: WordResult[]
   }) => { newRecord: boolean }
 }
 
@@ -46,6 +51,7 @@ export const useProgress = create<ProgressState>()(
       xp: 0,
       completedLessons: {},
       soundStats: {},
+      wordStats: {},
       records: {},
       practiceDays: [],
       settings: { font: 'standaard' },
@@ -62,7 +68,7 @@ export const useProgress = create<ProgressState>()(
         return true
       },
 
-      completeLesson: ({ lessonId, answers, gems, xp, score }) => {
+      completeLesson: ({ lessonId, answers, gems, xp, score, wordResults }) => {
         const s = get()
 
         const soundStats = { ...s.soundStats }
@@ -70,6 +76,14 @@ export const useProgress = create<ProgressState>()(
           soundStats[answer.soundId] = applyAnswer(
             soundStats[answer.soundId] ?? emptyStats(),
             answer,
+          )
+        }
+
+        const wordStats = { ...s.wordStats }
+        for (const result of wordResults ?? []) {
+          wordStats[result.wordId] = applyWordResult(
+            wordStats[result.wordId] ?? emptyWordStats(localDay()),
+            result,
           )
         }
 
@@ -81,6 +95,7 @@ export const useProgress = create<ProgressState>()(
           gems: s.gems + gems + (newRecord ? 10 : 0),
           xp: s.xp + xp,
           soundStats,
+          wordStats,
           completedLessons: {
             ...s.completedLessons,
             [lessonId]: {
@@ -99,6 +114,23 @@ export const useProgress = create<ProgressState>()(
     {
       name: 'duolexie-progress',
       storage: createJSONStorage(() => idbStateStorage),
+      version: 1,
+      // v0 profiles predate wordStats. Without this they rehydrate with the key
+      // missing while TypeScript insists it's there.
+      migrate: (persisted, version) =>
+        version === 0 ? { ...(persisted as object), wordStats: {} } : persisted,
+      // zustand's default merge is shallow, so a nested object gained later would
+      // arrive half-formed for anyone with saved state. `current` spreads first so
+      // persisted data can never clobber the action functions.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ProgressState>
+        return {
+          ...current,
+          ...p,
+          settings: { ...current.settings, ...p.settings },
+          wordStats: p.wordStats ?? {},
+        }
+      },
     },
   ),
 )
