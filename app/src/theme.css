@@ -1010,3 +1010,29 @@ button:disabled { cursor: default; }
   /* the badge still lands, it just doesn't spring */
   .bs-badge { animation: none; opacity: 1; transform: translate(-50%,-50%) scale(1); }
 }
+
+/* ---------- Hardop lezen: reading window ---------- */
+/* Drains while she reads the word herself; the app only pronounces it once this
+   runs out. Duration is set inline per card — it becomes per-word and adaptive,
+   see docs/reading-mechanics.md. */
+.read-timer {
+  width: min(280px, 70%);
+  height: 10px;
+  margin-top: 18px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.read-timer-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--teal);
+  transform-origin: left center;
+  animation: readDrain linear both;
+}
+/* spent: she ran out of time and is hearing the word */
+.read-timer.spent { background: var(--teal-pill); }
+@keyframes readDrain {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}

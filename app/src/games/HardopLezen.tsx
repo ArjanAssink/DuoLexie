@@ -16,10 +16,19 @@ const SWIPE_THRESHOLD = 90
 const FLY_DISTANCE = 500
 
 /**
- * Hardop lezen — a word card appears, is pronounced shortly after (self-check
- * against her own reading), and she swipes it right ("goed") or left ("nog
- * even") to grade herself. Untimed, no re-queue on miss — a read-through, not
- * a drill loop. Right plays a ding, left a silly buzz (playEffect('fart')).
+ * How long she gets to read the word herself before the app pronounces it.
+ * Fixed for now; this is the number that becomes per-word and adaptive —
+ * see docs/reading-mechanics.md for the full mechanism.
+ */
+const READ_WINDOW_MS = 5000
+
+/**
+ * Hardop lezen — a word card appears and a bar drains over the reading window.
+ * She reads it aloud herself and swipes right ("goed") or left ("nog even") to
+ * grade herself. Only when the window runs out does the app pronounce the word:
+ * by then she should have answered, so hearing it is the model to check against
+ * rather than the answer handed over. Swiping cancels the pending audio — the
+ * word is still replayed on "nog even" as reinforcement.
  */
 export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   const [queue, setQueue] = useState<string[]>([])
@@ -27,10 +36,12 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   const [dragX, setDragX] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [flying, setFlying] = useState(false)
+  const [expired, setExpired] = useState(false)
   const answers = useRef<AnswerRecord[]>([])
   const shownAt = useRef(0)
   const startX = useRef(0)
   const busy = useRef(false)
+  const windowTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     const ids = buildWordExercises(lesson)
@@ -45,8 +56,12 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   useEffect(() => {
     if (!current) return
     shownAt.current = performance.now()
-    const t = setTimeout(() => playWord(current.id, current.text), 450)
-    return () => clearTimeout(t)
+    setExpired(false)
+    windowTimer.current = window.setTimeout(() => {
+      setExpired(true)
+      playWord(current.id, current.text)
+    }, READ_WINDOW_MS)
+    return () => window.clearTimeout(windowTimer.current)
   }, [current])
 
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
@@ -72,6 +87,8 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   async function commit(direction: 'left' | 'right') {
     if (!current || busy.current) return
     busy.current = true
+    // she answered inside the window — don't hand her the word she just read
+    window.clearTimeout(windowTimer.current)
     const correct = direction === 'right'
     const ms = performance.now() - shownAt.current
     for (const klank of current.klanken) {
@@ -142,7 +159,18 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
             {current.text}
           </div>
         </div>
-        <p className="swipe-hint">Sleep naar rechts als het goed ging, naar links als het nog niet lukte</p>
+        <div className={`read-timer${expired ? ' spent' : ''}`} aria-hidden="true">
+          <div
+            className="read-timer-fill"
+            key={current.id}
+            style={{ animationDuration: `${READ_WINDOW_MS}ms` }}
+          />
+        </div>
+        <p className="swipe-hint">
+          {expired
+            ? 'Luister — zo klinkt het. Sleep naar rechts als het goed ging.'
+            : 'Sleep naar rechts als het goed ging, naar links als het nog niet lukte'}
+        </p>
       </div>
     </div>
   )
