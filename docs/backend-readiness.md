@@ -102,13 +102,17 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
   production build: planted a v2 profile with old-style ids in all three locations, reloaded,
   confirmed every one remapped correctly and gems/xp (not migration targets) were untouched.
 
-- [ ] **A4 — Move the reward rule into one place.** `screens/GameScreen.tsx:42` computes
-  `gems`, then line 51 displays `gems + (newRecord ? 10 : 0)`, while `state/progress.ts:84`
-  *independently* stores `s.gems + gems + (newRecord ? 10 : 0)`. **The `+10` record bonus is
-  written twice, in two files, and they agree only by coincidence** — change one and the
-  number she sees silently stops matching the number she's paid. Extract
-  `computeReward(lesson, answers, prevRecord)` into `engine/`, have the store call it, and
-  let `GameScreen` render what the store returns. Also unit-testable, unlike today.
+- [x] **A4 — Move the reward rule into one place.** Done. Re-verified the duplication first
+  (same shape post-A2, different lines): `GameScreen.tsx` computed `gems`/`xp` and separately
+  re-added the `+10` record bonus for display, while `progress.ts`'s `completeLesson`
+  independently added the same bonus to what got credited. `engine/reward.ts` now holds
+  `computeReward(lesson, answers, prevRecord, score)` as the one formula; `completeLesson`'s
+  signature changed to take `lesson` instead of precomputed `gems`/`xp` and now returns the
+  full `Reward` (gems, xp, perfect, newRecord); `GameScreen` renders exactly what it gets back
+  and computes nothing itself. Four Vitest cases pin the exact arithmetic (base reward,
+  perfect bonus, eindbaas bonus stacking, and the record-bonus boundary — tied is not a new
+  record). Verified live against a production build: displayed gems, credited gems, and the
+  session's recorded `gemsEarned` all agreed (10/10/10) after a real completed lesson.
 
 - [ ] **A5 — Give `api/` a path mapping to `shared/`.** `api/tsconfig.json` has no `paths`
   entry and `api/src` imports nothing from `shared/` (verified) — so `shared/` is currently

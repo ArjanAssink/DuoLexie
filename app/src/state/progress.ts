@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { get as idbGet, set as idbSet, del as idbDel } from './idbStorage'
-import type { AnswerRecord, SessionResult, WordResult } from '@shared/src/types'
+import type { AnswerRecord, Lesson, SessionResult, WordResult } from '@shared/src/types'
 import { emptyAggregates, applySession, type Aggregates, type LessonCompletion } from '../engine/recompute'
+import { computeReward, type Reward } from '../engine/reward'
 import { LEGACY_UNIT_ID_MAP } from '../data/path'
 
 const idbStateStorage: StateStorage = {
@@ -52,14 +53,12 @@ interface ProgressState extends Aggregates {
   /** Deducts gems for a shop purchase; returns false (no-op) if the balance is insufficient. */
   spendGems: (amount: number) => boolean
   completeLesson: (args: {
-    lessonId: string
+    lesson: Lesson
     answers: AnswerRecord[]
-    gems: number
-    xp: number
     score?: number
     /** Hardop lezen only — per-word reads, one per swiped card */
     wordResults?: WordResult[]
-  }) => { newRecord: boolean }
+  }) => Reward
 }
 
 export const useProgress = create<ProgressState>()(
@@ -81,28 +80,31 @@ export const useProgress = create<ProgressState>()(
         return true
       },
 
-      completeLesson: ({ lessonId, answers, gems, xp, score, wordResults }) => {
+      completeLesson: ({ lesson, answers, score, wordResults }) => {
         const s = get()
-        const prevRecord = s.records[lessonId] ?? 0
-        const newRecord = score !== undefined && score > prevRecord
+        const prevRecord = s.records[lesson.id] ?? 0
+        // The only formula for what a session is worth (engine/reward.ts) — completeLesson
+        // no longer takes gems/xp from the caller, so there's nowhere left for a second,
+        // silently-divergent copy of this arithmetic to be written.
+        const reward = computeReward(lesson, answers, prevRecord, score)
 
         const session: SessionResult = {
           id: crypto.randomUUID(),
-          lessonId,
+          lessonId: lesson.id,
           completedAt: new Date().toISOString(),
           answers,
           wordResults,
-          xpEarned: xp,
-          gemsEarned: gems + (newRecord ? 10 : 0),
+          xpEarned: reward.xp,
+          gemsEarned: reward.gems,
           score,
-          newRecord,
+          newRecord: reward.newRecord,
         }
 
         // applySession is the same fold recomputeFrom uses in bulk (engine/recompute.ts) —
         // one implementation, so the incremental and replay paths can't drift apart.
         const next = applySession(s, session)
         set({ ...next, sessions: [...s.sessions, session] })
-        return { newRecord }
+        return reward
       },
     }),
     {

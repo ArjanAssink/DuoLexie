@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti'
 import type { AnswerRecord, WordResult } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
+import type { Reward } from '../engine/reward'
 import { Flitsen } from '../games/Flitsen'
 import { Tijdrit } from '../games/Tijdrit'
 import { HardopLezen } from '../games/HardopLezen'
@@ -18,11 +19,8 @@ export interface GameResult {
   wordResults?: WordResult[]
 }
 
-interface Reward {
-  gems: number
-  xp: number
-  perfect: boolean
-  newRecord: boolean
+/** What completeLesson computed (engine/reward.ts), plus the score display alone needs. */
+interface DisplayReward extends Reward {
   score?: number
 }
 
@@ -30,7 +28,7 @@ export function GameScreen() {
   const { lessonId } = useParams()
   const navigate = useNavigate()
   const completeLesson = useProgress((s) => s.completeLesson)
-  const [reward, setReward] = useState<Reward | null>(null)
+  const [reward, setReward] = useState<DisplayReward | null>(null)
 
   const lesson = lessonId ? lessonById(lessonId) : undefined
   if (!lesson) {
@@ -40,21 +38,19 @@ export function GameScreen() {
 
   function handleComplete(result: GameResult) {
     if (!lesson) return
-    const perfect = result.answers.length > 0 && result.answers.every((a) => a.correct)
-    const gems = 10 + (perfect ? 5 : 0) + (lesson.kind === 'eindbaas' ? 10 : 0)
-    const xp = 10 + result.answers.filter((a) => a.correct).length
-    const { newRecord } = completeLesson({
-      lessonId: lesson.id,
+    // completeLesson computes gems/xp/perfect/newRecord (engine/reward.ts) — nothing here
+    // recomputes any of it, so there's nowhere for the credited and displayed numbers to
+    // silently disagree the way they used to.
+    const reward = completeLesson({
+      lesson,
       answers: result.answers,
-      gems,
-      xp,
       score: result.score,
       wordResults: result.wordResults,
     })
-    setReward({ gems: gems + (newRecord ? 10 : 0), xp, perfect, newRecord, score: result.score })
+    setReward({ ...reward, score: result.score })
     playEffect('fanfare')
-    haptic(newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
-    confetti({ particleCount: newRecord ? 220 : 120, spread: 85, origin: { y: 0.7 } })
+    haptic(reward.newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
+    confetti({ particleCount: reward.newRecord ? 220 : 120, spread: 85, origin: { y: 0.7 } })
   }
 
   if (reward) {
