@@ -6,8 +6,10 @@ becomes automatic, and how spaced repetition decides which words come back when.
 Design intent lives here; [plan.md](../plan.md) stays the higher-level document and
 [code-review-backlog.md](code-review-backlog.md) tracks the bugs this depends on.
 
-**Status:** the reading window is built and shipped at a fixed 5s. The adaptive shortening
-and the spacing system below are **designed, not built**.
+**Status:** the reading window is built and shipped at a fixed 5s, and the per-word history
+both mechanisms need is now being recorded (`wordStats`, §5). The adaptive shortening (§2) and
+the box-driven session composition (§3, §4) are **designed, not built** — nothing reads `box`
+or `dueAt` yet, and word selection is still `buildWordExercises`'s shortest-first shuffle.
 
 ---
 
@@ -108,32 +110,33 @@ sixty words come due at once; showing all of them makes the session unfinishable
 progress bar demoralising. The rest simply wait — they're already spaced, a few more days
 does no harm.
 
-## 5. What this needs that doesn't exist yet
+## 5. Per-word stats — built
 
-**Per-word stats.** Today only `soundStats` exists (keyed by klank), and Hardop lezen writes
-one record *per klank* of the word. There is no per-word history at all, so neither the
-adaptive window nor the boxes can be computed. Needed:
+`wordStats` is now a persisted slice of the progress store, written by Hardop lezen on every
+graded card. The reducer lives in `app/src/engine/wordStats.ts` (unit-tested) and implements
+the box rules in §3 exactly, including the "correct but slow holds position" gate. The shape:
 
 ```ts
 interface WordStats {
   attempts: number
   correct: number
-  ewmaMs: number       // successful reads only
+  ewmaMs: number | null   // successful reads only; null until the first success
   box: 1 | 2 | 3 | 4 | 5
-  dueAt: string        // local YYYY-MM-DD, not toISOString()
-  lastSeenAt: string
+  dueAt: string           // local calendar day (YYYY-MM-DD) — day arithmetic only
+  lastSeenAt: string      // full ISO instant — ordering only
 }
 ```
 
-**Two backlog items block this and should be fixed first:**
+`ewmaMs` ended up nullable rather than seeded with a guess (as `emptyStats()` does at 4000ms
+for sounds): §2 branches on "fewer than 3 successful reads" and falls back to a global average,
+which a fake seed would quietly poison. Only successful reads feed it — a failed read times how
+long she struggled, not how fluently she reads the word — and samples are clamped so one
+abandoned card can't drag the average for the next ten reads.
 
-- **Store migration** (code-review-backlog item 9). Zustand's persist does a *shallow* merge
-  and there's no `version`/`migrate`, so adding `wordStats` to the store leaves existing
-  profiles rehydrating without the key while TypeScript insists it's there. Add
-  `version` + `migrate` and read defensively before this ships.
-- **UTC vs local dates** (item 10). `today()` uses `toISOString()` while the week is built in
-  local time. Box scheduling is entirely date arithmetic — inheriting that bug means
-  intervals misfire by a day, and the failure is invisible.
+**Both blocking backlog items are now closed**, and both were prerequisites rather than
+niceties: the stores carry `version`/`migrate`/`merge` (item 9), so adding this slice couldn't
+hand her existing profile a half-formed object; and calendar arithmetic goes through
+`src/date.ts` in local time (item 10), so box intervals can't misfire by a day.
 
 **Word audio.** All of §1's self-check assumes she hears a real pronunciation.
 `app/public/audio/words/` is still empty, so `playWord` 404s and falls back to browser speech

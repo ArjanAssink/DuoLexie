@@ -93,12 +93,11 @@ StrictMode's double-invocation of effects can mask them in dev.
   progress, or accept that mastery advances only on the other two game types and adjust the
   crown criteria accordingly.
 
-- [ ] **Hardop lezen inflates every timing sample** — `games/HardopLezen.tsx:77-79` pushes
-  one `AnswerRecord` per klank, all carrying the same whole-word `ms`. A 4-klank word writes
-  four ~6000ms samples, so `ewmaResponseMs` reflects word-reading time attributed to each
-  individual klank. The speed-based "Goud" gate in `masteryOf` (`< 2000ms`) becomes
-  effectively unreachable and `reviewWeight`'s slowness term saturates. Fix: divide by klank
-  count, record a single word-level record, or exclude Hardop lezen from the speed metric.
+- [x] **Hardop lezen inflates every timing sample** — fixed: each klank is now charged
+  `ms / klanken.length` instead of the whole-word time, so `ewmaResponseMs` stops drifting out
+  of reach of `masteryOf`'s 2000ms "goud" gate. Held until whole-word timing had somewhere
+  else to live, which it now does (`wordStats.ewmaMs`). Historical `soundStats` are left as
+  recorded — the inflation isn't reversible from the stored average. (commit d4b1d23)
 
 - [ ] **Side effect inside a `setState` updater** — `games/Flitsen.tsx:41-49` calls
   `clearInterval` and `finish()` (→ `onComplete` → `GameScreen.setReward`) from inside the
@@ -113,21 +112,23 @@ StrictMode's double-invocation of effects can mask them in dev.
   in the render body when a lesson id doesn't resolve. Replace with
   `<Navigate to="/" replace />`.
 
-- [ ] **Progress is keyed on positional lesson ids, with no store migration** —
-  `data/path.ts` generates ids as `fase1-u${i+1}-l${n}`, so inserting or reordering a unit in
-  `FASE_DEFS` silently remaps later ids onto the previous unit's saved `completedLessons`
-  and `records`. There's also no `version`/`migrate` on either zustand store, and zustand's
-  default merge is **shallow** — adding a key to a nested object (e.g. `settings.volume`)
-  reads back `undefined` at runtime for existing users while TypeScript insists it exists.
-  Worth fixing before Phase 3 syncs progress to Cosmos and the corruption becomes durable
-  and cross-device. Fix: stable content-derived ids (or an explicit id map) plus
-  `version` + `migrate`.
+- [ ] **Progress is keyed on positional lesson ids** — `data/path.ts` generates ids as
+  `fase1-u${i+1}-l${n}`, so inserting or reordering a unit in `FASE_DEFS` silently remaps
+  later ids onto the previous unit's saved `completedLessons` and `records`. Worth fixing
+  before Phase 3 syncs progress to Cosmos and the corruption becomes durable and
+  cross-device. Fix: stable content-derived ids, or an explicit id map.
+  **The store-migration half of this item is done** (commit bc6f640): both stores now carry
+  `version: 1`, a `migrate`, and a `merge` that deep-fills nested objects, so zustand's
+  shallow merge can no longer hand an existing profile a half-formed object. Verified against
+  a planted v0 profile — gems, xp, `completedLessons`, `records`, `practiceDays`, `soundStats`
+  and `settings.font` all survived. The positional-id problem above is untouched.
 
-- [ ] **Streak days are computed in two different timezones** — `state/progress.ts:13-15`
-  builds `today()` from `toISOString()` (UTC) while `daysThisWeek` constructs Monday in
-  local time. In CEST a session at 01:00 Monday is stored as Sunday and drops out of the
-  week entirely; a Monday-evening and Tuesday-01:00 session both store "Monday" and count
-  once. Fix: use local-date formatting consistently on both sides.
+- [x] **Streak days are computed in two different timezones** — fixed: calendar-day
+  arithmetic now lives in `src/date.ts` (`localDay`, `addDays`) and `practiceDays` is stamped
+  with the local day, matching `daysThisWeek`. Covered by unit tests including the exact case
+  `toISOString()` got wrong (01:00 local on 15 July) plus month/year rollover, a leap year,
+  and both DST boundaries. Existing entries are left as recorded — the original local instant
+  isn't recoverable from a stored UTC day. (commit 28515df)
 
 - [ ] **The 45 klank recordings are no longer played by anything** — `playSound` in
   `audio/audio.ts:45` has **zero callers** (only its own definition and a comment). Its
