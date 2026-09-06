@@ -5,7 +5,9 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
-  reporter: 'list',
+  // 'list' for a readable local/CI log; 'html' so a CI failure has a report worth uploading
+  // as an artifact (never auto-opens a browser — that would hang a headless run).
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:5173',
     screenshot: 'only-on-failure',
