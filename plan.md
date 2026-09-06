@@ -184,6 +184,7 @@ Dev-only route `/opnemen` (mounted when `import.meta.env.DEV`): lists every need
 - Phase 1: complete a full lesson end-to-end in the browser (audio plays, grading works, gems/record persist across reload via IndexedDB).
 - Phase 3: register → create profile → play lesson → open site on a second device/browser → login → progress present. Kill network mid-session → finish lesson → reconnect → outbox flushes (verify sessionResult docs in Cosmos Data Explorer, replay is idempotent).
 - Real user test: watch her play; the design review that matters most.
+- **Standing convention:** every new game mode, and every standalone celebration/animation (Bliksemsprint-style bursts, new reward screens, etc.), gets a direct-launch entry on the `/proberen` test menu (`app/src/screens/TestMenuScreen.tsx`) when it's built — not just implemented in-place inside a lesson flow. That page is not linked from the app's own navigation (Arjan reaches it by typing the URL) and exists specifically so any game mode or animation can be tried instantly without playing through the lesson tree first.
 
 ## 12. Speler-avatar & winkel (v2)
 
