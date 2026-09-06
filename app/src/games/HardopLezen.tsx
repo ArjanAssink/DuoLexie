@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { Lesson, AnswerRecord } from '@shared/src/types'
+import type { Lesson, AnswerRecord, WordResult } from '@shared/src/types'
 import type { GameResult } from '../screens/GameScreen'
 import { buildWordExercises } from '../engine/exerciseSelector'
 import { getWord } from '../words'
@@ -38,6 +38,7 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   const [flying, setFlying] = useState(false)
   const [expired, setExpired] = useState(false)
   const answers = useRef<AnswerRecord[]>([])
+  const wordResults = useRef<WordResult[]>([])
   const shownAt = useRef(0)
   const startX = useRef(0)
   const busy = useRef(false)
@@ -94,6 +95,14 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
     for (const klank of current.klanken) {
       answers.current.push({ soundId: klank, correct, ms })
     }
+    // Derived from the same clock the window timer runs on, rather than reading the
+    // `expired` state — same fact, without depending on render-closure freshness.
+    wordResults.current.push({
+      wordId: current.id,
+      correct,
+      ms,
+      withinWindow: ms < READ_WINDOW_MS,
+    })
 
     setFlying(true)
     setDragX(direction === 'right' ? FLY_DISTANCE : -FLY_DISTANCE)
@@ -115,7 +124,9 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
     // "Cannot update a component while rendering a different component" warning
     const next = queue.slice(1)
     setQueue(next)
-    if (next.length === 0) onComplete({ answers: answers.current })
+    if (next.length === 0) {
+      onComplete({ answers: answers.current, wordResults: wordResults.current })
+    }
   }
 
   if (!current) return null

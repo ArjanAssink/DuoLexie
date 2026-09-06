@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import confetti from 'canvas-confetti'
-import type { AnswerRecord } from '@shared/src/types'
+import type { AnswerRecord, WordResult } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
@@ -14,6 +14,8 @@ export interface GameResult {
   answers: AnswerRecord[]
   /** klanken per minuut for Tijdrit */
   score?: number
+  /** Hardop lezen only — one entry per word she graded */
+  wordResults?: WordResult[]
 }
 
 interface Reward {
@@ -47,6 +49,7 @@ export function GameScreen() {
       gems,
       xp,
       score: result.score,
+      wordResults: result.wordResults,
     })
     setReward({ gems: gems + (newRecord ? 10 : 0), xp, perfect, newRecord, score: result.score })
     playEffect('fanfare')
