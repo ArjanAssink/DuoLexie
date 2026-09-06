@@ -92,8 +92,13 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
     window.clearTimeout(windowTimer.current)
     const correct = direction === 'right'
     const ms = performance.now() - shownAt.current
+    // Split across the klanken rather than charging each one the whole-word time:
+    // a 10-letter word was writing ten ~6000ms samples into soundStats, which put
+    // masteryOf's 2000ms "goud" gate out of reach. Whole-word timing now lives in
+    // wordStats.ewmaMs, so this can be the per-klank share it always meant.
+    const msPerKlank = ms / current.klanken.length
     for (const klank of current.klanken) {
-      answers.current.push({ soundId: klank, correct, ms })
+      answers.current.push({ soundId: klank, correct, ms: msPerKlank })
     }
     // Derived from the same clock the window timer runs on, rather than reading the
     // `expired` state — same fact, without depending on render-closure freshness.
