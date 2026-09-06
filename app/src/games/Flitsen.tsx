@@ -1,12 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import type { Lesson, AnswerRecord } from '@shared/src/types'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { Lesson } from '@shared/src/types'
 import type { GameResult } from '../screens/GameScreen'
 import { buildFlitsDeck } from '../engine/exerciseSelector'
-import { useProgress } from '../state/progress'
-import { haptic, playEffect } from '../audio/audio'
-import { Frida } from '../components/Frida'
-
-const ROUND_SECONDS = 60
+import { categoryOf } from '../curriculum'
+import { haptic } from '../audio/audio'
 
 interface Props {
   lesson: Lesson
@@ -14,106 +11,210 @@ interface Props {
   onQuit: () => void
 }
 
+const FLY_MS = 420
+
+interface Flight {
+  id: number
+  sound: string
+}
+
 /**
- * Flitsen — the digital version of RID flashcard practice. Speed-focused:
- * read the sound aloud, tap Goed/Nog even, beat your klanken-per-minuut record.
+ * Flitsen — ported from CardFlash (github.com/ArjanAssink/CardFlash): tap the
+ * deck, the top card flips over and flies to the discard pile. Pure exposure,
+ * no grading, no narration — replaces Klankenjacht's tap-the-right-tile
+ * drill, which wasn't landing as fun. Restyled to DuoLexie's palette/tokens;
+ * the animation is CSS keyframes instead of a JS rAF loop. (Formerly called
+ * "Klankkaarten" — the RID-practice speed drill previously named "Flitsen"
+ * is now "Tijdrit".)
  */
 export function Flitsen({ lesson, onComplete, onQuit }: Props) {
-  const soundStats = useProgress((s) => s.soundStats)
-  const record = useProgress((s) => s.records[lesson.id] ?? 0)
-
   const [deck, setDeck] = useState<string[]>([])
   const [idx, setIdx] = useState(0)
-  const [secondsLeft, setSecondsLeft] = useState(ROUND_SECONDS)
-  const [started, setStarted] = useState(false)
-  const answers = useRef<AnswerRecord[]>([])
-  const shownAt = useRef(0)
-  const done = useRef(false)
+  const [discardTop, setDiscardTop] = useState<string | null>(null)
+  const [flights, setFlights] = useState<Flight[]>([])
+  const [elapsed, setElapsed] = useState(0)
+  const [dx, setDx] = useState(0)
+  const [timerStarted, setTimerStarted] = useState(false)
+  const inFlight = useRef(0)
+  const flyId = useRef(0)
+  const finished = useRef(false)
+
+  const arenaRef = useRef<HTMLDivElement>(null)
+  const deckRef = useRef<HTMLDivElement>(null)
+  const discardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setDeck(buildFlitsDeck(lesson, soundStats))
+    setDeck(buildFlitsDeck(lesson))
+    setIdx(0)
+    setDiscardTop(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.id])
 
+  useLayoutEffect(() => {
+    function measure() {
+      const arena = arenaRef.current
+      const deckEl = deckRef.current
+      const discardEl = discardRef.current
+      if (!arena || !deckEl || !discardEl) return
+      const a = arena.getBoundingClientRect()
+      const d = deckEl.getBoundingClientRect()
+      const t = discardEl.getBoundingClientRect()
+      // iOS Safari fires `resize` often (its address bar hides/shows on scroll) — skip the
+      // state update (and the re-render it triggers, mid-flip-animation) when nothing moved.
+      const next = t.left - d.left
+      setDx((prev) => (Math.abs(prev - next) < 0.5 ? prev : next))
+      arena.style.setProperty('--kk-fly-left', `${d.left - a.left}px`)
+      arena.style.setProperty('--kk-fly-top', `${d.top - a.top}px`)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (arenaRef.current) ro.observe(arenaRef.current)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [])
+
   useEffect(() => {
-    if (!started) return
-    shownAt.current = performance.now()
-    const timer = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          clearInterval(timer)
-          finish()
-          return 0
-        }
-        return s - 1
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started])
+    if (!timerStarted) return
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000)
+    return () => clearInterval(id)
+  }, [timerStarted])
 
-  function finish() {
-    if (done.current) return
-    done.current = true
-    const correct = answers.current.filter((a) => a.correct).length
-    onComplete({ answers: answers.current, score: correct })
-  }
+  function flip() {
+    if (idx >= deck.length) return
+    if (!timerStarted) setTimerStarted(true)
 
-  function grade(correct: boolean) {
-    const ms = performance.now() - shownAt.current
-    answers.current.push({ soundId: deck[idx % deck.length], correct, ms })
-    playEffect(correct ? 'good' : 'bad')
-    haptic(correct ? 12 : [10, 40, 10])
+    const sound = deck[idx]
+    const isLast = idx + 1 >= deck.length
     setIdx((i) => i + 1)
-    shownAt.current = performance.now()
+    inFlight.current++
+    haptic(10)
+
+    const id = flyId.current++
+    setFlights((f) => [...f, { id, sound }])
+
+    setTimeout(() => {
+      setFlights((f) => f.filter((fl) => fl.id !== id))
+      setDiscardTop(sound)
+      inFlight.current--
+
+      if (isLast && inFlight.current === 0 && !finished.current) {
+        finished.current = true
+        onComplete({ answers: [] })
+      }
+    }, FLY_MS)
   }
 
-  if (!started) {
-    return (
-      <div className="game-screen">
-        <div className="game-header">
-          <button className="quit" onClick={onQuit}>✕</button>
-        </div>
-        <div className="game-stage">
-          <Frida expression="sass" width={150} alt="Frida" />
-          <h1 style={{ textAlign: 'center' }}>⚡ Flitsen!</h1>
-          <p style={{ textAlign: 'center', maxWidth: 320 }}>
-            Lees elke klank hardop, zo snel als je kunt.
-            Tik daarna <b>Goed!</b> of <b>Nog even</b>.
-          </p>
-          {record > 0 && <p>Jouw record: <b>⚡ {record}</b> — versla jezelf!</p>}
-          <button className="btn-primary" onClick={() => setStarted(true)}>
-            Start! ({ROUND_SECONDS} sec)
-          </button>
-        </div>
-      </div>
-    )
-  }
+  if (deck.length === 0) return null
 
-  const currentSound = deck.length > 0 ? deck[idx % deck.length] : ''
-  const correctSoFar = answers.current.filter((a) => a.correct).length
+  const remaining = deck.length - idx
+  const done = idx
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  const deckGhostShow = Math.min(Math.max(remaining - 1, 0), 3)
+  const discardGhostShow = Math.min(done, 2)
 
   return (
     <div className="game-screen">
       <div className="game-header">
-        <button className="quit" onClick={onQuit}>✕</button>
+        <button className="quit" onClick={onQuit}>
+          ✕
+        </button>
         <div className="progress-track">
-          <div
-            className="progress-fill"
-            style={{ width: `${(secondsLeft / ROUND_SECONDS) * 100}%`, background: 'var(--accent)' }}
-          />
+          <div className="progress-fill" style={{ width: `${(done / deck.length) * 100}%` }} />
         </div>
-        <div className="timer-big">{secondsLeft}</div>
+        <div className="timer-big" style={{ color: 'var(--teal)' }}>
+          {fmt(elapsed)}
+        </div>
       </div>
       <div className="game-stage">
-        <div style={{ fontSize: 20, fontWeight: 800 }}>
-          ⚡ {correctSoFar} {record > 0 && <span style={{ opacity: 0.6 }}>· record {record}</span>}
+        <h2>
+          {done === 0
+            ? 'Tik op de stapel!'
+            : remaining === 0
+              ? `Alle ${deck.length} kaarten omgedraaid!`
+              : `${done} van ${deck.length} omgedraaid`}
+        </h2>
+        <div className="kk-arena" ref={arenaRef}>
+          <div className="kk-stack-wrap">
+            <div className="kk-stack" ref={deckRef}>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className={`kk-ghost kk-ghost-deck kk-g${i + 1}`}
+                  style={{ opacity: i < deckGhostShow ? undefined : 0 }}
+                />
+              ))}
+              {remaining > 0 ? (
+                <button className="kk-face kk-face-back" onClick={flip} aria-label="Draai een kaart om">
+                  <span className="kk-star">⭐</span>
+                  <span className="kk-brand">Flitsen</span>
+                  <span className="kk-count">{remaining}</span>
+                </button>
+              ) : (
+                <div className="kk-empty">✓ Leeg!</div>
+              )}
+            </div>
+            <span className="kk-stack-label">Stapel ({remaining})</span>
+          </div>
+
+          {flights.map((f) => {
+            const cat = categoryOf(f.sound)
+            return (
+              <div
+                key={f.id}
+                className="kk-fly"
+                style={{
+                  left: 'var(--kk-fly-left)',
+                  top: 'var(--kk-fly-top)',
+                  ['--fly-dx' as string]: `${dx}px`,
+                }}
+              >
+                <div className="kk-fly-inner">
+                  <div className="kk-face kk-face-back">
+                    <span className="kk-star">⭐</span>
+                    <span className="kk-brand">Flitsen</span>
+                  </div>
+                  <div
+                    className="kk-face kk-face-front"
+                    style={{ background: `linear-gradient(148deg, ${cat.color1} 0%, ${cat.color2} 100%)` }}
+                  >
+                    <span className="kk-sound">{f.sound}</span>
+                    <span className="kk-cat">{cat.name}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          <div className="kk-stack-wrap">
+            <div className="kk-stack" ref={discardRef}>
+              {[0, 1].map((i) => (
+                <div
+                  key={i}
+                  className={`kk-ghost kk-ghost-discard kk-dg${i + 1}`}
+                  style={{ opacity: i < discardGhostShow ? undefined : 0 }}
+                />
+              ))}
+              {discardTop ? (
+                <div
+                  className="kk-face kk-face-front"
+                  style={{
+                    background: `linear-gradient(148deg, ${categoryOf(discardTop).color1} 0%, ${categoryOf(discardTop).color2} 100%)`,
+                  }}
+                >
+                  <span className="kk-sound">{discardTop}</span>
+                  <span className="kk-cat">{categoryOf(discardTop).name}</span>
+                </div>
+              ) : (
+                <div className="kk-empty">Omgedraaid</div>
+              )}
+            </div>
+            <span className="kk-stack-label">Omgedraaid ({done})</span>
+          </div>
         </div>
-        <div className="flash-card" key={idx}>{currentSound}</div>
-        <div className="grade-buttons">
-          <button className="btn-bad" onClick={() => grade(false)}>Nog even</button>
-          <button className="btn-primary" onClick={() => grade(true)}>Goed!</button>
-        </div>
+        {remaining > 0 && <p className="kk-tap-hint">👆 Tik op de stapel</p>}
       </div>
     </div>
   )
