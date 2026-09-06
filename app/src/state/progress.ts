@@ -3,15 +3,12 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 import { get as idbGet, set as idbSet, del as idbDel } from './idbStorage'
 import type { AnswerRecord, SoundStats } from '@shared/src/types'
 import { applyAnswer, emptyStats } from '../engine/stats'
+import { localDay } from '../date'
 
 const idbStateStorage: StateStorage = {
   getItem: (name) => idbGet(name),
   setItem: (name, value) => idbSet(name, value),
   removeItem: (name) => idbDel(name),
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 export interface LessonCompletion {
@@ -92,9 +89,9 @@ export const useProgress = create<ProgressState>()(
             },
           },
           records: newRecord ? { ...s.records, [lessonId]: score! } : s.records,
-          practiceDays: s.practiceDays.includes(today())
+          practiceDays: s.practiceDays.includes(localDay())
             ? s.practiceDays
-            : [...s.practiceDays, today()],
+            : [...s.practiceDays, localDay()],
         })
         return { newRecord }
       },
