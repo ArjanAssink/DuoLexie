@@ -125,9 +125,11 @@ export interface SessionResult {
   lessonId: string
   completedAt: string
   answers: AnswerRecord[]
+  /** Hardop lezen only — one entry per word she graded */
+  wordResults?: WordResult[]
   xpEarned: number
   gemsEarned: number
-  /** klanken per minuut, for Flitsen rounds */
+  /** klanken per minuut, for Tijdrit rounds */
   score?: number
   newRecord?: boolean
 }

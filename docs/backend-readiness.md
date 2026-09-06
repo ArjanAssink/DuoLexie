@@ -55,7 +55,22 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
   clean before the flag was added. `strict: true` added; `tsc --noEmit`, `npm run build`, and
   `playwright test --project=desktop` (13/13) all pass unchanged.
 
-- [ ] **A2 — Emit a `SessionResult` per completed lesson; make aggregates derived.**
+- [x] **A2 — Emit a `SessionResult` per completed lesson; make aggregates derived.** Done.
+  Re-verified the claim first: still zero constructors of `SessionResult` anywhere in
+  `app/src`/`api/src`/`shared/src` before this change. `engine/recompute.ts` now holds
+  `applySession` (fold one session into an `Aggregates` snapshot) and `recomputeFrom`
+  (replay a whole log, sorted by `completedAt`) — one implementation, so the incremental
+  path can't drift from the replay path the way the `+10` bonus already has elsewhere (A4).
+  `completeLesson` builds a `SessionResult` and calls `applySession`; `sessions:
+  SessionResult[]` persists alongside the existing aggregates (persist version 2, migrated
+  from both v0 and v1). `SessionResult` gained `wordResults?` so replay can rebuild
+  `wordStats` too — it didn't exist when this file was written. `applyAnswer` gained the same
+  injectable-`now` parameter `applyWordResult` already had, since without it replay stamps
+  `lastSeenAt` with replay time instead of the session's actual time. Three Vitest cases cover
+  the equivalence guarantee (replay == incremental fold, order-independence, and concrete
+  sums/max/count assertions) — 30/30 tests pass. Verified live against a production build
+  (`vite preview`): completing a real lesson persists a well-formed `SessionResult` in
+  IndexedDB alongside correctly-derived `gems`/`xp`/`completedLessons`.
   The pivotal change. In `state/progress.ts`, add an append-only `sessions: SessionResult[]`
   and have `completeLesson` push one (generate `id` with `crypto.randomUUID()`, set
   `completedAt` to an ISO timestamp). Keep `gems`/`xp`/`soundStats`/`records` as they are —

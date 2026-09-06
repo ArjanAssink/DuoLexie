@@ -13,14 +13,23 @@ export function emptyStats(): SoundStats {
 
 const ALPHA = 0.2 // EWMA smoothing: last ~10 exposures dominate
 
-export function applyAnswer(stats: SoundStats, answer: AnswerRecord): SoundStats {
+/**
+ * Fold one answer into a sound's stats. `now` is injectable so replaying a session log
+ * (engine/recompute.ts) stamps `lastSeenAt` with when the session actually happened rather
+ * than replay time — matches the pattern engine/wordStats.ts already uses for the same reason.
+ */
+export function applyAnswer(
+  stats: SoundStats,
+  answer: AnswerRecord,
+  now: Date = new Date(),
+): SoundStats {
   const next: SoundStats = {
     ...stats,
     attempts: stats.attempts + 1,
     correct: stats.correct + (answer.correct ? 1 : 0),
     ewmaAccuracy: stats.ewmaAccuracy * (1 - ALPHA) + (answer.correct ? 1 : 0) * ALPHA,
     ewmaResponseMs: stats.ewmaResponseMs * (1 - ALPHA) + answer.ms * ALPHA,
-    lastSeenAt: new Date().toISOString(),
+    lastSeenAt: now.toISOString(),
     confusions: { ...stats.confusions },
   }
   if (!answer.correct && answer.confusedWith) {
