@@ -139,6 +139,35 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
   return lessons
 }
 
+/**
+ * A unit's stable id — derived from the sounds it introduces, not its position in
+ * FASE_DEFS. docs/backend-readiness.md A3 / code-review-backlog.md's "positional lesson
+ * ids": the old `u${i+1}` scheme silently remapped a user's completedLessons/records onto
+ * whatever unit happened to occupy that array slot after any reorder or insertion. A unit's
+ * sound set is what actually identifies it and doesn't change under editing elsewhere in
+ * the array, so it survives exactly the edits the old scheme didn't.
+ */
+function unitSlug(unitDef: UnitDef): string {
+  return unitDef.sounds.join('-')
+}
+
+/**
+ * Maps this file's *former* positional unit ids (`fase{n}-u{i+1}`, one-time only, computed
+ * from the current FASE_DEFS order) to the new stable ids above. Used once, by
+ * state/progress.ts's persisted-state migration, to remap old completedLessons/records
+ * keys and session lessonIds so upgrading doesn't silently blank out real progress. Nothing
+ * else should use this — new code has no reason to know the old scheme ever existed.
+ */
+export const LEGACY_UNIT_ID_MAP: Record<string, string> = (() => {
+  const map: Record<string, string> = {}
+  for (const faseDef of FASE_DEFS) {
+    faseDef.units.forEach((unitDef, i) => {
+      map[`${faseDef.id}-u${i + 1}`] = `${faseDef.id}-${unitSlug(unitDef)}`
+    })
+  }
+  return map
+})()
+
 function buildPath(): Fase[] {
   const fases: Fase[] = []
   const cumulative: string[] = []
@@ -148,7 +177,7 @@ function buildPath(): Fase[] {
     for (let i = 0; i < faseDef.units.length; i++) {
       const unitDef = faseDef.units[i]
       cumulative.push(...unitDef.sounds)
-      const unitId = `${faseDef.id}-u${i + 1}`
+      const unitId = `${faseDef.id}-${unitSlug(unitDef)}`
       units.push({
         id: unitId,
         faseId: faseDef.id,

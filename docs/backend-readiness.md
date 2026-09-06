@@ -86,14 +86,21 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
     JSON blob in IndexedDB. If it ever matters, compact sessions older than N months into a
     starting-balance snapshot — but don't pre-optimise this.
 
-- [ ] **A3 — Add `version` + `migrate` to both zustand `persist` configs.**
-  Neither `state/progress.ts` nor `state/avatar.ts` has them (verified). Any change to the
-  persisted shape silently corrupts existing progress on her device — and versioned payloads
-  are a prerequisite for server-side migration later. Note zustand's default merge is
-  **shallow**, so adding a key to a nested object (e.g. `settings.volume`) reads back
-  `undefined` at runtime while TypeScript insists it exists. Set `version: 1` now and add a
-  `migrate` that handles `undefined`→v1. Coordinate with the stable-lesson-id item in
-  `code-review-backlog.md` — same blob, do both migrations together.
+- [x] **A3 — Add `version` + `migrate` to both zustand `persist` configs.** Re-verified
+  first: the original claim no longer held — both stores already carry `version`/`migrate`/
+  `merge` (added independently by the wordStats and avatar-shop work that landed after this
+  file was written). The scaffolding half was already done. The half that wasn't — the
+  stable-lesson-id migration this item shares with `code-review-backlog.md` — is done now:
+  `data/path.ts` derives unit ids from their sounds (`fase1-a-e-o-u-i`, stable under reorder/
+  insertion) instead of array position, `LEGACY_UNIT_ID_MAP` records the former positional
+  ids for exactly one migration, and `progress.ts`'s `migrate` (now cascading through v0→v3
+  instead of one `if` per version, so an old-enough profile gets every fixup, not just the
+  one matching its stored version) remaps `completedLessons`/`records` keys and
+  `sessions[].lessonId` through it. Two e2e tests hardcoded old positional URLs
+  (`fase1-u1-l2`, `fase1-u2-l5`) and needed updating to the new ids — a direct, mechanical
+  consequence of this change, not a fix to their actual test logic. Verified live against a
+  production build: planted a v2 profile with old-style ids in all three locations, reloaded,
+  confirmed every one remapped correctly and gems/xp (not migration targets) were untouched.
 
 - [ ] **A4 — Move the reward rule into one place.** `screens/GameScreen.tsx:42` computes
   `gems`, then line 51 displays `gems + (newRecord ? 10 : 0)`, while `state/progress.ts:84`

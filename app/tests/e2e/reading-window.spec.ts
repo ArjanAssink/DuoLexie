@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
 
-const LEZEN = '/#/les/fase1-u2-l5'
+// Unit ids are stable/sounds-derived, not positional (data/path.ts A3) — this unit's
+// sounds are m/s/k/r/t, so its id is "fase1-m-s-k-r-t", not the old fase1-u2.
+const LEZEN = '/#/les/fase1-m-s-k-r-t-l5'
 
 test('the word is not pronounced until the reading window runs out', async ({ page }) => {
   await page.addInitScript(() => {

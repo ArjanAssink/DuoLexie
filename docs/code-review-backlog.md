@@ -118,16 +118,16 @@ StrictMode's double-invocation of effects can mask them in dev.
   in the render body when a lesson id doesn't resolve. Replace with
   `<Navigate to="/" replace />`.
 
-- [ ] **Progress is keyed on positional lesson ids** — `data/path.ts` generates ids as
-  `fase1-u${i+1}-l${n}`, so inserting or reordering a unit in `FASE_DEFS` silently remaps
-  later ids onto the previous unit's saved `completedLessons` and `records`. Worth fixing
-  before Phase 3 syncs progress to Cosmos and the corruption becomes durable and
-  cross-device. Fix: stable content-derived ids, or an explicit id map.
-  **The store-migration half of this item is done** (commit bc6f640): both stores now carry
-  `version: 1`, a `migrate`, and a `merge` that deep-fills nested objects, so zustand's
-  shallow merge can no longer hand an existing profile a half-formed object. Verified against
-  a planted v0 profile — gems, xp, `completedLessons`, `records`, `practiceDays`, `soundStats`
-  and `settings.font` all survived. The positional-id problem above is untouched.
+- [x] **Progress is keyed on positional lesson ids** — fixed, together with
+  `backend-readiness.md` A3 (same persisted blob, done in one pass): `data/path.ts` now
+  derives unit ids from the sounds they introduce (`fase1-a-e-o-u-i`) instead of
+  `fase{n}-u{i+1}` array position, so a reorder/insertion in `FASE_DEFS` no longer remaps an
+  existing profile's history onto the wrong unit. `LEGACY_UNIT_ID_MAP` + a migration
+  (persist version 2 → 3) remap any `completedLessons`/`records` keys and
+  `sessions[].lessonId` built from the old scheme. Verified against a planted v2 profile with
+  old-style ids in all three locations — all remapped correctly on load, gems/xp untouched.
+  (The store-migration scaffolding half — `version`/`migrate`/`merge` existing at all — was
+  already done per commit bc6f640, noted below before this pass.)
 
 - [x] **Streak days are computed in two different timezones** — fixed: calendar-day
   arithmetic now lives in `src/date.ts` (`localDay`, `addDays`) and `practiceDays` is stamped

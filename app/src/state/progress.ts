@@ -3,11 +3,38 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 import { get as idbGet, set as idbSet, del as idbDel } from './idbStorage'
 import type { AnswerRecord, SessionResult, WordResult } from '@shared/src/types'
 import { emptyAggregates, applySession, type Aggregates, type LessonCompletion } from '../engine/recompute'
+import { LEGACY_UNIT_ID_MAP } from '../data/path'
 
 const idbStateStorage: StateStorage = {
   getItem: (name) => idbGet(name),
   setItem: (name, value) => idbSet(name, value),
   removeItem: (name) => idbDel(name),
+}
+
+/**
+ * v2 → v3 (docs/backend-readiness.md A3): unit ids stopped being positional. Remaps any
+ * lesson id built from a *former* positional unit id (data/path.ts's LEGACY_UNIT_ID_MAP) to
+ * its new stable equivalent; leaves anything else — already-stable ids, unrecognised keys —
+ * untouched. Safe to run more than once: a key that doesn't match a legacy id is a no-op.
+ */
+function remappedLegacyId(lessonId: string): string {
+  const match = /^(.+)-l(\d+)$/.exec(lessonId)
+  if (!match) return lessonId
+  const [, unitId, lessonNum] = match
+  const newUnitId = LEGACY_UNIT_ID_MAP[unitId]
+  return newUnitId ? `${newUnitId}-l${lessonNum}` : lessonId
+}
+
+function remapLegacyLessonKeys<T>(dict: Record<string, T> | undefined): Record<string, T> {
+  const next: Record<string, T> = {}
+  for (const [key, value] of Object.entries(dict ?? {})) {
+    next[remappedLegacyId(key)] = value
+  }
+  return next
+}
+
+function remapLegacySessionIds(sessions: SessionResult[] | undefined): SessionResult[] {
+  return (sessions ?? []).map((s) => ({ ...s, lessonId: remappedLegacyId(s.lessonId) }))
 }
 
 export type { LessonCompletion }
@@ -81,12 +108,25 @@ export const useProgress = create<ProgressState>()(
     {
       name: 'duolexie-progress',
       storage: createJSONStorage(() => idbStateStorage),
-      version: 2,
-      // v0 profiles predate wordStats; v0/v1 predate the session log.
+      version: 3,
+      // Cascading, not else-if: an old-enough profile needs every fixup below it applied
+      // in order, not just the one matching its exact stored version.
       migrate: (persisted, version) => {
-        const p = persisted as Record<string, unknown>
-        if (version === 0) return { ...p, wordStats: {}, sessions: [] }
-        if (version === 1) return { ...p, sessions: [] }
+        let p = persisted as Record<string, unknown>
+        if (version < 1) p = { ...p, wordStats: {} } // v0 predates wordStats
+        if (version < 2) p = { ...p, sessions: [] } // v0/v1 predate the session log
+        if (version < 3) {
+          // v0-v2 predate stable unit ids (A3) — remap completedLessons/records keys and
+          // session lessonIds built from the old positional scheme.
+          p = {
+            ...p,
+            completedLessons: remapLegacyLessonKeys(
+              p.completedLessons as Record<string, LessonCompletion> | undefined,
+            ),
+            records: remapLegacyLessonKeys(p.records as Record<string, number> | undefined),
+            sessions: remapLegacySessionIds(p.sessions as SessionResult[] | undefined),
+          }
+        }
         return p
       },
       // zustand's default merge is shallow, so a nested object gained later would
