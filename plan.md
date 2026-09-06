@@ -45,8 +45,8 @@ Direction: **Lezen** = see letters → produce/recognize sound. **Luisteren** = 
 
 | # | Game | Direction | Level | Focus | Iteration |
 |---|---|---|---|---|---|
-| 1 | **Flitsen** | Lezen | klank+woord | **Speed** | v1 |
-| 2 | **Klankkaarten** (ported from [CardFlash](https://github.com/ArjanAssink/CardFlash)) | Lezen | klank | Exposure (no grading) | v1 |
+| 1 | **Tijdrit** | Lezen | klank+woord | **Speed** | v1 |
+| 2 | **Flitsen** (ported from [CardFlash](https://github.com/ArjanAssink/CardFlash)) | Lezen | klank | Exposure (no grading) | v1 |
 | 3 | **Welke klank?** | Lezen | klank | Accuracy | v1 |
 | 4 | **Woordbouwer** | Luisteren | woord | Accuracy | v1 |
 | 5 | **Hardop lezen** | Lezen | woord | Accuracy | v1 |
@@ -56,8 +56,8 @@ Direction: **Lezen** = see letters → produce/recognize sound. **Luisteren** = 
 | 9 | **Zinnenbouwer** (arrange word tiles into heard sentence) | Luisteren | zin | Accuracy | v3 |
 
 v1 game details:
-- **Flitsen** — digital version of her RID flashcard practice. Grapheme (later word) flashes; she reads aloud; she/parent taps **Goed! / Nog even**; 60-second rounds; score = klanken per minuut with personal records ("Versla jezelf!"). Grading is trusted, not policed — same as RID home practice. Speech recognition slots in behind this same interface later.
-- **Klankkaarten** — replaced Klankenjacht (tap-the-right-tile drill; wasn't landing as fun). Ported from the [CardFlash](https://github.com/ArjanAssink/CardFlash) repo: tap the deck, the top card 3D-flips and flies to the discard pile, running timer, until the whole pool is flipped. No grading (pure exposure — deliberately lighter than the app's other drills), restyled to DuoLexie's palette/tokens; the one addition over the original is playing the klank's own sound as each card lands, closing the teken→klank loop.
+- **Tijdrit** — digital version of her RID flashcard practice (named "Flitsen" until that name moved to the card-flip game below, which fit it better). Grapheme (later word) flashes; she reads aloud; she/parent taps **Goed! / Nog even**; 60-second rounds; score = klanken per minuut with personal records ("Versla jezelf!"). Grading is trusted, not policed — same as RID home practice. Speech recognition slots in behind this same interface later.
+- **Flitsen** — replaced Klankenjacht (tap-the-right-tile drill; wasn't landing as fun). Ported from the [CardFlash](https://github.com/ArjanAssink/CardFlash) repo: tap the deck, the top card 3D-flips and flies to the discard pile, running timer, until the whole pool is flipped. No grading, no narration (pure exposure — deliberately lighter than the app's other drills), restyled to DuoLexie's palette/tokens.
 - **Welke klank?** — mirror: see one grapheme → tap the speaker button that plays the matching sound (3–4 audio options). Fully self-checking, no speech needed.
 - **Woordbouwer** — hear a word → assemble it from **klank-chunk tiles** (`b · oo · m`, segmented by klank, never by letter — the RID-aligned detail). Scales: mkm → clusters → two syllables; distractor tiles from confusion pairs.
 - **Hardop lezen** — word card appears; she reads it aloud; shortly after, it's pronounced (family recording once available, TTS fallback for now) as her self-check; she **swipes the card right (goed) or left (nog even)** to grade herself, Tinder-style. Swipe right plays a cheerful "ding"; swipe left plays a silly "fart" buzz — playful, not punitive, matching design principle 5. Untimed, no re-queue on miss (unlike Klankenjacht) — it's a read-through, not a drill-to-mastery loop. Each word's answer is recorded against *all* its constituent klanken (not just one), so word-reading performance also feeds the per-klank mastery/EWMA system. Only appears once a unit's cumulative sound pool covers ≥4 words from `shared/curriculum/words.json`.
@@ -75,7 +75,7 @@ v1 game details:
 
 **Parent-configurable sound order:** the path is generated from a config marking each klank *actief / nog niet / al beheerst*, so it can mirror where she is in RID treatment. Default fase order: (1) Korte klanken + medeklinkers in waves, mkm-words from unit 2; (2) Lange klanken with kort↔lang contrast (man/maan); (3) Twee tekens I (ie oe eu ui uw); (4) Tweelingklanken ei/ij + au/ou (homophone units); (5) Twee tekens II (ch ng nk); (6) Drie & vier tekens; (7) Woordenrijk (two-syllable, mixed); (8) Zinnen.
 
-A short placement flow (parent marks known sounds + one Flitsen round per category) pre-completes early nodes so she isn't bored.
+A short placement flow (parent marks known sounds + one Tijdrit round per category) pre-completes early nodes so she isn't bored.
 
 **Mastery per sound:** Nieuw → Leren → **Geleerd** (≥90% accuracy over last 10 exposures) → **Goud** (geleerd + fast median response). Speed is the crown criterion, matching RID's automatization goal. Units show 1–3 crowns; crown 3 replays with tighter timers and nastier distractors.
 
@@ -91,7 +91,7 @@ Principles: reward effort and self-beating, never social comparison; no punitive
 - **Edelstenen (gems):** +10 per les, +5 perfect, +10 new Flits record, +20 Eindbaas. Accumulate in a visible treasure jar on the home screen (shop comes in v2).
 - **Weekdoel, not a daily streak:** RID prescribes 5 days/week → a weekly ring "5 van de 7 dagen"; full rings build a streak of *weeks*. Missing a day is never shown negatively. (Deliberate divergence from Duolingo's guilt-streak.)
 - **Mascot:** one character — suggestion "Flits de vos" (pick with her!). 4 states: idle, cheering, gentle encouragement, party. Static images + CSS/Lottie.
-- **Celebrations:** canvas-confetti, full-screen "NIEUW RECORD" in Flitsen, crown animation, and **family-recorded voice clips** for milestones ("Nieuw record!" in dad's voice).
+- **Celebrations:** canvas-confetti, full-screen "NIEUW RECORD" in Tijdrit, crown animation, and **family-recorded voice clips** for milestones ("Nieuw record!" in dad's voice).
 - **Records board:** klanken-per-minuut per category, best week, gold sounds.
 - Explicitly excluded: hearts/lives, leaderboards, timers in accuracy games.
 
@@ -168,7 +168,7 @@ Dev-only route `/opnemen` (mounted when `import.meta.env.DEV`): lists every need
 
 **Phase 0 — Walking skeleton (day 1):** git repo + GitHub, Vite/React/TS scaffold, `sounds.json`, SWA resource + generated workflow, custom domain + SSL. *Done = placeholder live on your domain via git push.*
 
-**Phase 1 — First playable (local-only, no backend):** Recording studio → record Fase 1 sounds; **Flitsen** (speed flashcards with Goed/Nog even + klanken-per-minuut records) and **Klankenjacht** (hear→tap letters); path screen with Fase 1 units; local progress/gems/records in IndexedDB; mascot v0 + confetti; dyslexia-friendly font toggle (Lexend/OpenDyslexic), big buttons, Dutch UI. *Done = she can do real lessons on the real domain.*
+**Phase 1 — First playable (local-only, no backend):** Recording studio → record Fase 1 sounds; **Tijdrit** (speed flashcards with Goed/Nog even + klanken-per-minuut records) and **Flitsen** (card-flip exposure, ported from CardFlash — originally Klankenjacht, hear→tap letters, before it was replaced); path screen with Fase 1 units; local progress/gems/records in IndexedDB; mascot v0 + confetti; dyslexia-friendly font toggle (Lexend/OpenDyslexic), big buttons, Dutch UI. *Done = she can do real lessons on the real domain.*
 
 **Phase 2 — Full v1 game set + PWA:** **Welke klank?**, **Woordbouwer** (klank-chunk tiles), **Hardop lezen**; word lists + recordings for Fases 1–3; weighted review sampler + confusion-matrix distractors; weekdoel ring; vite-plugin-pwa (installable, offline audio precache); Eindbaas + Schatkist nodes.
 

@@ -16,13 +16,14 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 
 ## Phase 1 — Eerste speelbare versie (lokaal, geen backend)
 - [x] Padscherm: fases → units → lessen, lineaire unlock, edelstenen + weekdoel (5 van 7)
-- [x] Flitsen: 60s-rondes, Goed/Nog even, klanken-per-minuut records, NIEUW RECORD-viering
-- [x] ~~Klankenjacht~~ verwijderd (niet leuk genoeg bevonden) → vervangen door **Klankkaarten**, geport vanuit [CardFlash](https://github.com/ArjanAssink/CardFlash): tik de stapel om, kaart flipt en vliegt naar de aflegstapel, timer, geen score — geverifieerd in browser + e2e-suite (incl. snel overlappend tikken, geen dubbele afronding)
+- [x] **Tijdrit** (heette Flitsen, hernoemd): 60s-rondes, Goed/Nog even, klanken-per-minuut records, NIEUW RECORD-viering
+- [x] ~~Klankenjacht~~ verwijderd (niet leuk genoeg bevonden) → vervangen door **Flitsen** (nieuwe naam, was Klankkaarten), geport vanuit [CardFlash](https://github.com/ArjanAssink/CardFlash): tik de stapel om, kaart flipt en vliegt naar de aflegstapel, timer, geen score, geen narratie — geverifieerd in browser + e2e-suite (incl. snel overlappend tikken, geen dubbele afronding); iOS-jank-fix onderweg (box-shadow tijdens de flip-animatie is een bekend WebKit-perf-probleem — kon zelf niet op een echte iPhone testen, wachtend op bevestiging)
 - [x] Lokale voortgang in IndexedDB (zustand persist): stats per klank, EWMA, mastery
 - [x] Audio met TTS-fallback zolang opnames ontbreken
 - [x] Opnamestudio `/opnemen` (dev-only) + `tools/convert-audio.mjs`
 - [x] Lettertype-toggle (dyslexievriendelijke spatiëring), NL UI
 - [x] Frida-redesign geïmplementeerd (art/design_handoff_leerpad): warm licht thema, coin-pad, statbalk, bottom nav, Frida-mascotte + favicons/manifest
+- [x] Probeermenu `/proberen` (niet gelinkt in de navigatie): elke spelmodus direct spelen zonder het pad te doorlopen, plus `?test=true` ontgrendelt alle lessen op het echte pad-scherm zelf
 - [ ] Klanken inspreken (Fase-1-klanken minimaal) en mp3's committen
 - [ ] End-to-end test in browser: les afronden, herladen, voortgang blijft staan
 - [ ] Testen op haar eigen tablet/device
@@ -32,7 +33,9 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 - [ ] Welke klank? (zie teken → tik het juiste geluid)
 - [ ] Woordbouwer (woord bouwen uit klank-tegels, mkm eerst)
 - [x] Hardop lezen — swipe-kaart in plaats van tap-knoppen: woord verschijnt, wordt na een korte pauze uitgesproken (TTS-fallback, net als klanken — `/audio/words/{id}.mp3` klaarzet voor als opnames er zijn), sleep rechts (goed, "ding") of links (nog even, scheet-buzz via WebAudio); geen re-queue bij fout (leesbeurt, geen drilloop); elk woord telt mee voor de EWMA van al zijn klanken. Node verschijnt pas per unit zodra er ≥4 woorden met de tot-dan-toe geleerde klanken beschikbaar zijn (`words.ts` → `wordsForPool`). Geverifieerd in browser: volledige les (kok/tas/… ) van kaart tot beloningsscherm, progressiebalk, geen console errors/React-warnings.
-- [x] Woordenlijsten per klank — `shared/curriculum/words.json` (was al aanwezig, nu voor het eerst gebruikt) dekt kort/lang/twee/drie; **nog uit te breiden** voor vier/mede-categorie zodra die fases content krijgen
+- [x] Woordenlijsten per klank — `shared/curriculum/words.json` (was al aanwezig, nu voor het eerst gebruikt) dekt kort/lang/twee/drie/vier
+- [x] 115 woorden geïmporteerd uit [Hangman](https://github.com/ArjanAssink/Hangman) via `tools/import-hangman-words.mjs` (greedy klanken-segmentatie, geen echte fonetische analyse) — allemaal `"reviewed": false`, **review nodig (Arjan)**: zie `tools/hangman-import-report.md` (woord + hint + klanken-opsplitsing per rij, plus 12 leenwoorden die niet gesegmenteerd konden worden en dus helemaal niet zijn toegevoegd). Prioriteit voor review: de 6 woorden met een `nk`-klank op een samenstellingsgrens (pannenkoek, woonkamer, boerenkaas, boekenkast) — twijfelachtig of dat fonetisch/didactisch hetzelfde is als een `nk` binnen één woorddeel (sprinkhaan, koninkrijk); ik weet het zelf niet zeker genoeg om dat te bepalen.
+- [x] `buildWordExercises` geeft voorkeur aan kortere woorden (langste kandidatenpool = 3× het aantal benodigde oefeningen) — voorkomt dat een beginnersles "kat" en "helikopter" door elkaar aanbiedt nu het woordenboek veel langere samenstellingen bevat
 - [ ] **Review nodig (Arjan):** stem/backend kiezen voor bulk woord-audio — zie vergelijking https://claude.ai/code/artifact/12e0af9c-368a-4d27-954e-5ee143df7edc (Piper vs Google Translate vs Azure/Google Cloud), script in `tools/generate-word-audio.mjs`; tot dan speelt Hardop lezen via browser-TTS
 - [ ] Eindbaas + Schatkist nodes op het pad
 - [ ] vite-plugin-pwa: installeerbaar, offline audio-precache

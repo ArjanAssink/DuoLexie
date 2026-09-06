@@ -21,7 +21,7 @@ test('clicking the active lesson coin opens the game', async ({ page }) => {
   expect(errors, `console/page errors: ${errors.join('\n')}`).toEqual([])
 })
 
-test('the first lesson is Klankkaarten and flipping the deck lands a card', async ({ page }) => {
+test('the first lesson is Flitsen and flipping the deck lands a card', async ({ page }) => {
   await page.goto('/')
   await page.locator('.coin-item.active .coin').click()
 
@@ -33,7 +33,7 @@ test('the first lesson is Klankkaarten and flipping the deck lands a card', asyn
 })
 
 // The "recorded clip plays instead of falling back to TTS" regression test used to live
-// here, against Klankkaarten's card-landing sound. That narration was removed by request,
-// and no other lesson currently auto-plays klank audio (Flitsen and Klankkaarten are both
-// silent by design; Hardop lezen plays *word* audio, a separate code path). Re-add this
-// test once a klank-audio game exists again (Welke klank? / Woordbouwer, plan.md Phase 2).
+// here, against the card-flip Flitsen's card-landing sound. That narration was removed by
+// request, and no other lesson currently auto-plays klank audio (Flitsen and Tijdrit are
+// both silent by design; Hardop lezen plays *word* audio, a separate code path). Re-add
+// this test once a klank-audio game exists again (Welke klank? / Woordbouwer, plan.md Phase 2).

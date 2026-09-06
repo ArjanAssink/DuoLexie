@@ -1,56 +1,2308 @@
 {
   "words": [
-    { "id": "kat", "text": "kat", "category": "kort", "klanken": ["k", "a", "t"] },
-    { "id": "bal", "text": "bal", "category": "kort", "klanken": ["b", "a", "l"] },
-    { "id": "tas", "text": "tas", "category": "kort", "klanken": ["t", "a", "s"] },
-    { "id": "jas", "text": "jas", "category": "kort", "klanken": ["j", "a", "s"] },
-    { "id": "mat", "text": "mat", "category": "kort", "klanken": ["m", "a", "t"] },
-    { "id": "pan", "text": "pan", "category": "kort", "klanken": ["p", "a", "n"] },
-    { "id": "dak", "text": "dak", "category": "kort", "klanken": ["d", "a", "k"] },
-    { "id": "zak", "text": "zak", "category": "kort", "klanken": ["z", "a", "k"] },
-    { "id": "bed", "text": "bed", "category": "kort", "klanken": ["b", "e", "d"] },
-    { "id": "pen", "text": "pen", "category": "kort", "klanken": ["p", "e", "n"] },
-    { "id": "hek", "text": "hek", "category": "kort", "klanken": ["h", "e", "k"] },
-    { "id": "les", "text": "les", "category": "kort", "klanken": ["l", "e", "s"] },
-    { "id": "vel", "text": "vel", "category": "kort", "klanken": ["v", "e", "l"] },
-    { "id": "pot", "text": "pot", "category": "kort", "klanken": ["p", "o", "t"] },
-    { "id": "bos", "text": "bos", "category": "kort", "klanken": ["b", "o", "s"] },
-    { "id": "kok", "text": "kok", "category": "kort", "klanken": ["k", "o", "k"] },
-    { "id": "hok", "text": "hok", "category": "kort", "klanken": ["h", "o", "k"] },
-    { "id": "top", "text": "top", "category": "kort", "klanken": ["t", "o", "p"] },
-    { "id": "bus", "text": "bus", "category": "kort", "klanken": ["b", "u", "s"] },
-    { "id": "put", "text": "put", "category": "kort", "klanken": ["p", "u", "t"] },
-    { "id": "kus", "text": "kus", "category": "kort", "klanken": ["k", "u", "s"] },
-    { "id": "hut", "text": "hut", "category": "kort", "klanken": ["h", "u", "t"] },
-    { "id": "pil", "text": "pil", "category": "kort", "klanken": ["p", "i", "l"] },
-    { "id": "vis", "text": "vis", "category": "kort", "klanken": ["v", "i", "s"] },
-    { "id": "wip", "text": "wip", "category": "kort", "klanken": ["w", "i", "p"] },
-    { "id": "dik", "text": "dik", "category": "kort", "klanken": ["d", "i", "k"] },
-    { "id": "kip", "text": "kip", "category": "kort", "klanken": ["k", "i", "p"] },
-    { "id": "rib", "text": "rib", "category": "kort", "klanken": ["r", "i", "b"] },
-
-    { "id": "maan", "text": "maan", "category": "lang", "klanken": ["m", "aa", "n"] },
-    { "id": "been", "text": "been", "category": "lang", "klanken": ["b", "ee", "n"] },
-    { "id": "boom", "text": "boom", "category": "lang", "klanken": ["b", "oo", "m"] },
-    { "id": "muur", "text": "muur", "category": "lang", "klanken": ["m", "uu", "r"] },
-    { "id": "raam", "text": "raam", "category": "lang", "klanken": ["r", "aa", "m"] },
-    { "id": "zeep", "text": "zeep", "category": "lang", "klanken": ["z", "ee", "p"] },
-    { "id": "boot", "text": "boot", "category": "lang", "klanken": ["b", "oo", "t"] },
-    { "id": "vuur", "text": "vuur", "category": "lang", "klanken": ["v", "uu", "r"] },
-
-    { "id": "ei", "text": "ei", "category": "twee", "klanken": ["ei"] },
-    { "id": "klein", "text": "klein", "category": "twee", "klanken": ["k", "l", "ei", "n"] },
-    { "id": "wijs", "text": "wijs", "category": "twee", "klanken": ["w", "ij", "s"] },
-    { "id": "fiets", "text": "fiets", "category": "twee", "klanken": ["f", "ie", "t", "s"] },
-    { "id": "ring", "text": "ring", "category": "twee", "klanken": ["r", "i", "ng"] },
-    { "id": "zink", "text": "zink", "category": "twee", "klanken": ["z", "i", "nk"] },
-    { "id": "boek", "text": "boek", "category": "twee", "klanken": ["b", "oe", "k"] },
-    { "id": "neus", "text": "neus", "category": "twee", "klanken": ["n", "eu", "s"] },
-    { "id": "huis", "text": "huis", "category": "twee", "klanken": ["h", "ui", "s"] },
-    { "id": "licht", "text": "licht", "category": "twee", "klanken": ["l", "i", "ch", "t"] },
-    { "id": "koud", "text": "koud", "category": "twee", "klanken": ["k", "ou", "d"] },
-
-    { "id": "nauw", "text": "nauw", "category": "drie", "klanken": ["n", "auw"] },
-    { "id": "mouw", "text": "mouw", "category": "drie", "klanken": ["m", "ouw"] }
+    {
+      "id": "kat",
+      "text": "kat",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "a",
+        "t"
+      ]
+    },
+    {
+      "id": "bal",
+      "text": "bal",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "a",
+        "l"
+      ]
+    },
+    {
+      "id": "tas",
+      "text": "tas",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "id": "jas",
+      "text": "jas",
+      "category": "kort",
+      "klanken": [
+        "j",
+        "a",
+        "s"
+      ]
+    },
+    {
+      "id": "mat",
+      "text": "mat",
+      "category": "kort",
+      "klanken": [
+        "m",
+        "a",
+        "t"
+      ]
+    },
+    {
+      "id": "pan",
+      "text": "pan",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "a",
+        "n"
+      ]
+    },
+    {
+      "id": "dak",
+      "text": "dak",
+      "category": "kort",
+      "klanken": [
+        "d",
+        "a",
+        "k"
+      ]
+    },
+    {
+      "id": "zak",
+      "text": "zak",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "a",
+        "k"
+      ]
+    },
+    {
+      "id": "bed",
+      "text": "bed",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "e",
+        "d"
+      ]
+    },
+    {
+      "id": "pen",
+      "text": "pen",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "e",
+        "n"
+      ]
+    },
+    {
+      "id": "hek",
+      "text": "hek",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "e",
+        "k"
+      ]
+    },
+    {
+      "id": "les",
+      "text": "les",
+      "category": "kort",
+      "klanken": [
+        "l",
+        "e",
+        "s"
+      ]
+    },
+    {
+      "id": "vel",
+      "text": "vel",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "e",
+        "l"
+      ]
+    },
+    {
+      "id": "pot",
+      "text": "pot",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "o",
+        "t"
+      ]
+    },
+    {
+      "id": "bos",
+      "text": "bos",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "o",
+        "s"
+      ]
+    },
+    {
+      "id": "kok",
+      "text": "kok",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "o",
+        "k"
+      ]
+    },
+    {
+      "id": "hok",
+      "text": "hok",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "o",
+        "k"
+      ]
+    },
+    {
+      "id": "top",
+      "text": "top",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "o",
+        "p"
+      ]
+    },
+    {
+      "id": "bus",
+      "text": "bus",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "u",
+        "s"
+      ]
+    },
+    {
+      "id": "put",
+      "text": "put",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "u",
+        "t"
+      ]
+    },
+    {
+      "id": "kus",
+      "text": "kus",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "u",
+        "s"
+      ]
+    },
+    {
+      "id": "hut",
+      "text": "hut",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "u",
+        "t"
+      ]
+    },
+    {
+      "id": "pil",
+      "text": "pil",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "i",
+        "l"
+      ]
+    },
+    {
+      "id": "vis",
+      "text": "vis",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "i",
+        "s"
+      ]
+    },
+    {
+      "id": "wip",
+      "text": "wip",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "i",
+        "p"
+      ]
+    },
+    {
+      "id": "dik",
+      "text": "dik",
+      "category": "kort",
+      "klanken": [
+        "d",
+        "i",
+        "k"
+      ]
+    },
+    {
+      "id": "kip",
+      "text": "kip",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "i",
+        "p"
+      ]
+    },
+    {
+      "id": "rib",
+      "text": "rib",
+      "category": "kort",
+      "klanken": [
+        "r",
+        "i",
+        "b"
+      ]
+    },
+    {
+      "id": "maan",
+      "text": "maan",
+      "category": "lang",
+      "klanken": [
+        "m",
+        "aa",
+        "n"
+      ]
+    },
+    {
+      "id": "been",
+      "text": "been",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "ee",
+        "n"
+      ]
+    },
+    {
+      "id": "boom",
+      "text": "boom",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "oo",
+        "m"
+      ]
+    },
+    {
+      "id": "muur",
+      "text": "muur",
+      "category": "lang",
+      "klanken": [
+        "m",
+        "uu",
+        "r"
+      ]
+    },
+    {
+      "id": "raam",
+      "text": "raam",
+      "category": "lang",
+      "klanken": [
+        "r",
+        "aa",
+        "m"
+      ]
+    },
+    {
+      "id": "zeep",
+      "text": "zeep",
+      "category": "lang",
+      "klanken": [
+        "z",
+        "ee",
+        "p"
+      ]
+    },
+    {
+      "id": "boot",
+      "text": "boot",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "oo",
+        "t"
+      ]
+    },
+    {
+      "id": "vuur",
+      "text": "vuur",
+      "category": "lang",
+      "klanken": [
+        "v",
+        "uu",
+        "r"
+      ]
+    },
+    {
+      "id": "ei",
+      "text": "ei",
+      "category": "twee",
+      "klanken": [
+        "ei"
+      ]
+    },
+    {
+      "id": "klein",
+      "text": "klein",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "l",
+        "ei",
+        "n"
+      ]
+    },
+    {
+      "id": "wijs",
+      "text": "wijs",
+      "category": "twee",
+      "klanken": [
+        "w",
+        "ij",
+        "s"
+      ]
+    },
+    {
+      "id": "fiets",
+      "text": "fiets",
+      "category": "twee",
+      "klanken": [
+        "f",
+        "ie",
+        "t",
+        "s"
+      ]
+    },
+    {
+      "id": "ring",
+      "text": "ring",
+      "category": "twee",
+      "klanken": [
+        "r",
+        "i",
+        "ng"
+      ]
+    },
+    {
+      "id": "zink",
+      "text": "zink",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "i",
+        "nk"
+      ]
+    },
+    {
+      "id": "boek",
+      "text": "boek",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "oe",
+        "k"
+      ]
+    },
+    {
+      "id": "neus",
+      "text": "neus",
+      "category": "twee",
+      "klanken": [
+        "n",
+        "eu",
+        "s"
+      ]
+    },
+    {
+      "id": "huis",
+      "text": "huis",
+      "category": "twee",
+      "klanken": [
+        "h",
+        "ui",
+        "s"
+      ]
+    },
+    {
+      "id": "licht",
+      "text": "licht",
+      "category": "twee",
+      "klanken": [
+        "l",
+        "i",
+        "ch",
+        "t"
+      ]
+    },
+    {
+      "id": "koud",
+      "text": "koud",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "ou",
+        "d"
+      ]
+    },
+    {
+      "id": "nauw",
+      "text": "nauw",
+      "category": "drie",
+      "klanken": [
+        "n",
+        "auw"
+      ]
+    },
+    {
+      "id": "mouw",
+      "text": "mouw",
+      "category": "drie",
+      "klanken": [
+        "m",
+        "ouw"
+      ]
+    },
+    {
+      "id": "neushoorn",
+      "text": "neushoorn",
+      "category": "twee",
+      "klanken": [
+        "n",
+        "eu",
+        "s",
+        "h",
+        "oo",
+        "r",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vleermuis",
+      "text": "vleermuis",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "l",
+        "ee",
+        "r",
+        "m",
+        "ui",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dolfijnen",
+      "text": "dolfijnen",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "o",
+        "l",
+        "f",
+        "ij",
+        "n",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zeeleeuw",
+      "text": "zeeleeuw",
+      "category": "vier",
+      "klanken": [
+        "z",
+        "ee",
+        "l",
+        "eeuw"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zeepaardje",
+      "text": "zeepaardje",
+      "category": "lang",
+      "klanken": [
+        "z",
+        "ee",
+        "p",
+        "aa",
+        "r",
+        "d",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sprinkhaan",
+      "text": "sprinkhaan",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "p",
+        "r",
+        "i",
+        "nk",
+        "h",
+        "aa",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "papegaai",
+      "text": "papegaai",
+      "category": "drie",
+      "klanken": [
+        "p",
+        "a",
+        "p",
+        "e",
+        "g",
+        "aai"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dierentuin",
+      "text": "dierentuin",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "ie",
+        "r",
+        "e",
+        "n",
+        "t",
+        "ui",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dierenarts",
+      "text": "dierenarts",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "ie",
+        "r",
+        "e",
+        "n",
+        "a",
+        "r",
+        "t",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dinosaurus",
+      "text": "dinosaurus",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "i",
+        "n",
+        "o",
+        "s",
+        "au",
+        "r",
+        "u",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vogelkooi",
+      "text": "vogelkooi",
+      "category": "drie",
+      "klanken": [
+        "v",
+        "o",
+        "g",
+        "e",
+        "l",
+        "k",
+        "ooi"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "goudvissen",
+      "text": "goudvissen",
+      "category": "twee",
+      "klanken": [
+        "g",
+        "ou",
+        "d",
+        "v",
+        "i",
+        "s",
+        "s",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "mierenhoop",
+      "text": "mierenhoop",
+      "category": "twee",
+      "klanken": [
+        "m",
+        "ie",
+        "r",
+        "e",
+        "n",
+        "h",
+        "oo",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vuurvlieg",
+      "text": "vuurvlieg",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "uu",
+        "r",
+        "v",
+        "l",
+        "ie",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "ooievaar",
+      "text": "ooievaar",
+      "category": "drie",
+      "klanken": [
+        "ooi",
+        "e",
+        "v",
+        "aa",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zeehondje",
+      "text": "zeehondje",
+      "category": "lang",
+      "klanken": [
+        "z",
+        "ee",
+        "h",
+        "o",
+        "n",
+        "d",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "ijsbeertje",
+      "text": "ijsbeertje",
+      "category": "twee",
+      "klanken": [
+        "ij",
+        "s",
+        "b",
+        "ee",
+        "r",
+        "t",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "aardappel",
+      "text": "aardappel",
+      "category": "lang",
+      "klanken": [
+        "aa",
+        "r",
+        "d",
+        "a",
+        "p",
+        "p",
+        "e",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "boterkoek",
+      "text": "boterkoek",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "o",
+        "t",
+        "e",
+        "r",
+        "k",
+        "oe",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "pannenkoek",
+      "text": "pannenkoek",
+      "category": "twee",
+      "klanken": [
+        "p",
+        "a",
+        "n",
+        "n",
+        "e",
+        "nk",
+        "oe",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "aardbeien",
+      "text": "aardbeien",
+      "category": "twee",
+      "klanken": [
+        "aa",
+        "r",
+        "d",
+        "b",
+        "ei",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "limonade",
+      "text": "limonade",
+      "category": "kort",
+      "klanken": [
+        "l",
+        "i",
+        "m",
+        "o",
+        "n",
+        "a",
+        "d",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slagroom",
+      "text": "slagroom",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "l",
+        "a",
+        "g",
+        "r",
+        "oo",
+        "m"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "rozijnen",
+      "text": "rozijnen",
+      "category": "twee",
+      "klanken": [
+        "r",
+        "o",
+        "z",
+        "ij",
+        "n",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hagelslag",
+      "text": "hagelslag",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "a",
+        "g",
+        "e",
+        "l",
+        "s",
+        "l",
+        "a",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "pindakaas",
+      "text": "pindakaas",
+      "category": "lang",
+      "klanken": [
+        "p",
+        "i",
+        "n",
+        "d",
+        "a",
+        "k",
+        "aa",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "oliebollen",
+      "text": "oliebollen",
+      "category": "twee",
+      "klanken": [
+        "o",
+        "l",
+        "ie",
+        "b",
+        "o",
+        "l",
+        "l",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "suikerspin",
+      "text": "suikerspin",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ui",
+        "k",
+        "e",
+        "r",
+        "s",
+        "p",
+        "i",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "ijslollie",
+      "text": "ijslollie",
+      "category": "twee",
+      "klanken": [
+        "ij",
+        "s",
+        "l",
+        "o",
+        "l",
+        "l",
+        "ie"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "waterijsje",
+      "text": "waterijsje",
+      "category": "twee",
+      "klanken": [
+        "w",
+        "a",
+        "t",
+        "e",
+        "r",
+        "ij",
+        "s",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "snoepgoed",
+      "text": "snoepgoed",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "n",
+        "oe",
+        "p",
+        "g",
+        "oe",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "boerenkaas",
+      "text": "boerenkaas",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "oe",
+        "r",
+        "e",
+        "nk",
+        "aa",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stroopkoek",
+      "text": "stroopkoek",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "t",
+        "r",
+        "oo",
+        "p",
+        "k",
+        "oe",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "speelgoed",
+      "text": "speelgoed",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "p",
+        "ee",
+        "l",
+        "g",
+        "oe",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "schaakbord",
+      "text": "schaakbord",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ch",
+        "aa",
+        "k",
+        "b",
+        "o",
+        "r",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "trampoline",
+      "text": "trampoline",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "r",
+        "a",
+        "m",
+        "p",
+        "o",
+        "l",
+        "i",
+        "n",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "voetballen",
+      "text": "voetballen",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "oe",
+        "t",
+        "b",
+        "a",
+        "l",
+        "l",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kaartspel",
+      "text": "kaartspel",
+      "category": "lang",
+      "klanken": [
+        "k",
+        "aa",
+        "r",
+        "t",
+        "s",
+        "p",
+        "e",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "speeldoos",
+      "text": "speeldoos",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "p",
+        "ee",
+        "l",
+        "d",
+        "oo",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "poppenhuis",
+      "text": "poppenhuis",
+      "category": "twee",
+      "klanken": [
+        "p",
+        "o",
+        "p",
+        "p",
+        "e",
+        "n",
+        "h",
+        "ui",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "knuffelaar",
+      "text": "knuffelaar",
+      "category": "lang",
+      "klanken": [
+        "k",
+        "n",
+        "u",
+        "f",
+        "f",
+        "e",
+        "l",
+        "aa",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "draaimolen",
+      "text": "draaimolen",
+      "category": "drie",
+      "klanken": [
+        "d",
+        "r",
+        "aai",
+        "m",
+        "o",
+        "l",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "katapult",
+      "text": "katapult",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "a",
+        "t",
+        "a",
+        "p",
+        "u",
+        "l",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hoelahoep",
+      "text": "hoelahoep",
+      "category": "twee",
+      "klanken": [
+        "h",
+        "oe",
+        "l",
+        "a",
+        "h",
+        "oe",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "regenboog",
+      "text": "regenboog",
+      "category": "lang",
+      "klanken": [
+        "r",
+        "e",
+        "g",
+        "e",
+        "n",
+        "b",
+        "oo",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zonnebloem",
+      "text": "zonnebloem",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "o",
+        "n",
+        "n",
+        "e",
+        "b",
+        "l",
+        "oe",
+        "m"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sneeuwman",
+      "text": "sneeuwman",
+      "category": "vier",
+      "klanken": [
+        "s",
+        "n",
+        "eeuw",
+        "m",
+        "a",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vuurwerk",
+      "text": "vuurwerk",
+      "category": "lang",
+      "klanken": [
+        "v",
+        "uu",
+        "r",
+        "w",
+        "e",
+        "r",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sneeuwbal",
+      "text": "sneeuwbal",
+      "category": "vier",
+      "klanken": [
+        "s",
+        "n",
+        "eeuw",
+        "b",
+        "a",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "ijsbloemen",
+      "text": "ijsbloemen",
+      "category": "twee",
+      "klanken": [
+        "ij",
+        "s",
+        "b",
+        "l",
+        "oe",
+        "m",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sneeuwvlok",
+      "text": "sneeuwvlok",
+      "category": "vier",
+      "klanken": [
+        "s",
+        "n",
+        "eeuw",
+        "v",
+        "l",
+        "o",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "waterval",
+      "text": "waterval",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "a",
+        "t",
+        "e",
+        "r",
+        "v",
+        "a",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vliegtuig",
+      "text": "vliegtuig",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "l",
+        "ie",
+        "g",
+        "t",
+        "ui",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vliegveld",
+      "text": "vliegveld",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "l",
+        "ie",
+        "g",
+        "v",
+        "e",
+        "l",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "helikopter",
+      "text": "helikopter",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "e",
+        "l",
+        "i",
+        "k",
+        "o",
+        "p",
+        "t",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "schoolbus",
+      "text": "schoolbus",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ch",
+        "oo",
+        "l",
+        "b",
+        "u",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "motorfiets",
+      "text": "motorfiets",
+      "category": "twee",
+      "klanken": [
+        "m",
+        "o",
+        "t",
+        "o",
+        "r",
+        "f",
+        "ie",
+        "t",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "driewieler",
+      "text": "driewieler",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "r",
+        "ie",
+        "w",
+        "ie",
+        "l",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "duikboot",
+      "text": "duikboot",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "ui",
+        "k",
+        "b",
+        "oo",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vrachtauto",
+      "text": "vrachtauto",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "r",
+        "a",
+        "ch",
+        "t",
+        "au",
+        "t",
+        "o"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "treintje",
+      "text": "treintje",
+      "category": "twee",
+      "klanken": [
+        "t",
+        "r",
+        "ei",
+        "n",
+        "t",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "speeltuin",
+      "text": "speeltuin",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "p",
+        "ee",
+        "l",
+        "t",
+        "ui",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "boerderij",
+      "text": "boerderij",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "oe",
+        "r",
+        "d",
+        "e",
+        "r",
+        "ij"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "bakkerij",
+      "text": "bakkerij",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "a",
+        "k",
+        "k",
+        "e",
+        "r",
+        "ij"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "achtbaan",
+      "text": "achtbaan",
+      "category": "twee",
+      "klanken": [
+        "a",
+        "ch",
+        "t",
+        "b",
+        "aa",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "reuzenrad",
+      "text": "reuzenrad",
+      "category": "twee",
+      "klanken": [
+        "r",
+        "eu",
+        "z",
+        "e",
+        "n",
+        "r",
+        "a",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "speelkamer",
+      "text": "speelkamer",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "p",
+        "ee",
+        "l",
+        "k",
+        "a",
+        "m",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vuurtoren",
+      "text": "vuurtoren",
+      "category": "lang",
+      "klanken": [
+        "v",
+        "uu",
+        "r",
+        "t",
+        "o",
+        "r",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "woonkamer",
+      "text": "woonkamer",
+      "category": "twee",
+      "klanken": [
+        "w",
+        "oo",
+        "nk",
+        "a",
+        "m",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slaapkamer",
+      "text": "slaapkamer",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "l",
+        "aa",
+        "p",
+        "k",
+        "a",
+        "m",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "keukentje",
+      "text": "keukentje",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "eu",
+        "k",
+        "e",
+        "n",
+        "t",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "spoorbaan",
+      "text": "spoorbaan",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "p",
+        "oo",
+        "r",
+        "b",
+        "aa",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "koelkast",
+      "text": "koelkast",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "oe",
+        "l",
+        "k",
+        "a",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "tafelkleed",
+      "text": "tafelkleed",
+      "category": "lang",
+      "klanken": [
+        "t",
+        "a",
+        "f",
+        "e",
+        "l",
+        "k",
+        "l",
+        "ee",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slaapzak",
+      "text": "slaapzak",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "l",
+        "aa",
+        "p",
+        "z",
+        "a",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "spaarpot",
+      "text": "spaarpot",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "p",
+        "aa",
+        "r",
+        "p",
+        "o",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "telefoon",
+      "text": "telefoon",
+      "category": "lang",
+      "klanken": [
+        "t",
+        "e",
+        "l",
+        "e",
+        "f",
+        "oo",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "televisie",
+      "text": "televisie",
+      "category": "twee",
+      "klanken": [
+        "t",
+        "e",
+        "l",
+        "e",
+        "v",
+        "i",
+        "s",
+        "ie"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "schooltas",
+      "text": "schooltas",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ch",
+        "oo",
+        "l",
+        "t",
+        "a",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "boekentas",
+      "text": "boekentas",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "oe",
+        "k",
+        "e",
+        "n",
+        "t",
+        "a",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "boekenkast",
+      "text": "boekenkast",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "oe",
+        "k",
+        "e",
+        "nk",
+        "a",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kleurboek",
+      "text": "kleurboek",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "l",
+        "eu",
+        "r",
+        "b",
+        "oe",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "schetsboek",
+      "text": "schetsboek",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ch",
+        "e",
+        "t",
+        "s",
+        "b",
+        "oe",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "schilderij",
+      "text": "schilderij",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ch",
+        "i",
+        "l",
+        "d",
+        "e",
+        "r",
+        "ij"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "blokfluit",
+      "text": "blokfluit",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "l",
+        "o",
+        "k",
+        "f",
+        "l",
+        "ui",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "muzieknoot",
+      "text": "muzieknoot",
+      "category": "twee",
+      "klanken": [
+        "m",
+        "u",
+        "z",
+        "ie",
+        "k",
+        "n",
+        "oo",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "muziekles",
+      "text": "muziekles",
+      "category": "twee",
+      "klanken": [
+        "m",
+        "u",
+        "z",
+        "ie",
+        "k",
+        "l",
+        "e",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "oorbellen",
+      "text": "oorbellen",
+      "category": "lang",
+      "klanken": [
+        "oo",
+        "r",
+        "b",
+        "e",
+        "l",
+        "l",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "avontuur",
+      "text": "avontuur",
+      "category": "lang",
+      "klanken": [
+        "a",
+        "v",
+        "o",
+        "n",
+        "t",
+        "uu",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sprookje",
+      "text": "sprookje",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "p",
+        "r",
+        "oo",
+        "k",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "tovenaar",
+      "text": "tovenaar",
+      "category": "lang",
+      "klanken": [
+        "t",
+        "o",
+        "v",
+        "e",
+        "n",
+        "aa",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "toverstaf",
+      "text": "toverstaf",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "o",
+        "v",
+        "e",
+        "r",
+        "s",
+        "t",
+        "a",
+        "f"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "schatkaart",
+      "text": "schatkaart",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ch",
+        "a",
+        "t",
+        "k",
+        "aa",
+        "r",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "astronaut",
+      "text": "astronaut",
+      "category": "twee",
+      "klanken": [
+        "a",
+        "s",
+        "t",
+        "r",
+        "o",
+        "n",
+        "au",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zeemeermin",
+      "text": "zeemeermin",
+      "category": "lang",
+      "klanken": [
+        "z",
+        "ee",
+        "m",
+        "ee",
+        "r",
+        "m",
+        "i",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "koninkrijk",
+      "text": "koninkrijk",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "o",
+        "n",
+        "i",
+        "nk",
+        "r",
+        "ij",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "eenhoorn",
+      "text": "eenhoorn",
+      "category": "lang",
+      "klanken": [
+        "ee",
+        "n",
+        "h",
+        "oo",
+        "r",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dromenland",
+      "text": "dromenland",
+      "category": "kort",
+      "klanken": [
+        "d",
+        "r",
+        "o",
+        "m",
+        "e",
+        "n",
+        "l",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "wonderland",
+      "text": "wonderland",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "o",
+        "n",
+        "d",
+        "e",
+        "r",
+        "l",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "maanlander",
+      "text": "maanlander",
+      "category": "lang",
+      "klanken": [
+        "m",
+        "aa",
+        "n",
+        "l",
+        "a",
+        "n",
+        "d",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "goochelaar",
+      "text": "goochelaar",
+      "category": "twee",
+      "klanken": [
+        "g",
+        "oo",
+        "ch",
+        "e",
+        "l",
+        "aa",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vuurspuwer",
+      "text": "vuurspuwer",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "uu",
+        "r",
+        "s",
+        "p",
+        "uw",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "verjaardag",
+      "text": "verjaardag",
+      "category": "lang",
+      "klanken": [
+        "v",
+        "e",
+        "r",
+        "j",
+        "aa",
+        "r",
+        "d",
+        "a",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "feestmuts",
+      "text": "feestmuts",
+      "category": "lang",
+      "klanken": [
+        "f",
+        "ee",
+        "s",
+        "t",
+        "m",
+        "u",
+        "t",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kerstboom",
+      "text": "kerstboom",
+      "category": "lang",
+      "klanken": [
+        "k",
+        "e",
+        "r",
+        "s",
+        "t",
+        "b",
+        "oo",
+        "m"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "schaatsen",
+      "text": "schaatsen",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "ch",
+        "aa",
+        "t",
+        "s",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slaaplied",
+      "text": "slaaplied",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "l",
+        "aa",
+        "p",
+        "l",
+        "ie",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zomerkamp",
+      "text": "zomerkamp",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "o",
+        "m",
+        "e",
+        "r",
+        "k",
+        "a",
+        "m",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kampvuur",
+      "text": "kampvuur",
+      "category": "lang",
+      "klanken": [
+        "k",
+        "a",
+        "m",
+        "p",
+        "v",
+        "uu",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "fietsband",
+      "text": "fietsband",
+      "category": "twee",
+      "klanken": [
+        "f",
+        "ie",
+        "t",
+        "s",
+        "b",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "brandweer",
+      "text": "brandweer",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "r",
+        "a",
+        "n",
+        "d",
+        "w",
+        "ee",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kampeerder",
+      "text": "kampeerder",
+      "category": "lang",
+      "klanken": [
+        "k",
+        "a",
+        "m",
+        "p",
+        "ee",
+        "r",
+        "d",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zeepbellen",
+      "text": "zeepbellen",
+      "category": "lang",
+      "klanken": [
+        "z",
+        "ee",
+        "p",
+        "b",
+        "e",
+        "l",
+        "l",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "ijsklontje",
+      "text": "ijsklontje",
+      "category": "twee",
+      "klanken": [
+        "ij",
+        "s",
+        "k",
+        "l",
+        "o",
+        "n",
+        "t",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "eierdopje",
+      "text": "eierdopje",
+      "category": "twee",
+      "klanken": [
+        "ei",
+        "e",
+        "r",
+        "d",
+        "o",
+        "p",
+        "j",
+        "e"
+      ],
+      "reviewed": false
+    }
   ]
 }

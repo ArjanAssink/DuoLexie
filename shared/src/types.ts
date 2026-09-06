@@ -20,15 +20,17 @@ export interface Word {
   category: CategoryId
   /** klanken this word is built from — a word is eligible once all of these are in the pool */
   klanken: string[]
+  /** false = heuristically segmented (e.g. tools/import-hangman-words.mjs), not yet human-checked */
+  reviewed?: boolean
 }
 
 export interface WordCurriculum {
   words: Word[]
 }
 
-export type GameType = 'flitsen' | 'klankkaarten' | 'welke-klank' | 'woordbouwer' | 'hardop-lezen'
+export type GameType = 'flitsen' | 'tijdrit' | 'welke-klank' | 'woordbouwer' | 'hardop-lezen'
 
-export type LessonKind = 'les' | 'flits-uitdaging' | 'herhaling' | 'eindbaas'
+export type LessonKind = 'les' | 'tijdrit-uitdaging' | 'herhaling' | 'eindbaas'
 
 export interface Lesson {
   id: string

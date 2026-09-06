@@ -151,10 +151,14 @@ export function PathScreen() {
 
   const firstOpenIdx = allLessons.findIndex((l) => !completedLessons[l.id])
   const activeLessonId = firstOpenIdx === -1 ? null : allLessons[firstOpenIdx].id
+  // ?test=true (see /proberen) unlocks every lesson for trying out game modes without
+  // playing through the whole tree first — never surfaced in the visible kid-facing UI.
+  const testMode = new URLSearchParams(window.location.search).get('test') === 'true'
 
   function coinState(lesson: Lesson): CoinState {
     if (completedLessons[lesson.id]) return 'done'
-    return lesson.id === activeLessonId ? 'active' : 'locked'
+    if (lesson.id === activeLessonId) return 'active'
+    return testMode ? 'done' : 'locked'
   }
 
   function iconFill(state: CoinState): string {

@@ -5,14 +5,14 @@ import type { AnswerRecord } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
-import { KlankKaarten } from '../games/KlankKaarten'
+import { Tijdrit } from '../games/Tijdrit'
 import { HardopLezen } from '../games/HardopLezen'
 import { haptic, playEffect } from '../audio/audio'
 import { Frida } from '../components/Frida'
 
 export interface GameResult {
   answers: AnswerRecord[]
-  /** klanken per minuut for Flitsen */
+  /** klanken per minuut for Tijdrit */
   score?: number
 }
 
@@ -77,10 +77,10 @@ export function GameScreen() {
   }
 
   const Game =
-    lesson.gameType === 'flitsen'
-      ? Flitsen
+    lesson.gameType === 'tijdrit'
+      ? Tijdrit
       : lesson.gameType === 'hardop-lezen'
         ? HardopLezen
-        : KlankKaarten
+        : Flitsen
   return <Game lesson={lesson} onComplete={handleComplete} onQuit={() => navigate('/')} />
 }

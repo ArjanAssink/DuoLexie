@@ -117,22 +117,30 @@ export function buildExercises(
   }))
 }
 
-/** Hardop lezen deck: a shuffled slice of the words readable with this lesson's sound pool. */
+/**
+ * Hardop lezen deck: a shuffled slice of the words readable with this lesson's sound pool,
+ * biased toward shorter words — a beginner's pool can already contain both "kat" and a
+ * 10-letter compound like "helikopter" once all their (short-vowel) klanken are known, and
+ * mixing those in the same session skips right past the "4-5 letter words first" ramp.
+ * Longer/compound words enter the mix naturally once a unit's short-word supply runs thin.
+ */
 export function buildWordExercises(lesson: Lesson): string[] {
   const eligible = wordsForPool(lesson.soundPool)
   const count = Math.min(lesson.exerciseCount || 8, eligible.length)
-  return shuffle(eligible)
+  const byLength = [...eligible].sort((a, b) => a.text.length - b.text.length)
+  const candidates = byLength.slice(0, Math.max(count * 3, 12))
+  return shuffle(candidates)
     .slice(0, count)
     .map((w) => w.id)
 }
 
-/** Klankkaarten deck: the whole pool shuffled, once each — pure exposure, no weighting. */
-export function buildCardDeck(lesson: Lesson): string[] {
+/** Flitsen deck (card-flip): the whole pool shuffled, once each — pure exposure, no weighting. */
+export function buildFlitsDeck(lesson: Lesson): string[] {
   return shuffle(lesson.soundPool)
 }
 
-/** Flitsen deck: the whole pool shuffled, weak sounds appearing twice */
-export function buildFlitsDeck(lesson: Lesson, statsMap: Record<string, SoundStats>): string[] {
+/** Tijdrit deck: the whole pool shuffled, weak sounds appearing twice */
+export function buildTijdritDeck(lesson: Lesson, statsMap: Record<string, SoundStats>): string[] {
   const deck = [...lesson.soundPool]
   for (const s of lesson.soundPool) {
     if (reviewWeight(statsMap[s]) > 3) deck.push(s)

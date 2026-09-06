@@ -111,7 +111,7 @@ export function PersonIcon({ size = 28 }: { size?: number }) {
 /** Lesson-coin icon by lesson title, colored by state */
 export function LessonIcon({ title, fill, size }: { title: string; fill: string; size?: number }) {
   switch (title) {
-    case 'Flits':
+    case 'Tijdrit':
       return <FlitsIcon fill={fill} size={size ?? 28} />
     case 'Mix':
       return <MixIcon fill={fill} size={size ?? 28} />
