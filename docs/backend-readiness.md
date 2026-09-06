@@ -135,13 +135,24 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
   this introduces (`shared`'s own tsbuildinfo lands next to its tsconfig, not inside `dist/`
   like `api`'s already-ignored one).
 
-- [ ] **A6 — Make game dispatch fail closed.** `screens/GameScreen.tsx:80-82` is a ternary
-  chain that falls through to a default component. `GameType` in `shared/src/types.ts` already
-  lists games that don't exist yet (`welke-klank`, `woordbouwer`), so adding one silently
-  renders the *wrong game* instead of failing. Replace with
-  `const GAMES: Record<GameType, ComponentType<GameProps>>` — TypeScript then makes an
-  unimplemented game a compile error. ~6 lines, and the single best extensibility fix in the
-  codebase given how fast games are being added.
+- [x] **A6 — Make game dispatch fail closed.** Done. Re-verified first: still a ternary
+  chain falling through to a default (`Flitsen`, not the original `Klankenjacht` — the game
+  it falls through to has changed twice already since this was written, which is itself a
+  small illustration of why a silent fallback is worth removing). Replaced with
+  `const GAMES: Record<GameType, ComponentType<GameProps>>`; the two not-yet-built types
+  (`welke-klank`, `woordbouwer`) map to a small `NotImplementedGame` placeholder — an honest
+  "dit spel bestaat nog niet" screen instead of silently rendering the wrong game. **Proved
+  the guarantee, not just written it**: removed the `woordbouwer` entry, confirmed
+  `npm run build` genuinely fails with `TS2741: Property 'woordbouwer' is missing`, then
+  restored it and confirmed clean.
+  **Also found while proving that**: `npx tsc --noEmit -p app` — this file's own prescribed
+  verification command — does *not* actually check anything. `app/tsconfig.json` (the `-p .`
+  target) is solution-style (`"files": []`, only `references`); without `-b` that's an empty
+  check that exits clean regardless of real errors elsewhere in the project. `npm run build`
+  (`tsc -b && vite build`) is what's actually been catching type errors this whole pass — it
+  caught an unused-import mistake during A2 that the bare `-p .` command missed at the time,
+  which should have been the tell. Future verification here should run `npm run build` (or
+  `npx tsc -b`) instead of, not alongside, the plain `-p .` form.
 
 ## Only after A1–A5: the actual backend
 
@@ -176,8 +187,10 @@ Against commit `46fecbc`, by reading the exact lines and running the compiler �
 
 ## Working conventions (same as the other backlogs)
 
-- Verify with `npx tsc --noEmit -p app`, `npm run build` and `npx playwright test
-  --project=desktop` (both from `app/`) before each commit.
+- Verify with `npm run build` (not `npx tsc --noEmit -p app` — see A6: that form doesn't
+  actually check anything, since `app/tsconfig.json` is solution-style and needs `-b` to walk
+  its references) and `npx playwright test --project=desktop` (both from `app/`) before each
+  commit.
 - Reproduce against a **production** build (`npm run build` && `npx vite preview`), not just
   the dev server — StrictMode's double-invoked effects mask some ordering bugs in dev.
 - Commit each item separately; update its checkbox and a one-line result note **in this file

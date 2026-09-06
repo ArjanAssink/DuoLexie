@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import type { ComponentType } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import confetti from 'canvas-confetti'
-import type { AnswerRecord, WordResult } from '@shared/src/types'
+import type { AnswerRecord, GameType, Lesson, WordResult } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import type { Reward } from '../engine/reward'
@@ -22,6 +23,48 @@ export interface GameResult {
 /** What completeLesson computed (engine/reward.ts), plus the score display alone needs. */
 interface DisplayReward extends Reward {
   score?: number
+}
+
+interface GameProps {
+  lesson: Lesson
+  onComplete: (result: GameResult) => void
+  onQuit: () => void
+}
+
+/**
+ * Placeholder for a GameType with no real component yet (`welke-klank`, `woordbouwer`) — an
+ * honest "not built" screen, not the previous fallback of silently rendering whichever game
+ * happened to sit last in a ternary chain.
+ */
+function NotImplementedGame({ onQuit }: GameProps) {
+  return (
+    <div className="game-screen">
+      <div className="game-header">
+        <button className="quit" onClick={onQuit}>
+          ✕
+        </button>
+      </div>
+      <div className="game-stage">
+        <h2>Dit spel bestaat nog niet</h2>
+        <button className="btn-primary" onClick={onQuit}>
+          Terug naar het pad
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * docs/backend-readiness.md A6 — a `Record<GameType, ...>` instead of a ternary chain, so
+ * adding a GameType without adding it here is a compile error, not a silently-wrong game
+ * at runtime.
+ */
+const GAMES: Record<GameType, ComponentType<GameProps>> = {
+  flitsen: Flitsen,
+  tijdrit: Tijdrit,
+  'hardop-lezen': HardopLezen,
+  'welke-klank': NotImplementedGame,
+  woordbouwer: NotImplementedGame,
 }
 
 export function GameScreen() {
@@ -75,11 +118,6 @@ export function GameScreen() {
     )
   }
 
-  const Game =
-    lesson.gameType === 'tijdrit'
-      ? Tijdrit
-      : lesson.gameType === 'hardop-lezen'
-        ? HardopLezen
-        : Flitsen
+  const Game = GAMES[lesson.gameType]
   return <Game lesson={lesson} onComplete={handleComplete} onQuit={() => navigate('/')} />
 }

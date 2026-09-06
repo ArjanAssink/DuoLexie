@@ -20,8 +20,10 @@ lesson ids / no store migration" item shares a persisted-blob migration with tha
 3. Pick the first unchecked `[ ]` item and work it. **Reproduce the bug first** — most of
    these items include a concrete repro; run it and watch it fail before you change
    anything, so you know your fix actually fixed it.
-4. After each item: `npx tsc --noEmit -p app`, `npm run build` (from `app/`), and
-   `npx playwright test --project=desktop` (from `app/`) before committing. Then commit
+4. After each item: `npm run build` (from `app/` — not `npx tsc --noEmit -p app`; that form
+   checks nothing, since `app/tsconfig.json` is solution-style and needs `-b` to walk its
+   references, see `backend-readiness.md` A6) and `npx playwright test --project=desktop`
+   (from `app/`) before committing. Then commit
    that one item, update its checkbox + note in this file in the same commit, and push —
    the live site redeploys automatically via GitHub Actions (Azure Static Web Apps) a
    couple of minutes after a push to `main`.
