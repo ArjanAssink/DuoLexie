@@ -1,0 +1,532 @@
+<title>Bliksemsprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* page chrome — themed */
+  --page: #E9E0CC;
+  --panel: #FFFDF8;
+  --ink: #42281A;
+  --muted: #96866A;
+  --line: #DACDB0;
+  --shadow: 0 1px 2px rgba(66,40,26,.07), 0 10px 30px rgba(66,40,26,.09);
+
+  /* DuoLexie tokens — copied verbatim from app/src/theme.css, never re-picked */
+  --app-bg: #FDF8EE;
+  --orange: #F5A03C;
+  --teal: #2FA79B;
+  --teal-shadow: #22857B;
+  --gold: #F7C531;
+  --gold-shadow: #D9A616;
+  --text: #42281A;
+  --hairline: #EADFC8;
+
+  /* ---- THE TUNABLES ---- every number the sliders drive lives here, unitless
+     so calc() can scale it. This block is what gets ported into theme.css. */
+  --dash-ms: 1400;   /* traverse duration */
+  --enter-ms: 180;   /* delay before she enters */
+  --badge-ms: 900;   /* when the badge springs in */
+  --hop: 104;        /* first arc height, px */
+  --decay: 0.85;     /* each arc as a fraction of the one before */
+  --squash: 0.18;    /* squash/stretch amount */
+  --lean: 8;         /* forward lean at apex, deg */
+  --mult: 1;         /* preview speed only — never ported */
+
+  /* derived — don't edit by hand */
+  --dash-dur: calc(var(--dash-ms) * 1ms * var(--mult));
+  --enter: calc(var(--enter-ms) * 1ms * var(--mult));
+  --hop1: calc(var(--hop) * -1px);
+  --hop2: calc(var(--hop) * var(--decay) * -1px);
+  --hop3: calc(var(--hop) * var(--decay) * var(--decay) * -1px);
+  --land1: calc((var(--enter-ms) + var(--dash-ms) * 0.33) * 1ms * var(--mult));
+  --land2: calc((var(--enter-ms) + var(--dash-ms) * 0.66) * 1ms * var(--mult));
+  --land3: calc((var(--enter-ms) + var(--dash-ms) * 0.99) * 1ms * var(--mult));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #16191F; --panel: #1F242E; --ink: #ECE7DC; --muted: #9A937F; --line: #333A47;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --page: #16191F; --panel: #1F242E; --ink: #ECE7DC; --muted: #9A937F; --line: #333A47;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--page); color: var(--ink);
+  font-family: 'Nunito', system-ui, sans-serif; font-weight: 600;
+  padding: 34px 20px 60px;
+}
+.wrap { max-width: 1020px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+header h1 {
+  font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 800;
+  font-size: 2.1rem; margin: 0 0 6px; letter-spacing: -0.01em;
+}
+header p { margin: 0; color: var(--muted); line-height: 1.55; max-width: 60ch; }
+.trigger {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 12px;
+  padding: 5px 12px 5px 9px; border: 1.5px solid var(--gold-shadow);
+  border-radius: 999px; font-size: .8rem; font-weight: 700; color: var(--gold-shadow);
+}
+
+.layout { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 22px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+/* ---------- stage: the app card at its real proportions ---------- */
+.stage-col { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.stage {
+  position: relative; width: 100%; max-width: 480px; height: 420px;
+  background: var(--app-bg); border-radius: 28px; overflow: hidden;
+  box-shadow: var(--shadow); border: 1px solid var(--hairline);
+}
+.floor { position: absolute; left: 0; right: 0; bottom: 92px; border-bottom: 2px dashed var(--hairline); }
+.floor-label {
+  position: absolute; right: 12px; bottom: 96px;
+  font-family: 'JetBrains Mono', monospace; font-size: .62rem; color: var(--muted); opacity: .7;
+}
+
+.dash { position: absolute; inset: 0; pointer-events: none; }
+
+/* layer 1 — horizontal travel (percentages resolve against the stage width) */
+.dash-track { position: absolute; inset: 0; }
+.playing .dash-track { animation: dashAcross var(--dash-dur) linear var(--enter) both; }
+
+/* layer 2 — the vertical arc: three hops, easing flipped between rise and fall */
+.dash-hop { position: absolute; left: -116px; bottom: 92px; width: 116px; height: 126px; }
+.playing .dash-hop { animation: hop var(--dash-dur) var(--enter) both; }
+
+/* layer 3 — squash, stretch and lean */
+.dash-fig { width: 100%; height: 100%; transform-origin: 50% 100%; }
+.playing .dash-fig { animation: squash var(--dash-dur) var(--enter) both; }
+.dash-fig svg { width: 100%; height: 100%; display: block; }
+
+@keyframes dashAcross {
+  from { transform: translateX(-4%); }
+  to   { transform: translateX(112%); }
+}
+@keyframes hop {
+  0%   { transform: translateY(0);          animation-timing-function: cubic-bezier(.22,.6,.35,1); }
+  16%  { transform: translateY(var(--hop1)); animation-timing-function: cubic-bezier(.6,0,.78,1); }
+  33%  { transform: translateY(0);          animation-timing-function: cubic-bezier(.22,.6,.35,1); }
+  49%  { transform: translateY(var(--hop2)); animation-timing-function: cubic-bezier(.6,0,.78,1); }
+  66%  { transform: translateY(0);          animation-timing-function: cubic-bezier(.22,.6,.35,1); }
+  82%  { transform: translateY(var(--hop3)); animation-timing-function: cubic-bezier(.6,0,.78,1); }
+  100% { transform: translateY(0); }
+}
+@keyframes squash {
+  0%   { transform: scale(calc(1 + var(--squash)), calc(1 - var(--squash))) rotate(0deg); }
+  8%   { transform: scale(calc(1 - var(--squash) * .3), calc(1 + var(--squash) * .3)) rotate(calc(var(--lean) * .6deg)); }
+  16%  { transform: scale(calc(1 - var(--squash) * .55), calc(1 + var(--squash) * .65)) rotate(calc(var(--lean) * 1deg)); }
+  27%  { transform: scale(1, 1) rotate(calc(var(--lean) * .35deg)); }
+  33%  { transform: scale(calc(1 + var(--squash)), calc(1 - var(--squash))) rotate(0deg); }
+  41%  { transform: scale(calc(1 - var(--squash) * .28), calc(1 + var(--squash) * .28)) rotate(calc(var(--lean) * .6deg)); }
+  49%  { transform: scale(calc(1 - var(--squash) * .5), calc(1 + var(--squash) * .6)) rotate(calc(var(--lean) * 1deg)); }
+  60%  { transform: scale(1, 1) rotate(calc(var(--lean) * .35deg)); }
+  66%  { transform: scale(calc(1 + var(--squash) * .9), calc(1 - var(--squash) * .9)) rotate(0deg); }
+  74%  { transform: scale(calc(1 - var(--squash) * .22), calc(1 + var(--squash) * .22)) rotate(calc(var(--lean) * .5deg)); }
+  82%  { transform: scale(calc(1 - var(--squash) * .4), calc(1 + var(--squash) * .5)) rotate(calc(var(--lean) * .85deg)); }
+  93%  { transform: scale(1, 1) rotate(calc(var(--lean) * .35deg)); }
+  100% { transform: scale(calc(1 + var(--squash) * .55), calc(1 - var(--squash) * .55)) rotate(0deg); }
+}
+
+/* ---------- lightning ---------- */
+/* landing marks track her real centre: translateX% of stage width, minus half her box */
+.bolt { position: absolute; bottom: 96px; width: 26px; opacity: 0; }
+.bolt svg { width: 100%; height: auto; display: block; }
+.bolt-1, .puff-1 { left: calc(34.3% - 58px); }
+.bolt-2, .puff-2 { left: calc(72.6% - 58px); }
+.bolt-3, .puff-3 { left: calc(100% - 76px); }
+.playing .bolt-1 { animation: boltPop calc(620ms * var(--mult)) ease-out var(--land1) both; }
+.playing .bolt-2 { animation: boltPop calc(620ms * var(--mult)) ease-out var(--land2) both; }
+.playing .bolt-3 { animation: boltPop calc(620ms * var(--mult)) ease-out var(--land3) both; }
+
+@keyframes boltPop {
+  0%   { opacity: 0; transform: translateY(6px) scale(.4) rotate(-12deg); }
+  22%  { opacity: 1; transform: translateY(-6px) scale(1.15) rotate(4deg); }
+  55%  { opacity: 1; transform: translateY(-14px) scale(1) rotate(-3deg); }
+  100% { opacity: 0; transform: translateY(-34px) scale(.9) rotate(6deg); }
+}
+
+.bolt-hero { position: absolute; left: 50%; top: 58px; width: 108px; margin-left: -54px; opacity: 0; }
+.playing .bolt-hero { animation: heroBolt calc(680ms * var(--mult)) ease-out calc(120ms * var(--mult)) both; }
+/* a strike, not a watermark: hard on, hard off, one double-tap flicker */
+@keyframes heroBolt {
+  0%   { opacity: 0; transform: scale(.55) rotate(-14deg); }
+  8%   { opacity: 1; transform: scale(1.3) rotate(6deg); }
+  20%  { opacity: .85; transform: scale(1.04) rotate(0deg); }
+  30%  { opacity: .15; transform: scale(1.02) rotate(0deg); }
+  40%  { opacity: 1; transform: scale(1.12) rotate(-3deg); }
+  62%  { opacity: .9; transform: scale(1.02) rotate(0deg); }
+  100% { opacity: 0; transform: scale(.98) rotate(2deg); }
+}
+
+.flash { position: absolute; inset: 0; background: var(--gold); opacity: 0; }
+.playing .flash { animation: flash calc(460ms * var(--mult)) ease-out calc(120ms * var(--mult)) both; }
+@keyframes flash { 0% { opacity: 0; } 10% { opacity: .32; } 100% { opacity: 0; } }
+
+.puff { position: absolute; bottom: 88px; width: 10px; height: 10px; border-radius: 50%; background: var(--hairline); opacity: 0; }
+.playing .puff-1 { animation: puff calc(520ms * var(--mult)) ease-out var(--land1) both; }
+.playing .puff-2 { animation: puff calc(520ms * var(--mult)) ease-out var(--land2) both; }
+.playing .puff-3 { animation: puff calc(520ms * var(--mult)) ease-out var(--land3) both; }
+@keyframes puff {
+  0% { opacity: .9; transform: scale(.4) translateX(0); }
+  100% { opacity: 0; transform: scale(2.6) translateX(-18px); }
+}
+
+/* ---------- badge ---------- */
+.badge {
+  position: absolute; left: 50%; top: 46%;
+  transform: translate(-50%,-50%) scale(0);
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 22px 13px 18px;
+  background: var(--gold); color: var(--text);
+  border-radius: 20px; box-shadow: 0 6px 0 var(--gold-shadow);
+  font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 800;
+  font-size: 1.5rem; white-space: nowrap; opacity: 0;
+}
+.badge svg { width: 26px; height: auto; flex: none; }
+.playing .badge {
+  animation: badgePop calc(1000ms * var(--mult)) cubic-bezier(.34,1.56,.64,1)
+             calc(var(--badge-ms) * 1ms * var(--mult)) both;
+}
+@keyframes badgePop {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(0) rotate(-10deg); }
+  38%  { opacity: 1; transform: translate(-50%,-50%) scale(1.14) rotate(3deg); }
+  56%  { opacity: 1; transform: translate(-50%,-50%) scale(.97) rotate(-1deg); }
+  70%  { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+  100% { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+}
+
+/* ---------- controls ---------- */
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+button {
+  font: inherit; font-family: 'Nunito', sans-serif; font-weight: 700; cursor: pointer;
+  border: none; border-radius: 14px; padding: 11px 20px; color: white;
+  background: var(--teal); box-shadow: 0 4px 0 var(--teal-shadow);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
+}
+button:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--teal-shadow); }
+button:focus-visible { outline: 3px solid var(--gold-shadow); outline-offset: 2px; }
+.seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); }
+.seg button {
+  background: none; color: var(--ink); box-shadow: none; border-radius: 0;
+  padding: 10px 15px; font-size: .88rem; font-family: 'JetBrains Mono', monospace;
+}
+.seg button[aria-pressed="true"] { background: var(--teal); color: white; }
+.seg button:active { transform: none; }
+
+/* ---------- tuner ---------- */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; box-shadow: var(--shadow); }
+.panel h2 { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 1.1rem; margin: 0 0 4px; }
+.panel .sub { color: var(--muted); font-size: .84rem; margin: 0 0 16px; line-height: 1.5; }
+
+.dial { display: flex; flex-direction: column; gap: 5px; padding: 11px 0; border-top: 1px solid var(--line); }
+.dial:first-of-type { border-top: none; padding-top: 0; }
+.dial-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.dial label { font-size: .87rem; font-weight: 700; }
+.dial output {
+  font-family: 'JetBrains Mono', monospace; font-size: .78rem;
+  color: var(--gold-shadow); font-variant-numeric: tabular-nums; font-weight: 500;
+}
+.dial .hint { font-size: .72rem; color: var(--muted); line-height: 1.4; font-weight: 600; }
+input[type="range"] { width: 100%; accent-color: var(--teal); cursor: pointer; margin: 2px 0 0; }
+input[type="range"]:focus-visible { outline: 3px solid var(--gold-shadow); outline-offset: 3px; }
+
+.derived {
+  margin-top: 14px; padding: 11px 13px; border-radius: 11px;
+  background: var(--page); border: 1px solid var(--line);
+  font-family: 'JetBrains Mono', monospace; font-size: .74rem;
+  color: var(--muted); line-height: 1.7; font-variant-numeric: tabular-nums;
+}
+.derived b { color: var(--ink); font-weight: 500; }
+
+.out-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.out-head h2 { margin: 0; }
+#copy { padding: 8px 14px; font-size: .82rem; border-radius: 11px; }
+pre {
+  margin: 0; padding: 14px 16px; border-radius: 12px; overflow-x: auto;
+  background: var(--page); border: 1px solid var(--line);
+}
+code { font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: var(--ink); line-height: 1.65; }
+
+.notes p { margin: 0 0 8px; font-size: .87rem; line-height: 1.55; color: var(--muted); }
+.notes p:last-child { margin-bottom: 0; }
+.notes code { font-size: .84em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .playing .dash-track, .playing .dash-hop, .playing .dash-fig,
+  .playing .bolt-1, .playing .bolt-2, .playing .bolt-3,
+  .playing .bolt-hero, .playing .flash,
+  .playing .puff-1, .playing .puff-2, .playing .puff-3 { animation: none; }
+  .playing .badge { animation: none; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  .dash-track { transform: translateX(46%); }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Bliksemsprint</h1>
+    <p>Frida bolts across the screen when three answers land in a row. Drag the dials until it
+      feels right — every number feeds the same CSS custom properties the app will use, so the
+      block at the bottom is the port.</p>
+    <span class="trigger">
+      <svg viewBox="0 0 24 36" width="13" aria-hidden="true"><path d="M14 0 L3 21 L10.5 21 L8 36 L21 14 L13 14 Z" fill="currentColor"/></svg>
+      Trigger: 3 correct in a row
+    </span>
+  </header>
+
+  <div class="layout">
+    <div class="stage-col">
+      <div class="stage" id="stage">
+        <div class="flash"></div>
+        <div class="floor"></div>
+        <span class="floor-label">grondlijn</span>
+
+        <div class="bolt-hero">
+          <svg viewBox="0 0 24 36" aria-hidden="true">
+            <path d="M14 0 L3 21 L10.5 21 L8 36 L21 14 L13 14 Z" fill="#F7C531" stroke="#D9A616" stroke-width="1.4" stroke-linejoin="round"/>
+            <path d="M13.2 4 L6.6 19 L11.4 19 L10 29" fill="none" stroke="#FFF6D8" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="dash">
+          <div class="dash-track">
+            <div class="dash-hop">
+              <div class="dash-fig">
+                <svg viewBox="0 0 240 260" aria-label="Frida">
+                  <path d="M120,118 C168,118 184,156 182,196 C180,234 156,250 120,250 C84,250 60,234 58,196 C56,156 72,118 120,118 Z" fill="#F5A03C"></path>
+                  <path d="M72,192 C66,206 68,224 78,234" stroke="#DD7E1F" stroke-width="5" stroke-linecap="round" fill="none"></path>
+                  <path d="M168,192 C174,206 172,224 162,234" stroke="#DD7E1F" stroke-width="5" stroke-linecap="round" fill="none"></path>
+                  <ellipse cx="120" cy="206" rx="30" ry="40" fill="#FFF1DB"></ellipse>
+                  <path d="M112,220 Q120,225 128,220" stroke="#EDD3AC" stroke-width="4" stroke-linecap="round" fill="none"></path>
+                  <path d="M108,233 Q120,239 132,233" stroke="#EDD3AC" stroke-width="4" stroke-linecap="round" fill="none"></path>
+                  <rect x="88" y="184" width="24" height="62" rx="12" fill="#F5A03C"></rect>
+                  <rect x="128" y="184" width="24" height="62" rx="12" fill="#F5A03C"></rect>
+                  <path d="M95,238 L95,245 M105,238 L105,245 M135,238 L135,245 M145,238 L145,245" stroke="#DD7E1F" stroke-width="3" stroke-linecap="round"></path>
+                  <ellipse cx="120" cy="90" rx="64" ry="56" fill="#F5A03C"></ellipse>
+                  <ellipse cx="153" cy="88" rx="22" ry="21" fill="#FFF1DB"></ellipse>
+                  <path d="M94,28 Q70,28 54,36 Q48,40 50,48 Q54,70 62,84 Q66,90 71,84 Q82,68 88,46 Q92,34 94,28 Z" fill="#DD7E1F"></path>
+                  <path d="M146,28 Q170,28 186,36 Q192,40 190,48 Q186,70 178,84 Q174,90 169,84 Q158,68 152,46 Q148,34 146,28 Z" fill="#DD7E1F"></path>
+                  <path d="M120,35 C107,35 101,48 100,64 C99,80 96,93 88,104 C99,114 141,114 152,104 C144,93 141,80 140,64 C139,48 133,35 120,35 Z" fill="#FFF1DB"></path>
+                  <path d="M120,42 Q123,49 129,54 Q123,59 120,66 Q117,59 111,54 Q117,49 120,42 Z" fill="#F5A03C"></path>
+                  <ellipse cx="88" cy="86" rx="20" ry="18" fill="#D9761C" opacity="0.5"></ellipse>
+                  <ellipse cx="88" cy="88" rx="16" ry="18" fill="#FFF6E6"></ellipse>
+                  <rect x="80" y="77" width="16" height="22" rx="8" fill="#45232F"></rect>
+                  <circle cx="84" cy="82" r="3" fill="#FFFFFF"></circle>
+                  <ellipse cx="152" cy="88" rx="16" ry="18" fill="#FFF6E6"></ellipse>
+                  <rect x="144" y="77" width="16" height="22" rx="8" fill="#45232F"></rect>
+                  <circle cx="148" cy="82" r="3" fill="#FFFFFF"></circle>
+                  <ellipse cx="120" cy="126" rx="40" ry="28" fill="#FFF1DB"></ellipse>
+                  <rect x="102" y="106" width="36" height="21" rx="10.5" fill="#45232F"></rect>
+                  <ellipse cx="112" cy="112" rx="3.5" ry="2.5" fill="#6E4657"></ellipse>
+                  <path d="M102,133 Q120,135 138,133 Q134,152 120,152 Q106,152 102,133 Z" fill="#45232F"></path>
+                  <path d="M111,145 C111,154 129,154 129,145 C129,141 111,141 111,145 Z" fill="#F4778F"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <span class="puff puff-1"></span>
+        <span class="puff puff-2"></span>
+        <span class="puff puff-3"></span>
+
+        <span class="bolt bolt-1"><svg viewBox="0 0 24 36" aria-hidden="true"><path d="M14 0 L3 21 L10.5 21 L8 36 L21 14 L13 14 Z" fill="#F7C531" stroke="#D9A616" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+        <span class="bolt bolt-2"><svg viewBox="0 0 24 36" aria-hidden="true"><path d="M14 0 L3 21 L10.5 21 L8 36 L21 14 L13 14 Z" fill="#F7C531" stroke="#D9A616" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+        <span class="bolt bolt-3"><svg viewBox="0 0 24 36" aria-hidden="true"><path d="M14 0 L3 21 L10.5 21 L8 36 L21 14 L13 14 Z" fill="#F7C531" stroke="#D9A616" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+
+        <div class="badge">
+          <svg viewBox="0 0 24 36" aria-hidden="true"><path d="M14 0 L3 21 L10.5 21 L8 36 L21 14 L13 14 Z" fill="#FFF6D8" stroke="#D9A616" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          3 op een rij!
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="replay" type="button">Opnieuw afspelen</button>
+        <div class="seg" role="group" aria-label="Afspeelsnelheid">
+          <button type="button" data-mult="1" aria-pressed="true">1×</button>
+          <button type="button" data-mult="2" aria-pressed="false">0.5×</button>
+          <button type="button" data-mult="4" aria-pressed="false">0.25×</button>
+        </div>
+        <button id="loop" type="button" aria-pressed="true">Herhalen: aan</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Dials</h2>
+      <p class="sub">Changes apply on release, so you see them on the next pass. Speed above is
+        preview-only and never ported.</p>
+
+      <div class="dial">
+        <div class="dial-head"><label for="d-dash">Duur</label><output id="o-dash">1400ms</output></div>
+        <input type="range" id="d-dash" data-var="--dash-ms" min="800" max="2400" step="50" value="1400">
+        <span class="hint">Total traverse. Shorter reads punchier and interrupts less.</span>
+      </div>
+
+      <div class="dial">
+        <div class="dial-head"><label for="d-hop">Spronghoogte</label><output id="o-hop">104px</output></div>
+        <input type="range" id="d-hop" data-var="--hop" min="40" max="170" step="2" value="104">
+        <span class="hint">First arc. She's 126px tall, so past ~140 she clears her own height.</span>
+      </div>
+
+      <div class="dial">
+        <div class="dial-head"><label for="d-decay">Afname per sprong</label><output id="o-decay">0.85</output></div>
+        <input type="range" id="d-decay" data-var="--decay" min="0.6" max="1" step="0.01" value="0.85">
+        <span class="hint">1.00 = three equal hops. Lower = losing steam as she crosses.</span>
+      </div>
+
+      <div class="dial">
+        <div class="dial-head"><label for="d-squash">Squash &amp; stretch</label><output id="o-squash">0.18</output></div>
+        <input type="range" id="d-squash" data-var="--squash" min="0" max="0.35" step="0.01" value="0.18">
+        <span class="hint">0 = rigid. Above ~0.25 she turns rubbery.</span>
+      </div>
+
+      <div class="dial">
+        <div class="dial-head"><label for="d-lean">Voorover leunen</label><output id="o-lean">8°</output></div>
+        <input type="range" id="d-lean" data-var="--lean" min="0" max="20" step="1" value="8">
+        <span class="hint">Tilt into the arc at apex, upright on landing.</span>
+      </div>
+
+      <div class="dial">
+        <div class="dial-head"><label for="d-badge">Badge verschijnt</label><output id="o-badge">900ms</output></div>
+        <input type="range" id="d-badge" data-var="--badge-ms" min="300" max="1800" step="50" value="900">
+        <span class="hint">Before ~1200ms it lands while she's still running.</span>
+      </div>
+
+      <div class="derived" id="derived"></div>
+      <div class="controls" style="margin-top:14px; justify-content:flex-start;">
+        <button id="reset" type="button">Terug naar begin</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="out-head">
+      <h2>Port this</h2>
+      <button id="copy" type="button">Kopieer</button>
+    </div>
+    <pre><code id="out"></code></pre>
+    <div class="notes" style="margin-top:16px;">
+      <p><strong>How it's built:</strong> three nested layers, each owning one axis —
+        <code>.dash-track</code> travels horizontally (percentages resolve against the stage
+        width, so it stays responsive), <code>.dash-hop</code> owns the vertical arc with
+        per-keyframe easing, <code>.dash-fig</code> owns squash and lean. Separate layers are
+        what let you retime the hops without touching the traverse.</p>
+      <p><strong>Porting:</strong> mount as an overlay inside <code>.app</code> with
+        <code>pointer-events: none</code>, unmount after the badge settles. The streak counter
+        belongs in <code>Flitsen.grade()</code> — reset on a wrong answer, fire at 3. Frida is
+        the canonical <code>frida-happy.svg</code>, inlined and never redrawn; only transforms
+        animate, so it stays GPU-composited.</p>
+      <p><strong>iOS:</strong> no <code>box-shadow</code> on the moving figure and no 3D
+        transforms — the Safari rasterisation traps you already hit on the card flip.
+        <code>prefers-reduced-motion</code> is honoured: the badge appears, nothing moves.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const root = document.documentElement;
+  const stage = document.getElementById('stage');
+  const dials = [...document.querySelectorAll('input[type="range"]')];
+  const speedBtns = [...document.querySelectorAll('.seg button')];
+
+  const DEFAULTS = { '--dash-ms': 1400, '--hop': 104, '--decay': 0.85, '--squash': 0.18, '--lean': 8, '--badge-ms': 900 };
+  const FMT = {
+    '--dash-ms': (v) => `${v}ms`,
+    '--hop': (v) => `${v}px`,
+    '--decay': (v) => Number(v).toFixed(2),
+    '--squash': (v) => Number(v).toFixed(2),
+    '--lean': (v) => `${v}°`,
+    '--badge-ms': (v) => `${v}ms`,
+  };
+
+  let mult = 1;
+  let looping = true;
+  let timer = null;
+
+  function cycleMs() {
+    const dash = Number(root.style.getPropertyValue('--dash-ms') || DEFAULTS['--dash-ms']);
+    const badge = Number(root.style.getPropertyValue('--badge-ms') || DEFAULTS['--badge-ms']);
+    // longest thing on screen, plus a beat of hold before it loops
+    return Math.max(180 + dash, badge + 1000) + 700;
+  }
+
+  function play() {
+    stage.classList.remove('playing');
+    void stage.offsetWidth; // force reflow so the animations restart
+    stage.classList.add('playing');
+    clearTimeout(timer);
+    if (looping) timer = setTimeout(play, cycleMs() * mult);
+  }
+
+  function readout() {
+    dials.forEach((d) => {
+      document.getElementById(d.id.replace('d-', 'o-')).textContent = FMT[d.dataset.var](d.value);
+    });
+    const v = (name) => Number(root.style.getPropertyValue(name) || DEFAULTS[name]);
+    const hop = v('--hop'), decay = v('--decay'), dash = v('--dash-ms');
+    const h = [hop, hop * decay, hop * decay * decay].map((n) => Math.round(n));
+    const land = [0.33, 0.66, 0.99].map((f) => Math.round(180 + dash * f));
+    document.getElementById('derived').innerHTML =
+      `arcs   <b>${h[0]} → ${h[1]} → ${h[2]}px</b><br>` +
+      `landt  <b>${land[0]} / ${land[1]} / ${land[2]}ms</b><br>` +
+      `klaar  <b>${Math.round(Math.max(180 + dash, v('--badge-ms') + 1000))}ms</b>`;
+
+    document.getElementById('out').textContent =
+      `/* Bliksemsprint — 3-op-een-rij celebration */\n:root {\n` +
+      dials.map((d) => `  ${d.dataset.var}: ${d.value};`).join('\n') +
+      `\n  --enter-ms: 180;\n}`;
+  }
+
+  dials.forEach((d) => {
+    d.addEventListener('input', () => { root.style.setProperty(d.dataset.var, d.value); readout(); });
+    d.addEventListener('change', play);
+  });
+
+  document.getElementById('replay').addEventListener('click', play);
+
+  document.getElementById('reset').addEventListener('click', () => {
+    dials.forEach((d) => {
+      d.value = DEFAULTS[d.dataset.var];
+      root.style.setProperty(d.dataset.var, d.value);
+    });
+    readout();
+    play();
+  });
+
+  document.getElementById('copy').addEventListener('click', async (e) => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById('out').textContent);
+      e.target.textContent = 'Gekopieerd!';
+      setTimeout(() => { e.target.textContent = 'Kopieer'; }, 1400);
+    } catch {
+      e.target.textContent = 'Selecteer handmatig';
+      setTimeout(() => { e.target.textContent = 'Kopieer'; }, 1800);
+    }
+  });
+
+  speedBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      mult = Number(btn.dataset.mult);
+      speedBtns.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      // one knob: every duration and delay in the stylesheet is a calc() off --mult
+      root.style.setProperty('--mult', mult);
+      play();
+    });
+  });
+
+  const loopBtn = document.getElementById('loop');
+  loopBtn.addEventListener('click', () => {
+    looping = !looping;
+    loopBtn.setAttribute('aria-pressed', String(looping));
+    loopBtn.textContent = `Herhalen: ${looping ? 'aan' : 'uit'}`;
+    if (looping) play(); else clearTimeout(timer);
+  });
+
+  readout();
+  play();
+</script>

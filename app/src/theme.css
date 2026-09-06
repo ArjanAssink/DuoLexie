@@ -417,6 +417,9 @@ button:disabled { cursor: default; }
   flex-direction: column;
   flex: 1;
   padding: 0 16px 30px;
+  /* frame for the .bs celebration overlay — scoped to the game card rather than
+     .app, whose height follows PathScreen's content and can far exceed the viewport */
+  position: relative;
 }
 .game-header {
   display: flex;
@@ -852,3 +855,158 @@ button:disabled { cursor: default; }
 .studio-cell-active { border-color: #E83E5A; border-width: 2px; }
 .studio-cell-id { font-weight: 800; font-size: 18px; }
 .studio-cell-status { font-size: 13px; }
+
+/* ---------- Bliksemsprint: 3-op-een-rij celebration ---------- */
+/* Prototype + tunable dials: art/avatar animation/frida-lightning-dash.html
+   Every number below came off that tuner; retune there rather than by hand. */
+.bs {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;      /* clips her entrance/exit — .app no longer clips for us */
+  pointer-events: none;  /* she can keep answering straight through it */
+  z-index: 30;
+  /* Retuned from the prototype's approved defaults (hop 104, badge 900ms) to fit the
+     real game card: the action runs in a 168px band, not an empty 420px stage, and the
+     badge waits until she's nearly exited instead of landing on top of her. */
+  --bs-dash-ms: 1400;
+  --bs-enter-ms: 180;
+  --bs-badge-ms: 1250;
+  --bs-hop: 56;
+  --bs-decay: 0.85;
+  --bs-squash: 0.18;
+  --bs-lean: 8;
+  /* derived */
+  --bs-dash: calc(var(--bs-dash-ms) * 1ms);
+  --bs-enter: calc(var(--bs-enter-ms) * 1ms);
+  --bs-hop1: calc(var(--bs-hop) * -1px);
+  --bs-hop2: calc(var(--bs-hop) * var(--bs-decay) * -1px);
+  --bs-hop3: calc(var(--bs-hop) * var(--bs-decay) * var(--bs-decay) * -1px);
+  --bs-land1: calc((var(--bs-enter-ms) + var(--bs-dash-ms) * 0.33) * 1ms);
+  --bs-land2: calc((var(--bs-enter-ms) + var(--bs-dash-ms) * 0.66) * 1ms);
+  --bs-land3: calc((var(--bs-enter-ms) + var(--bs-dash-ms) * 0.99) * 1ms);
+}
+
+/* the strip she runs in: below .game-header, above the flash card */
+.bs-band {
+  position: absolute;
+  /* measured per-mount by Bliksemsprint.tsx; the fallbacks only apply if that fails */
+  left: 0; right: 0;
+  top: var(--bs-band-top, 72px);
+  height: var(--bs-band-h, 168px);
+  overflow: hidden;
+}
+
+/* layer 1 — horizontal travel */
+.bs-track { position: absolute; inset: 0; animation: bsAcross var(--bs-dash) linear var(--bs-enter) both; }
+/* layer 2 — the vertical arc */
+.bs-hop {
+  position: absolute; bottom: 4px;
+  width: var(--bs-figw, 92px); height: var(--bs-figh, 100px);
+  left: calc(var(--bs-figw, 92px) * -1);
+  animation: bsHop var(--bs-dash) var(--bs-enter) both;
+}
+/* layer 3 — squash, stretch and lean */
+.bs-fig { width: 100%; height: 100%; transform-origin: 50% 100%; animation: bsSquash var(--bs-dash) var(--bs-enter) both; }
+.bs-fig img { width: 100%; height: 100%; display: block; }
+
+@keyframes bsAcross {
+  from { transform: translateX(-4%); }
+  to   { transform: translateX(112%); }
+}
+@keyframes bsHop {
+  0%   { transform: translateY(0);             animation-timing-function: cubic-bezier(.22,.6,.35,1); }
+  16%  { transform: translateY(var(--bs-hop1)); animation-timing-function: cubic-bezier(.6,0,.78,1); }
+  33%  { transform: translateY(0);             animation-timing-function: cubic-bezier(.22,.6,.35,1); }
+  49%  { transform: translateY(var(--bs-hop2)); animation-timing-function: cubic-bezier(.6,0,.78,1); }
+  66%  { transform: translateY(0);             animation-timing-function: cubic-bezier(.22,.6,.35,1); }
+  82%  { transform: translateY(var(--bs-hop3)); animation-timing-function: cubic-bezier(.6,0,.78,1); }
+  100% { transform: translateY(0); }
+}
+@keyframes bsSquash {
+  0%   { transform: scale(calc(1 + var(--bs-squash)), calc(1 - var(--bs-squash))) rotate(0deg); }
+  8%   { transform: scale(calc(1 - var(--bs-squash) * .3), calc(1 + var(--bs-squash) * .3)) rotate(calc(var(--bs-lean) * .6deg)); }
+  16%  { transform: scale(calc(1 - var(--bs-squash) * .55), calc(1 + var(--bs-squash) * .65)) rotate(calc(var(--bs-lean) * 1deg)); }
+  27%  { transform: scale(1, 1) rotate(calc(var(--bs-lean) * .35deg)); }
+  33%  { transform: scale(calc(1 + var(--bs-squash)), calc(1 - var(--bs-squash))) rotate(0deg); }
+  41%  { transform: scale(calc(1 - var(--bs-squash) * .28), calc(1 + var(--bs-squash) * .28)) rotate(calc(var(--bs-lean) * .6deg)); }
+  49%  { transform: scale(calc(1 - var(--bs-squash) * .5), calc(1 + var(--bs-squash) * .6)) rotate(calc(var(--bs-lean) * 1deg)); }
+  60%  { transform: scale(1, 1) rotate(calc(var(--bs-lean) * .35deg)); }
+  66%  { transform: scale(calc(1 + var(--bs-squash) * .9), calc(1 - var(--bs-squash) * .9)) rotate(0deg); }
+  74%  { transform: scale(calc(1 - var(--bs-squash) * .22), calc(1 + var(--bs-squash) * .22)) rotate(calc(var(--bs-lean) * .5deg)); }
+  82%  { transform: scale(calc(1 - var(--bs-squash) * .4), calc(1 + var(--bs-squash) * .5)) rotate(calc(var(--bs-lean) * .85deg)); }
+  93%  { transform: scale(1, 1) rotate(calc(var(--bs-lean) * .35deg)); }
+  100% { transform: scale(calc(1 + var(--bs-squash) * .55), calc(1 - var(--bs-squash) * .55)) rotate(0deg); }
+}
+
+/* landing marks track her real centre: translateX% of the overlay, minus half her box */
+.bs-l1 { left: calc(34.3% - var(--bs-figw, 92px) / 2); }
+.bs-l2 { left: calc(72.6% - var(--bs-figw, 92px) / 2); }
+.bs-l3 { left: calc(100% - var(--bs-figw, 92px) * 0.65); }
+
+.bs-bolt { position: absolute; bottom: 8px; width: 22px; opacity: 0; }
+.bs-bolt svg { width: 100%; height: auto; display: block; }
+.bs-bolt.bs-l1 { animation: bsBolt 620ms ease-out var(--bs-land1) both; }
+.bs-bolt.bs-l2 { animation: bsBolt 620ms ease-out var(--bs-land2) both; }
+.bs-bolt.bs-l3 { animation: bsBolt 620ms ease-out var(--bs-land3) both; }
+@keyframes bsBolt {
+  0%   { opacity: 0; transform: translateY(6px) scale(.4) rotate(-12deg); }
+  22%  { opacity: 1; transform: translateY(-6px) scale(1.15) rotate(4deg); }
+  55%  { opacity: 1; transform: translateY(-14px) scale(1) rotate(-3deg); }
+  100% { opacity: 0; transform: translateY(-34px) scale(.9) rotate(6deg); }
+}
+
+.bs-puff {
+  position: absolute; bottom: 0;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--hairline); opacity: 0;
+}
+.bs-puff.bs-l1 { animation: bsPuff 520ms ease-out var(--bs-land1) both; }
+.bs-puff.bs-l2 { animation: bsPuff 520ms ease-out var(--bs-land2) both; }
+.bs-puff.bs-l3 { animation: bsPuff 520ms ease-out var(--bs-land3) both; }
+@keyframes bsPuff {
+  0%   { opacity: .9; transform: scale(.4) translateX(0); }
+  100% { opacity: 0; transform: scale(2.6) translateX(-18px); }
+}
+
+/* the big bolt cracking in behind her — a strike, not a watermark */
+.bs-hero { position: absolute; left: 50%; top: 2px; width: 74px; margin-left: -37px; opacity: 0; animation: bsHero 680ms ease-out 120ms both; }
+.bs-hero svg { width: 100%; height: auto; display: block; }
+@keyframes bsHero {
+  0%   { opacity: 0; transform: scale(.55) rotate(-14deg); }
+  8%   { opacity: 1; transform: scale(1.3) rotate(6deg); }
+  20%  { opacity: .85; transform: scale(1.04) rotate(0deg); }
+  30%  { opacity: .15; transform: scale(1.02) rotate(0deg); }
+  40%  { opacity: 1; transform: scale(1.12) rotate(-3deg); }
+  62%  { opacity: .9; transform: scale(1.02) rotate(0deg); }
+  100% { opacity: 0; transform: scale(.98) rotate(2deg); }
+}
+
+.bs-flash { position: absolute; inset: 0; background: var(--gold); opacity: 0; animation: bsFlash 460ms ease-out 120ms both; }
+@keyframes bsFlash { 0% { opacity: 0; } 10% { opacity: .32; } 100% { opacity: 0; } }
+
+.bs-badge {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 22px 13px 18px;
+  background: var(--gold); color: var(--text);
+  border-radius: 20px; box-shadow: 0 6px 0 var(--gold-shadow);
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 23px; white-space: nowrap; opacity: 0;
+  animation: bsBadge 1000ms cubic-bezier(.34,1.56,.64,1) calc(var(--bs-badge-ms) * 1ms) both;
+}
+.bs-badge svg { width: 24px; height: auto; flex: none; }
+@keyframes bsBadge {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(0) rotate(-10deg); }
+  38%  { opacity: 1; transform: translate(-50%,-50%) scale(1.14) rotate(3deg); }
+  56%  { opacity: 1; transform: translate(-50%,-50%) scale(.97) rotate(-1deg); }
+  70%  { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+  100% { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-track, .bs-hop, .bs-fig, .bs-bolt, .bs-puff, .bs-hero, .bs-flash { animation: none; }
+  .bs-track, .bs-hop, .bs-fig, .bs-bolt, .bs-puff, .bs-hero { opacity: 0; }
+  /* the badge still lands, it just doesn't spring */
+  .bs-badge { animation: none; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+}

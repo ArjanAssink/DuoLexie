@@ -5,8 +5,11 @@ import { buildTijdritDeck } from '../engine/exerciseSelector'
 import { useProgress } from '../state/progress'
 import { haptic, playEffect } from '../audio/audio'
 import { Frida } from '../components/Frida'
+import { Bliksemsprint } from '../components/Bliksemsprint'
 
 const ROUND_SECONDS = 60
+/** Consecutive correct answers that earn a Bliksemsprint. */
+const STREAK_FOR_BURST = 3
 
 interface Props {
   lesson: Lesson
@@ -31,6 +34,9 @@ export function Tijdrit({ lesson, onComplete, onQuit }: Props) {
   const answers = useRef<AnswerRecord[]>([])
   const shownAt = useRef(0)
   const done = useRef(false)
+  const streak = useRef(0)
+  /** 0 = idle; any other value keys a running Bliksemsprint so a re-trigger restarts it */
+  const [burst, setBurst] = useState(0)
 
   useEffect(() => {
     setDeck(buildTijdritDeck(lesson, soundStats))
@@ -66,6 +72,17 @@ export function Tijdrit({ lesson, onComplete, onQuit }: Props) {
     answers.current.push({ soundId: deck[idx % deck.length], correct, ms })
     playEffect(correct ? 'good' : 'bad')
     haptic(correct ? 12 : [10, 40, 10])
+
+    // Fire on *reaching* the streak, not on every multiple of it: a 30-correct run
+    // celebrates once instead of ten times, which would bury the card she's reading.
+    // A wrong answer resets, so the next run earns its own.
+    if (correct) {
+      streak.current += 1
+      if (streak.current === STREAK_FOR_BURST) setBurst((b) => b + 1)
+    } else {
+      streak.current = 0
+    }
+
     setIdx((i) => i + 1)
     shownAt.current = performance.now()
   }
@@ -117,6 +134,7 @@ export function Tijdrit({ lesson, onComplete, onQuit }: Props) {
           <button className="btn-primary" onClick={() => grade(true)}>Goed!</button>
         </div>
       </div>
+      {burst > 0 && <Bliksemsprint key={burst} onDone={() => setBurst(0)} />}
     </div>
   )
 }
