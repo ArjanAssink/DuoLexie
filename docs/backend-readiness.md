@@ -49,12 +49,11 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
 
 ## Priority order
 
-- [ ] **A1 — Turn on `strict` in `app/tsconfig.app.json`.** The Vite template's flag is
-  missing entirely, so the app compiles with `strictNullChecks` off. **Verified: adding it
-  produces zero errors today** (`npx tsc -p tsconfig.app.json --noEmit --strict` → clean).
-  One line, no code changes, permanently locks in null-safety already written by hand.
-  `api/tsconfig.json` already has it. Do this first — it's free and it protects everything
-  after it.
+- [x] **A1 — Turn on `strict` in `app/tsconfig.app.json`.** Done. Re-verified against the
+  current tree (considerably larger than at `46fecbc` — wordStats, Leitner boxes, date.ts,
+  Bliksemsprint all landed since): `npx tsc -p tsconfig.app.json --noEmit --strict` was still
+  clean before the flag was added. `strict: true` added; `tsc --noEmit`, `npm run build`, and
+  `playwright test --project=desktop` (13/13) all pass unchanged.
 
 - [ ] **A2 — Emit a `SessionResult` per completed lesson; make aggregates derived.**
   The pivotal change. In `state/progress.ts`, add an append-only `sessions: SessionResult[]`
