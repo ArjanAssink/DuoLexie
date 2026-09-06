@@ -114,12 +114,26 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
   record). Verified live against a production build: displayed gems, credited gems, and the
   session's recorded `gemsEarned` all agreed (10/10/10) after a real completed lesson.
 
-- [ ] **A5 — Give `api/` a path mapping to `shared/`.** `api/tsconfig.json` has no `paths`
-  entry and `api/src` imports nothing from `shared/` (verified) — so `shared/` is currently
-  app-only, and the `@shared` alias is a *Vite* alias, not a TypeScript one. The moment the
-  API needs `AnswerRecord`/`SessionResult` (i.e. the first sync endpoint) it will need
-  `"paths": { "@shared/*": ["../shared/*"] }` plus an `include` that reaches `../shared/src`.
-  Cheap now, annoying to retrofit mid-feature.
+- [x] **A5 — Give `api/` a path mapping to `shared/`.** Done, but not as simply as the plain
+  `"paths"` + `include` this item originally sketched — tried that first and it doesn't work:
+  `api/tsconfig.json` has a real `outDir`/`rootDir` (it emits actual JS, unlike `app`'s
+  `noEmit` build), and `include`-ing `../shared/src` directly trips `TS6059` ("File is not
+  under 'rootDir'") the instant anything actually imports from it — confirmed by writing a
+  real import and watching it fail before reaching for a fix. Used TypeScript project
+  references instead: `shared/tsconfig.json` (new, `composite: true`) is its own tiny
+  buildable project; `api/tsconfig.json` gets `"references": [{ "path": "../shared" }]` plus
+  the `paths` entry from this item's original text; `api/package.json`'s build script changed
+  from `tsc` to `tsc -b` (plain `tsc` doesn't build referenced projects — confirmed that
+  failure too, `TS6305`, before switching). Since every export in `shared/src/types.ts` is a
+  type/interface with no runtime value, `import type` from `api/` erases to *zero* emitted
+  `require()` — confirmed by writing the import and reading the compiled `.js` — so there's
+  no bundler or `tsc-alias` needed for it to resolve at runtime either. Verified with a full
+  clean rebuild from scratch (`rm -rf dist tsconfig.tsbuildinfo` in both packages): `shared`
+  builds first automatically, `api`'s own output shape is unchanged
+  (`dist/src/functions/*.js`, matching `package.json`'s `main`), zero regressions in `app`'s
+  own `tsc`/build/vitest/e2e. Added `*.tsbuildinfo` to `.gitignore` — a new build artifact
+  this introduces (`shared`'s own tsbuildinfo lands next to its tsconfig, not inside `dist/`
+  like `api`'s already-ignored one).
 
 - [ ] **A6 — Make game dispatch fail closed.** `screens/GameScreen.tsx:80-82` is a ternary
   chain that falls through to a default component. `GameType` in `shared/src/types.ts` already
