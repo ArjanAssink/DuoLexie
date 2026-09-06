@@ -80,6 +80,38 @@ export interface SoundStats {
 
 export type Mastery = 'nieuw' | 'leren' | 'geleerd' | 'goud'
 
+/** Leitner box, 1 = just missed or brand new, 5 = effectively retired */
+export type WordBox = 1 | 2 | 3 | 4 | 5
+
+/**
+ * Per-word learning statistics — drives the adaptive reading window and the
+ * spaced-repetition schedule (docs/reading-mechanics.md §2, §3).
+ */
+export interface WordStats {
+  attempts: number
+  correct: number
+  /**
+   * EWMA of how long she took to read it, successful reads only. Null until the
+   * first success: seeding it with a guess would poison the global average that
+   * the adaptive window falls back on for unfamiliar words.
+   */
+  ewmaMs: number | null
+  box: WordBox
+  /** Local calendar day (YYYY-MM-DD) — day arithmetic only, never an instant */
+  dueAt: string
+  /** Full ISO instant — for ordering only, never day arithmetic */
+  lastSeenAt: string
+}
+
+/** One graded read of one word, as reported by Hardop lezen. */
+export interface WordResult {
+  wordId: string
+  correct: boolean
+  ms: number
+  /** She answered before the reading window ran out — the promotion gate */
+  withinWindow: boolean
+}
+
 export interface AnswerRecord {
   soundId: string
   correct: boolean
