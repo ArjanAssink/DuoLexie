@@ -6,6 +6,12 @@ robustness — not app-feel, see [ux-backlog.md](ux-backlog.md) for that, and
 (dev *and* production build) rather than by reading alone. Ordered by priority; pull from
 the top.
 
+**This file has priority.** It holds reproduced, user-visible bugs; work it before
+[backend-readiness.md](backend-readiness.md), which covers architectural prep for Phase 3
+cloud sync. The two are scoped not to overlap, with one exception: this file's "positional
+lesson ids / no store migration" item shares a persisted-blob migration with that file's
+**A3**, so do those two together.
+
 ## Resuming this in a new session
 
 1. Read this whole file first — the priority order, the "already checked" section (so you
