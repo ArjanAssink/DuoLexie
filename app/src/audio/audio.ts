@@ -58,15 +58,22 @@ const wordClipCache = new Map<string, HTMLAudioElement | null>()
 
 function speakWord(text: string): Promise<void> {
   return new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'nl-NL'
-    utterance.rate = 0.85
-    const voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith('nl'))
-    if (voice) utterance.voice = voice
-    utterance.onend = () => resolve()
-    utterance.onerror = () => resolve()
-    speechSynthesis.cancel()
-    speechSynthesis.speak(utterance)
+    // Wrapped like playEffect/haptic below: audio is never worth hanging a game over,
+    // and this call is fire-and-forget from HardopLezen, so an uncaught throw here would
+    // be a silent, permanent no-op rather than a crash.
+    try {
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = 'nl-NL'
+      utterance.rate = 0.85
+      const voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith('nl'))
+      if (voice) utterance.voice = voice
+      utterance.onend = () => resolve()
+      utterance.onerror = () => resolve()
+      speechSynthesis.cancel()
+      speechSynthesis.speak(utterance)
+    } catch {
+      resolve()
+    }
   })
 }
 

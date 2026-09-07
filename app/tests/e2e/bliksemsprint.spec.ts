@@ -51,11 +51,12 @@ test('the celebration never covers the flash card or the grade buttons', async (
     const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect()
     const hits = (a: DOMRect, b: DOMRect) =>
       !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)
+    const bsEl = document.querySelector('.bs') as HTMLElement
     const band = box('.bs-band')
     return {
       overCard: hits(band, box('.flash-card')),
       overButtons: hits(band, box('.grade-buttons')),
-      passesClicks: getComputedStyle(document.querySelector('.bs')!).pointerEvents,
+      passesClicks: getComputedStyle(bsEl).pointerEvents,
     }
   })
 

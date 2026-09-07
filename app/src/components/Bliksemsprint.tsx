@@ -46,23 +46,44 @@ export function Bliksemsprint({ onDone }: Props) {
   // A fixed height collides with the flash card on shorter viewports — the layout is
   // flex, so the gap is a different size on a phone, a tablet and a desktop window.
   useLayoutEffect(() => {
-    const el = ref.current
-    const screen = el?.parentElement
-    const header = screen?.querySelector('.game-header')
-    if (!el || !screen || !header) return
+    let cancelled = false
 
-    const screenTop = screen.getBoundingClientRect().top
-    const top = header.getBoundingClientRect().bottom - screenTop + 4
-    const card = screen.querySelector('.flash-card, .game-stage > *:nth-child(2)')
-    const limit = card ? card.getBoundingClientRect().top - screenTop - 4 : top + BAND_H
-    const height = Math.max(72, Math.min(BAND_H, limit - top))
-    const scale = height / BAND_H
+    function measure() {
+      const el = ref.current
+      const screen = el?.parentElement
+      const header = screen?.querySelector('.game-header')
+      if (!el || !screen || !header) return
 
-    el.style.setProperty('--bs-band-top', `${Math.round(top)}px`)
-    el.style.setProperty('--bs-band-h', `${Math.round(height)}px`)
-    el.style.setProperty('--bs-figw', `${Math.round(92 * scale)}px`)
-    el.style.setProperty('--bs-figh', `${Math.round(100 * scale)}px`)
-    el.style.setProperty('--bs-hop', String(Math.round(56 * scale)))
+      const screenTop = screen.getBoundingClientRect().top
+      const top = header.getBoundingClientRect().bottom - screenTop + 4
+      const card = screen.querySelector('.flash-card, .game-stage > *:nth-child(2)')
+      // -16, not -4: confirmed in CI the card's own position varies by several px between
+      // rounds even after the font-swap re-measure below (different klank glyphs, the
+      // streak-counter text's width, ...) — more sources of small real-world variance than
+      // a one-time measurement can chase individually. A few extra px of unused gap here
+      // is free; the flash card being covered mid-item, even briefly, is not.
+      const limit = card ? card.getBoundingClientRect().top - screenTop - 16 : top + BAND_H
+      const height = Math.max(72, Math.min(BAND_H, limit - top))
+      const scale = height / BAND_H
+
+      el.style.setProperty('--bs-band-top', `${Math.round(top)}px`)
+      el.style.setProperty('--bs-band-h', `${Math.round(height)}px`)
+      el.style.setProperty('--bs-figw', `${Math.round(92 * scale)}px`)
+      el.style.setProperty('--bs-figh', `${Math.round(100 * scale)}px`)
+      el.style.setProperty('--bs-hop', String(Math.round(56 * scale)))
+    }
+
+    measure()
+    // A web font (index.html, display=swap) can still swap in and reflow the flash card
+    // a few pixels after this first, synchronous measurement — confirmed in CI: the
+    // measured (not fallback) height occasionally left the band a couple of px short of
+    // the card's *post-swap* position. Re-measure once fonts have actually settled.
+    document.fonts?.ready.then(() => {
+      if (!cancelled) measure()
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
