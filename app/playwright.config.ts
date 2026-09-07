@@ -25,13 +25,18 @@ export default defineConfig({
     {
       name: 'ipad',
       // dev-only recording studio needs Chromium's fake-media flags + File System Access API;
-      // the player-facing app is what actually needs iPad coverage
-      testIgnore: '**/recording-studio.spec.ts',
+      // the player-facing app is what actually needs iPad coverage.
+      // pointer-isolation simulates real multi-touch via CDP's Input.dispatchTouchEvent,
+      // which only exists in Chromium (newCDPSession throws immediately on WebKit) — the
+      // pointerId-isolation logic it exercises is plain React/DOM event handling with no
+      // engine-specific behaviour, so Chromium-only coverage is a test-tooling limitation,
+      // not a gap in coverage of what actually differs on her real device.
+      testIgnore: ['**/recording-studio.spec.ts', '**/pointer-isolation.spec.ts'],
       use: { ...devices['iPad Pro 11'] },
     },
     {
       name: 'iphone',
-      testIgnore: '**/recording-studio.spec.ts',
+      testIgnore: ['**/recording-studio.spec.ts', '**/pointer-isolation.spec.ts'],
       use: { ...devices['iPhone 13'] },
     },
   ],

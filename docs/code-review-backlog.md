@@ -273,6 +273,10 @@ all store updates are immutable.
   `(await context.newCDPSession(page)).send('Input.dispatchTouchEvent', ...)`, not
   `element.dispatchEvent(new PointerEvent(...))`. The latter registers no real active
   pointer, so anything calling `setPointerCapture` on that synthetic id throws — silently
-  hiding exactly the class of bug this is usually used to test.
+  hiding exactly the class of bug this is usually used to test. **`newCDPSession` only
+  exists in Chromium** — it throws immediately on the `ipad`/`iphone` (WebKit) projects, so
+  a spec built on it needs `testIgnore` there (`playwright.config.ts`, alongside
+  `recording-studio.spec.ts`'s existing exclusion). This found out the hard way: CI passed
+  locally against `--project=desktop` and then failed both WebKit projects on push.
 - Commit each item separately, so history stays readable and each change is easy to revert
   in isolation.
