@@ -21,11 +21,17 @@ async function interceptSpeech(page: import('@playwright/test').Page) {
       const synth = window.speechSynthesis
       if (!synth) return
       const orig = synth.speak.bind(synth)
-      synth.speak = (u: SpeechSynthesisUtterance) => {
+      const wrapper = (u: SpeechSynthesisUtterance) => {
         w.__spoke.push(u.text)
         return orig(u)
       }
-      w.__speechHooked = true
+      synth.speak = wrapper
+      // Assigning to an inherited accessor with no setter fails *silently* in sloppy
+      // mode (no throw) — confirmed this is exactly what WebKit does here: __speechHooked
+      // was true (the assignment statement ran) while synth.speak was still the native
+      // implementation underneath, so nothing was ever actually intercepted. Only trust
+      // the flag if the assignment demonstrably stuck.
+      w.__speechHooked = synth.speak === wrapper
     } catch {
       // some engines don't expose a patchable speechSynthesis at all — nothing to do
     }
