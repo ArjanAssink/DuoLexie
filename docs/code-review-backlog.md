@@ -98,16 +98,25 @@ StrictMode's double-invocation of effects can mask them in dev.
   teeth, not just the manual repro — it was verified to fail against the pre-fix
   `audio.ts` before being checked in.
 
-- [ ] **A second finger auto-grades a word** — `games/HardopLezen.tsx:52-70` tracks no
-  `pointerId`: `onPointerDown` unconditionally overwrites `startX.current`, and
-  `onPointerMove`/`onPointerUp` share one `dragging` flag across all pointers. Thumb resting
-  on the card at x=300 (`dragging=true`, `startX=300`), index finger taps at x=100 →
-  `startX` becomes 100 → any thumb movement yields `dragX ≈ 210` → releasing either finger
-  passes the 90px threshold and commits "Goed!" for a word she never swiped. Very reachable
-  for a 9-year-old resting a hand on a tablet. Fix: capture `e.pointerId` on down and ignore
-  move/up from other ids. Same item: `onPointerCancel={onPointerUp}` (line 140) means a
-  browser-cancelled gesture past the threshold also records a grade — cancel should reset
-  `dragX` to 0 instead.
+- [x] **A second finger auto-grades a word** — fixed. **Reproduced first**, and it took two
+  attempts: a plain `dispatchEvent(new PointerEvent(...))` can't actually reproduce this —
+  Chromium's `setPointerCapture` validates against its real active-pointer table and throws
+  `"No active pointer with the given id"` for a synthetic id no real input ever established,
+  which silently prevented the exact overwrite this item describes. Switched to CDP's
+  `Input.dispatchTouchEvent`, which registers genuine pointers: thumb down, second finger
+  down elsewhere on the card, thumb nudges 15px (well under the 90px swipe threshold),
+  second finger lifts — confirmed the word got graded anyway, exactly as predicted.
+
+  Fix: an `activePointerId` ref. `onPointerDown` now ignores a second pointer while one is
+  already dragging, instead of overwriting `startX`; `onPointerMove`/`onPointerUp` ignore any
+  event whose `pointerId` doesn't match. Added a dedicated `onPointerCancel` (previously
+  aliased to `onPointerUp`, which is what let a browser-cancelled gesture past the threshold
+  record a grade) that resets `dragX` to 0 instead of committing.
+
+  New `tests/e2e/pointer-isolation.spec.ts` (3 tests, using real CDP touch points): a second
+  resting finger can't steal the drag; a genuine single-finger swipe still commits normally;
+  a cancelled gesture resets rather than grading. Verified 2 of the 3 fail against the
+  pre-fix code (the single-finger case correctly still passes — that path was never broken).
 
 - [ ] **Half the path feeds nothing to the adaptive engine** — `games/KlankKaarten.tsx:103`
   calls `onComplete({ answers: [] })`, so the `l1` ("Luister") and `l3` ("Mix") nodes — half
@@ -260,5 +269,10 @@ all store updates are immutable.
   media and autoplay-policy behaviour still needs a real device check.
 - Let entrance animations finish (~800ms) before trusting a `getBoundingClientRect()`
   reading; `.coin-item`'s `coinPop` scales from 0.4 and will report a too-small box mid-flight.
+- To simulate a second real pointer/touch (multi-touch bugs), use
+  `(await context.newCDPSession(page)).send('Input.dispatchTouchEvent', ...)`, not
+  `element.dispatchEvent(new PointerEvent(...))`. The latter registers no real active
+  pointer, so anything calling `setPointerCapture` on that synthetic id throws — silently
+  hiding exactly the class of bug this is usually used to test.
 - Commit each item separately, so history stays readable and each change is easy to revert
   in isolation.

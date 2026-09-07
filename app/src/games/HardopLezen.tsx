@@ -41,6 +41,13 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   const wordResults = useRef<WordResult[]>([])
   const shownAt = useRef(0)
   const startX = useRef(0)
+  /**
+   * The one pointer this drag belongs to. Without it, a second finger merely
+   * resting on the card overwrites `startX` (onPointerDown had no "already
+   * dragging" guard) and either finger lifting could commit a grade neither
+   * gesture intended — reachable for a 9-year-old resting a hand on a tablet.
+   */
+  const activePointerId = useRef<number | null>(null)
   const busy = useRef(false)
   const windowTimer = useRef<number | undefined>(undefined)
   const cancelled = useRef(false)
@@ -79,23 +86,36 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   }, [current])
 
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (busy.current || !current) return
+    // A pointer is already driving this drag — an incidental second touch (a
+    // resting palm, a stray finger) must not steal it and reset startX.
+    if (busy.current || !current || activePointerId.current !== null) return
+    activePointerId.current = e.pointerId
     e.currentTarget.setPointerCapture(e.pointerId)
     startX.current = e.clientX
     setDragging(true)
   }
   function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
-    if (!dragging) return
+    if (!dragging || e.pointerId !== activePointerId.current) return
     setDragX(e.clientX - startX.current)
   }
-  function onPointerUp() {
-    if (!dragging) return
+  function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragging || e.pointerId !== activePointerId.current) return
+    activePointerId.current = null
     setDragging(false)
     if (Math.abs(dragX) > SWIPE_THRESHOLD) {
       commit(dragX > 0 ? 'right' : 'left')
     } else {
       setDragX(0)
     }
+  }
+  function onPointerCancel(e: ReactPointerEvent<HTMLDivElement>) {
+    // A gesture the browser cancels (edge back-swipe, scroll takeover, an
+    // incoming call) is not a completed swipe — reset rather than grade
+    // whatever dragX happened to reach.
+    if (e.pointerId !== activePointerId.current) return
+    activePointerId.current = null
+    setDragging(false)
+    setDragX(0)
   }
 
   async function commit(direction: 'left' | 'right') {
@@ -195,7 +215,7 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
+            onPointerCancel={onPointerCancel}
           >
             {current.text}
           </div>
