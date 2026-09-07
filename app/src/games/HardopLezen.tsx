@@ -138,6 +138,10 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   // commit() awaits the flight, the landing and — on a miss — the word being replayed.
   // Tapping ✕ inside that gap used to run the rest of it anyway: onComplete credited the
   // lesson and fired the fanfare and confetti over the path screen she'd just returned to.
+  // `quit()` below is the primary fix (it cancels synchronously on the click, before
+  // navigation even starts); this cleanup is the backstop for any other way the component
+  // unmounts (StrictMode's dev remount, a future caller that navigates away without going
+  // through `quit()`).
   useEffect(() => {
     // Reset on mount as well as set on unmount — StrictMode's mount → cleanup → remount in
     // dev would otherwise latch this true and freeze the game.
@@ -164,6 +168,20 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   function goPhase(next: Phase) {
     phaseRef.current = next
     setPhase(next)
+  }
+
+  /**
+   * Cancel synchronously, on the click itself — not just in the unmount effect's cleanup.
+   * That only runs once react-router's navigate() actually unmounts this component, which
+   * isn't guaranteed to happen before commit()'s pending `await`s resolve; quitting a hair
+   * before they do could otherwise still race them. This can't lose that race: it's the
+   * first thing that runs on the click that starts the navigation. Stopping the speech here
+   * too means she isn't still being read to on the path screen.
+   */
+  function quit() {
+    cancelled.current = true
+    stopSpeech()
+    onQuit()
   }
 
   // A new card: deal it in, then start its reading window.
@@ -406,13 +424,13 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
     return (
       <div className="game-screen">
         <div className="game-header">
-          <button className="quit" aria-label="Stoppen" onClick={onQuit}>
+          <button className="quit" aria-label="Stoppen" onClick={quit}>
             ✕
           </button>
         </div>
         <div className="game-stage">
           <h2>Nog geen woorden om te lezen</h2>
-          <button className="btn-primary" onClick={onQuit}>
+          <button className="btn-primary" onClick={quit}>
             Terug naar het pad
           </button>
         </div>
@@ -456,7 +474,7 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   return (
     <div className="game-screen hardop-screen" data-phase={phase} onPointerDown={resumeAudio}>
       <div className="game-header">
-        <button className="quit" aria-label="Stoppen" onClick={onQuit}>
+        <button className="quit" aria-label="Stoppen" onClick={quit}>
           ✕
         </button>
         <div

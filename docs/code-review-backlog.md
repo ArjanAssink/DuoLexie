@@ -49,17 +49,52 @@ StrictMode's double-invocation of effects can mask them in dev.
 
 - [x] **Quitting mid-animation still completes the lesson** — fixed in both games, plus a
   guard where the crediting actually happens. `games/Flitsen.tsx` now cancels its pending
-  flight timeouts on unmount and refuses to fire afterwards; `games/HardopLezen.tsx` checks a
+  flight timeouts and refuses to fire afterwards; `games/HardopLezen.tsx` checks a
   `cancelled` ref after each await in `commit()`; and `GameScreen.handleComplete` carries its
   own `credited` ref, so "credit once" no longer depends on every game getting it right.
   Re-ran the original repro: gems/xp/sessions/completedLessons all stay at 0 where they
-  previously went to 10/10/1/1. **Gotcha hit and fixed:** setting the flag only in the effect
-  *cleanup* latched it true immediately, because StrictMode runs mount → cleanup → remount in
-  dev — so no lesson could ever complete on the dev server. It's reset on mount as well now.
-  The regression test ("finishing normally still credits exactly once") is what caught that;
-  the production-build repro alone had looked fine, since StrictMode doesn't double-invoke
-  there. New `tests/e2e/quit-mid-animation.spec.ts` covers both quit paths and the happy path.
-  *(Original finding below, for context.)*
+  previously went to 10/10/1/1.
+
+  **Went through three rounds before this was actually solid, and the last one was the
+  important one.** (1) Setting `cancelled` only in the effect *cleanup* latched it true
+  immediately, because StrictMode runs mount → cleanup → remount in dev — no lesson could
+  ever complete on the dev server. Fixed by resetting it on mount too; the regression test
+  ("finishing normally still credits exactly once") caught it, the production-build repro
+  alone hadn't, since StrictMode doesn't double-invoke there. (2) CI then failed on iPad *and*
+  iPhone with the lesson credited anyway, gems 0→10 again — on WebKit specifically, under
+  real timing. (3) The actual defect: cancellation lived **only** in the unmount effect's
+  cleanup, which runs once react-router's `navigate()` actually unmounts the component —
+  not guaranteed to happen before an already-due timer/await resolves. Quitting close enough
+  to a flight's natural deadline could let the timer win the race against the navigation.
+  Fixed at the root: both games now cancel **synchronously on the click itself**, before
+  `onQuit()`/navigation even starts — a `quit()` wrapper sets `cancelled.current = true` (and
+  clears Flitsen's pending timers) first, then calls the real handler. This can't lose the
+  race, because it's the first thing that runs. The unmount-effect cleanup stays as a backstop
+  for any other unmount path, not the primary mechanism anymore.
+
+  Local Chromium testing repeatedly failed to catch (2) and (3) — there's no WebKit on this
+  machine, so every one of these needed a real CI round-trip to surface. `tests/e2e/quit-mid-
+  animation.spec.ts` also needed three rounds of its own: guessed fixed delays (60ms, 80ms) to
+  land "mid-animation" raced real timing on WebKit exactly like the app did; polling for the
+  observable state (`.kk-fly` present, opacity `0`) and clicking as fast as possible still
+  lost on CI's WebKit runners, where Playwright's own actionability round-trips ate the whole
+  ~400ms window and the `.quit` click hit a detached node (three consecutive red pushes on
+  main: 43a46e6, b3dc39c, 20fe921). Now deterministic: the tests install Playwright's fake
+  clock (`page.clock`), pause it right before the last flip/swipe so the pending
+  timer/await *cannot* fire, click ✕, then advance the clock past the deadline and assert
+  nothing was credited. No window to hit, nothing to poll. Verified to fail (gems 0→10,
+  sessions 0→1) with the cancellation stripped from both games. **A trap worth knowing if you
+  touch these:** advancing the fake clock is not by itself enough to let the orphaned
+  continuation finish. Hardop lezen's chain is not all timers — after the flight it awaits
+  `playWord()`, which parks on a real media event, and only then schedules its last two
+  waits in resumed real time. With the 500ms real-time tail the Flitsen test can afford, the
+  Hardop lezen test passed *even with the cancellation stripped out of the game entirely*:
+  the wrongful credit landed after the assertions had run. It waits 2500ms now, and was
+  re-verified in both directions. A test that cannot fail is worse than no test. Caveat: under a frozen clock
+  navigation always completes before the timer, so the test proves "quit cancels the pending
+  completion" but can't separately distinguish the synchronous `quit()` cancel from the
+  unmount-cleanup backstop — (3) stays a code-reading guarantee. *(Original finding below,
+  for context.)*
 
   Was: `games/KlankKaarten.tsx:96`
   schedules the card flight with `setTimeout(..., FLY_MS)` and never cancels it on unmount.
