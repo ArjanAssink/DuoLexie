@@ -47,6 +47,23 @@ StrictMode's double-invocation of effects can mask them in dev.
 
 ## Priority order
 
+- [ ] **Does WebKit cope with ten `<audio>` elements in one round?** Unconfirmed, and it needs
+  a real device — but worth checking before the word recordings land, because it is the point
+  at which production starts doing what the tests now do. `audio.ts`'s `loadWordClip` caches
+  one `<audio>` element per word, so a ten-card Hardop lezen round holds ten of them. WebKit
+  is historically strict about media-element and decoder limits, and iOS Safari more so than
+  desktop.
+  **Why it is on the list:** switching the e2e narration onto the clip path (serving a real
+  mp3 per word, rather than browser speech) was the first time the suite created ten media
+  elements per round, and CI's WebKit profiles then began losing the page outright mid-round —
+  a different pair of ten-card tests each run. That is equally consistent with plain resource
+  contention on a two-core runner, which is why `retries: 2` on CI is the mitigation for now
+  rather than a fix. If a real iPad shows the same thing, the fix is small: reuse one element
+  and set `src`, instead of caching an element per word. Note that switching `src` mid-play
+  rejects the previous `play()`, which `playWithFallback` treats as a cue to fall back to
+  speech — so that change needs the overlapping-playback case thought through, not just the
+  cache swapped out.
+
 - [x] **Quitting mid-animation still completes the lesson** — fixed in both games, plus a
   guard where the crediting actually happens. `games/Flitsen.tsx` now cancels its pending
   flight timeouts and refuses to fire afterwards; `games/HardopLezen.tsx` checks a
