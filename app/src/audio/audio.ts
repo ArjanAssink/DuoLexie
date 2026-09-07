@@ -72,7 +72,11 @@ function speakWord(text: string): Promise<void> {
       utterance.onerror = () => resolve()
       speechSynthesis.cancel()
       speechSynthesis.speak(utterance)
-    } catch {
+    } catch (e) {
+      // TEMP diagnostic (see reading-window investigation in git history): this used to be
+      // a silent catch, which would hide exactly the error this is trying to find — remove
+      // the logging once resolved, keep the catch/resolve.
+      console.error('speakWord caught:', e)
       resolve()
     }
   })
