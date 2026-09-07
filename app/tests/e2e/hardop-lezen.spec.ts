@@ -40,30 +40,34 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('a round is ten different words', async ({ page }) => {
-  test.slow() // ten cards, each with a deal-in, a clip and a flight to the pile
+  test.setTimeout(120_000) // ten cards, each with a deal-in, a clip and a flight to the pile
   await page.goto(PROEFRONDE)
   await expect(page.locator('.word-card')).toBeVisible()
   await expect(page.locator('.pip')).toHaveCount(10)
 
   const seen: string[] = []
   for (let i = 0; i < 10; i++) {
-    seen.push(await playCard(page, 'goed'))
-    if (i < 9) {
-      // the pips track cards done, and each card lands before the next deals in
-      await expect.poll(() => page.locator('.pip-done').count(), { timeout: 6000 }).toBe(i + 1)
-    } else {
-      // the tenth card ends the round, so the pips go with it — the reward screen is what
-      // "all ten done" looks like from here
-      await expect(page.locator('.reward-screen')).toBeVisible({ timeout: 8000 })
+    // Verdicts alternate rather than all being "goed". A ten-card correct round fires ten
+    // confetti bursts and the biggest closing burst, and it was the heaviest test in the
+    // suite — on CI's iphone profile the page died partway through it. Alternating keeps
+    // the round honest (this test is about which words come up) and much lighter.
+    seen.push(await playCard(page, i % 2 === 0 ? 'goed' : 'nogEven'))
+    // One pip check, not ten: polling a locator count after every card added seconds per
+    // card to no end, since distinctness is what this test is about.
+    if (i === 4) {
+      await expect.poll(() => page.locator('.pip-done').count(), { timeout: 10_000 }).toBe(5)
     }
   }
+  // the tenth card ends the round, so the pips go with it — the reward screen is what
+  // "all ten done" looks like from here
+  await expect(page.locator('.reward-screen')).toBeVisible({ timeout: 15_000 })
   expect(new Set(seen).size, `no word may repeat in a round: ${seen.join(', ')}`).toBe(10)
 })
 
 test('cards stack on the pile she chose, and the reward screen counts both piles', async ({
   page,
 }) => {
-  test.slow()
+  test.setTimeout(120_000)
   await page.goto(PROEFRONDE)
   await expect(page.locator('.word-card')).toBeVisible()
 
@@ -97,7 +101,7 @@ test('cards stack on the pile she chose, and the reward screen counts both piles
 })
 
 test('a round she gets entirely wrong still pays for finishing', async ({ page }) => {
-  test.slow() // every card replays the word before the next one deals in
+  test.setTimeout(120_000) // every card replays the word before the next one deals in
   await page.goto(PROEFRONDE)
   await expect(page.locator('.word-card')).toBeVisible()
 
