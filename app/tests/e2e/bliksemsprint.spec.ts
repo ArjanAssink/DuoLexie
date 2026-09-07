@@ -51,13 +51,24 @@ test('the celebration never covers the flash card or the grade buttons', async (
     const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect()
     const hits = (a: DOMRect, b: DOMRect) =>
       !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)
+    const bsEl = document.querySelector('.bs') as HTMLElement
     const band = box('.bs-band')
     return {
       overCard: hits(band, box('.flash-card')),
       overButtons: hits(band, box('.grade-buttons')),
-      passesClicks: getComputedStyle(document.querySelector('.bs')!).pointerEvents,
+      passesClicks: getComputedStyle(bsEl).pointerEvents,
+      // TEMP diagnostic (see bliksemsprint investigation in git history): confirm whether
+      // Bliksemsprint.tsx's own layout measurement (useLayoutEffect) actually landed before
+      // this read, or whether the fallback values baked into the CSS (which the component's
+      // own comment says can collide on shorter viewports) are what's in effect.
+      measuredTop: bsEl.style.getPropertyValue('--bs-band-top'),
+      measuredH: bsEl.style.getPropertyValue('--bs-band-h'),
+      band,
+      card: box('.flash-card'),
+      viewport: { w: window.innerWidth, h: window.innerHeight },
     }
   })
+  console.log('bliksemsprint diagnostic:', JSON.stringify(clear))
 
   expect(clear.overCard, 'celebration overlaps the flash card').toBe(false)
   expect(clear.overButtons, 'celebration overlaps the grade buttons').toBe(false)
