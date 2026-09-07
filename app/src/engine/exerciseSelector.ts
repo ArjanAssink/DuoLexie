@@ -1,6 +1,6 @@
 import type { Lesson, SoundStats } from '@shared/src/types'
 import { confusablesOf, categoryOf } from '../curriculum'
-import { wordsForPool } from '../words'
+import { wordsForPool, hasWordRecording } from '../words'
 import { reviewWeight } from './stats'
 
 export interface Exercise {
@@ -149,7 +149,11 @@ function withOneDuplicate(ids: string[]): string[] {
  * over the same words. `data/path.ts` widens a Lezen node's pool precisely so this stays a
  * fallback: on the real path every round is 10 distinct words.
  */
-export function buildWordExercises(lesson: Lesson): string[] {
+export function buildWordExercises(
+  lesson: Lesson,
+  /** Injectable so the recorded-first ordering is testable without fixture mp3s. */
+  isRecorded: (id: string) => boolean = hasWordRecording,
+): string[] {
   const eligible = wordsForPool(lesson.soundPool)
   if (eligible.length === 0) return []
   // one duplicate at most, so the round is `pool + 1` long when the pool is the binding limit
@@ -161,9 +165,13 @@ export function buildWordExercises(lesson: Lesson): string[] {
   // and then, with nothing in between, 8-to-10-letter compounds (limonade, helikopter), so
   // at 3x a ten-card round starts serving compounds while short words are still unread.
   const candidates = byLength.slice(0, Math.max(distinctCount * 2, 12))
-  const distinct = shuffle(candidates)
-    .slice(0, distinctCount)
-    .map((w) => w.id)
+  // Recorded words first, so early rounds are in a family voice and browser speech only
+  // appears once the recordings run out. Applied *inside* the shortest-first window, so it
+  // reorders which easy words she gets — never pulls a harder word in over an easier one.
+  // Each group is shuffled, so the same recorded words don't come up in the same order.
+  const recorded = shuffle(candidates.filter((w) => isRecorded(w.id)))
+  const rest = shuffle(candidates.filter((w) => !isRecorded(w.id)))
+  const distinct = [...recorded, ...rest].slice(0, distinctCount).map((w) => w.id)
   return distinct.length < count ? withOneDuplicate(distinct) : distinct
 }
 

@@ -1,4 +1,4 @@
-import type { Fase, Lesson, Unit } from '@shared/src/types'
+import type { Fase, Lesson, Unit, Word } from '@shared/src/types'
 import { curriculum } from '../curriculum'
 import { wordsForPool } from '../words'
 
@@ -271,4 +271,28 @@ export function lessonById(id: string): Lesson | undefined {
 /** Linear unlock: a lesson is unlocked when all earlier lessons are completed */
 export function lessonIndex(id: string): number {
   return allLessons.findIndex((l) => l.id === id)
+}
+
+/**
+ * Every word the path can serve, in the order she will actually meet it: for each Lezen node
+ * in path order, that node's readable words shortest-first, deduped.
+ *
+ * This is the recording order — the studio's word mode walks it, so the clips that get
+ * recorded first are the ones she reads first (dev/RecordingStudio.tsx).
+ */
+export function wordsInPathOrder(): Word[] {
+  const seen = new Set<string>()
+  const out: Word[] = []
+  for (const lesson of allLessons) {
+    if (lesson.gameType !== 'hardop-lezen') continue
+    const words = [...wordsForPool(lesson.soundPool)].sort(
+      (a, b) => a.text.length - b.text.length,
+    )
+    for (const word of words) {
+      if (seen.has(word.id)) continue
+      seen.add(word.id)
+      out.push(word)
+    }
+  }
+  return out
 }

@@ -71,4 +71,19 @@ describe('buildWordExercises', () => {
   it('returns nothing when no word in the curriculum is readable yet', () => {
     expect(buildWordExercises(lezenLesson(['a', 'e']))).toEqual([])
   })
+
+  it('fills a round with recorded words first, then falls back to the rest', () => {
+    const someRecorded = ['kat', 'tas', 'mat', 'pan', 'bed']
+    const round = buildWordExercises(lezenLesson(WIDE_POOL), (id) => someRecorded.includes(id))
+    // every recorded word that fits is used before any unrecorded one is reached for
+    expect(round.slice(0, 5).sort()).toEqual([...someRecorded].sort())
+    expect(round).toHaveLength(10)
+    expect(new Set(round).size).toBe(10)
+  })
+
+  it('is unchanged when nothing is recorded yet — today\'s state', () => {
+    const round = buildWordExercises(lezenLesson(WIDE_POOL), () => false)
+    expect(round).toHaveLength(10)
+    expect(new Set(round).size).toBe(10)
+  })
 })

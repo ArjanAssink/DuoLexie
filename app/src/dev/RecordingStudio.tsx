@@ -1,15 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { allSounds } from '../curriculum'
+import { wordsInPathOrder } from '../data/path'
 
 type ClipStatus = 'missing' | 'recorded' | 'new'
 
+type Mode = 'klanken' | 'woorden'
+
+/** Words worth recording first — the front of the path order (docs/hardop-lezen-rework.md §8). */
+const STARTER_SET_SIZE = 20
+
 /**
  * Dev-only recording studio (/opnemen): record the family voice clips.
- * Saves .webm files via the File System Access API into a chosen folder
- * (pick app/public/audio/sounds), then run `node tools/convert-audio.mjs`
- * to convert to normalized MP3s.
+ * Saves .webm files via the File System Access API into a chosen folder, then run
+ * `node tools/convert-audio.mjs <dir>` to convert to normalized MP3s.
+ *
+ * Two modes, because the app needs two kinds of clip:
+ *   Klanken — the 45 graphemes, into app/public/audio/sounds
+ *   Woorden — whole words for Hardop lezen, into app/public/audio/words, walked in the order
+ *             she meets them on the path so the first clips recorded are the first she hears
  */
 export function RecordingStudio() {
+  const [mode, setMode] = useState<Mode>('klanken')
+  const [starterOnly, setStarterOnly] = useState(true)
   const [statuses, setStatuses] = useState<Record<string, ClipStatus>>({})
   const [currentIdx, setCurrentIdx] = useState(0)
   const [recording, setRecording] = useState(false)
@@ -23,7 +35,20 @@ export function RecordingStudio() {
   // recording the next sound — set to false only for the "pause" escape hatch
   const autoContinue = useRef(true)
 
-  const currentSound = allSounds[currentIdx]
+  const pathWords = useMemo(() => wordsInPathOrder(), [])
+  const folder = mode === 'klanken' ? 'sounds' : 'words'
+  /**
+   * The clips this mode records, in recording order. Words are capped to the starter set by
+   * default: all 38 currently-readable words is a long sitting, and the first twenty are the
+   * ones she actually meets first.
+   */
+  const items = useMemo(() => {
+    if (mode === 'klanken') return allSounds
+    const ids = pathWords.map((w) => w.id)
+    return starterOnly ? ids.slice(0, STARTER_SET_SIZE) : ids
+  }, [mode, starterOnly, pathWords])
+
+  const currentItem = items[Math.min(currentIdx, items.length - 1)]
 
   useEffect(() => {
     // in case the auto-record chain is still running when this page unmounts
@@ -36,13 +61,24 @@ export function RecordingStudio() {
   useEffect(() => {
     // check which mp3s already exist (dev server serves HTML fallback for
     // missing files, so verify the content type too)
-    for (const id of allSounds) {
-      fetch(`/audio/sounds/${id}.mp3`, { method: 'HEAD' }).then((r) => {
+    for (const id of items) {
+      fetch(`/audio/${folder}/${id}.mp3`, { method: 'HEAD' }).then((r) => {
         const isAudio = r.ok && (r.headers.get('content-type') ?? '').startsWith('audio')
         setStatuses((s) => ({ ...s, [id]: isAudio ? 'recorded' : (s[id] ?? 'missing') }))
       })
     }
-  }, [])
+  }, [items, folder])
+
+  /** Switching mode starts that mode's list from the top, and drops the other's take. */
+  function switchMode(next: Mode) {
+    if (next === mode) return
+    autoContinue.current = false
+    recorder.current?.stop()
+    setMode(next)
+    setCurrentIdx(0)
+    setStatuses({})
+    setLastBlob(null)
+  }
 
   const supportsFileSystemAccess = typeof (window as any).showDirectoryPicker === 'function'
 
@@ -66,7 +102,7 @@ export function RecordingStudio() {
   async function startRecording(idx: number) {
     setCurrentIdx(idx)
     setLastBlob(null)
-    const soundId = allSounds[idx]
+    const soundId = items[idx]
     let stream: MediaStream
     try {
       // reuse one mic stream for the whole session — re-requesting getUserMedia
@@ -106,9 +142,9 @@ export function RecordingStudio() {
         micStream.current = null
         return
       }
-      // always move to the plain next sound, whether or not it already has a
-      // take — a full redo pass needs to walk every sound, not just the gaps
-      startRecording((idx + 1) % allSounds.length)
+      // always move to the plain next item, whether or not it already has a
+      // take — a full redo pass needs to walk every one, not just the gaps
+      startRecording((idx + 1) % items.length)
     }
     recorder.current = rec
     rec.start()
@@ -134,23 +170,60 @@ export function RecordingStudio() {
 
   function skipToNext() {
     setLastBlob(null)
-    setCurrentIdx((currentIdx + 1) % allSounds.length)
+    setCurrentIdx((currentIdx + 1) % items.length)
   }
 
-  const doneCount = Object.values(statuses).filter((s) => s !== 'missing').length
+  const doneCount = items.filter((id) => (statuses[id] ?? 'missing') !== 'missing').length
 
   return (
     <div className="studio">
       <h1>🎙️ Opnamestudio</h1>
+      <div className="studio-modes">
+        <button
+          className={`btn-primary${mode === 'klanken' ? '' : ' studio-mode-off'}`}
+          onClick={() => switchMode('klanken')}
+        >
+          Klanken ({allSounds.length})
+        </button>
+        <button
+          className={`btn-primary${mode === 'woorden' ? '' : ' studio-mode-off'}`}
+          onClick={() => switchMode('woorden')}
+        >
+          Woorden ({pathWords.length})
+        </button>
+      </div>
+      {mode === 'woorden' && (
+        <p>
+          <label className="studio-starter">
+            <input
+              type="checkbox"
+              checked={starterOnly}
+              onChange={(e) => setStarterOnly(e.target.checked)}
+            />{' '}
+            alleen de eerste {STARTER_SET_SIZE} (de woorden die ze het eerst tegenkomt)
+          </label>
+        </p>
+      )}
       <p>
-        {doneCount}/{allSounds.length} klanken opgenomen.{' '}
+        {doneCount}/{items.length} {mode} opgenomen.{' '}
         {!dirHandle && (
           <button className="btn-primary" style={{ fontSize: 16, padding: '8px 16px' }} onClick={pickFolder}>
-            Kies map (app/public/audio/sounds)
+            Kies map (app/public/audio/{folder})
           </button>
         )}
-        {dirHandle && <b>Map gekozen ✓ (webm → draai daarna tools/convert-audio.mjs)</b>}
+        {dirHandle && (
+          <b>
+            Map gekozen ✓ (webm → draai daarna{' '}
+            <code>node tools/convert-audio.mjs app/public/audio/{folder}</code>)
+          </b>
+        )}
       </p>
+      {mode === 'woorden' && (
+        <p style={{ color: 'var(--muted)', fontSize: 14 }}>
+          Spreek het woord één keer natuurlijk uit, met een seconde stilte ervoor en erna —
+          convert-audio.mjs knipt die eraf en normaliseert naar -16 LUFS.
+        </p>
+      )}
       {!supportsFileSystemAccess && (
         <p style={{ color: 'var(--red-orange, #c0392b)', fontWeight: 700 }}>
           ⚠️ Deze browser ondersteunt geen mapopslag. Open /opnemen in Chrome of Edge om op te nemen.
@@ -158,7 +231,7 @@ export function RecordingStudio() {
       )}
       {saveError && <p style={{ color: 'var(--red-orange, #c0392b)', fontWeight: 700 }}>⚠️ {saveError}</p>}
 
-      <div className="big-sound">{currentSound}</div>
+      <div className="big-sound">{currentItem}</div>
       <div className="studio-controls">
         {!recording ? (
           <button className="btn-primary" disabled={!dirHandle} style={{ opacity: dirHandle ? 1 : 0.4 }} onClick={() => startRecording(currentIdx)}>
@@ -181,10 +254,10 @@ export function RecordingStudio() {
       )}
 
       <div className="studio-grid">
-        {allSounds.map((id, idx) => (
+        {items.map((id, idx) => (
           <button
             key={id}
-            className={`studio-cell${id === currentSound ? ' studio-cell-active' : ''}`}
+            className={`studio-cell${id === currentItem ? ' studio-cell-active' : ''}`}
             onClick={() => setCurrentIdx(idx)}
           >
             <span className="studio-cell-id">{id}</span>

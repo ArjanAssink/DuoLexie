@@ -11,10 +11,11 @@ stays the reference for *why* the reading window exists and how words are spaced
 replaces its §1 flow description once built. [plan.md](../plan.md) §2 keeps the one-paragraph
 game description.
 
-**Status:** §1–§7 are **built** — the full read → listen → sort round, the window ladder, the
-piles and their animations, the sounds, the word-based gems and the reward screen. Not yet
-built: the recording-studio word mode and the starter recordings (§8 step 4), and the word-level
-decision in §4/§10. Deviations found while building are marked *(as built)* below.
+**Status:** §1–§8 are **built** — the full read → listen → sort round, the window ladder, the
+piles and their animations, the sounds, the word-based gems and the reward screen, plus the
+studio's word mode and the recorded-word manifest. Outstanding: the twenty starter
+recordings themselves (Arjan's machine) and the word-level decision in §4/§10. Deviations
+found while building are marked *(as built)* below.
 
 ---
 
@@ -369,36 +370,37 @@ perfect round     +3
 The self-check only works if she hears a real voice. Plan: Arjan records a starter set;
 everything else keeps the TTS fallback until recorded.
 
-**Which words first.** The first Lezen node on the path is `fase1-m-s-k-r-t-l5` (pool: a e o
-u i + m s k r t), which has exactly **5** eligible words. The next unit's node has 24. The
-short (3-letter) words readable by the end of the third unit make a natural starter set of
-**20**:
+**Which words first (as built).** The studio walks `wordsInPathOrder()` — for each Lezen
+node in path order, its readable words shortest-first, deduped — so the clips recorded first
+are the ones she meets first. Its first twenty, which the studio shows by default:
 
-| Unit | Words |
-|---|---|
-| m·s·k·r·t (5) | kat, tas, mat, kok, kus |
-| n·p·b·d·f (+15) | bal, pan, dak, bed, pen, les, pot, bos, top, bus, put, pil, dik, kip, rib |
+> kat, tas, mat, pan, dak, bed, pen, pot, bos, kok, top, bus, put, kus, dik, kip, rib, bal,
+> jas, hek
 
-Next 8 when there is time (g·h·j·l + v·w·z): jas, zak, hek, vel, hok, hut, vis, wip.
+*(as built)* This is derived rather than hand-listed, so it can't drift from the path. It
+differs slightly from the by-unit list this section carried before, because the widened pool
+(§4) changes which words the first node can reach.
 
-**Recording flow** — extend the existing dev-only studio rather than build a new one:
+**Recording flow — built, except the recording itself:**
 
-1. `dev/RecordingStudio.tsx` gets a **mode switch** (Klanken / Woorden). Word mode lists
-   words instead of sounds, ordered by the path (unit order, then length), with a
-   "starter set" filter at the top so the 20 above are the default view. Saves
-   `{wordId}.webm` into the chosen folder (pick `app/public/audio/words`). Same one-mic-stream,
-   auto-advance, replay controls; same File System Access requirement (Chrome/Edge).
-   Route stays `/#/opnemen` (`?mode=woorden` or a toggle in the header).
+1. `dev/RecordingStudio.tsx` has a **mode switch** (Klanken / Woorden). Word mode lists words
+   in path order with an "alleen de eerste 20" filter on by default, saves `{wordId}.webm`
+   into the chosen folder (pick `app/public/audio/words`), and shows the recording tip below.
+   Same one-mic-stream, auto-advance and replay controls as klanken mode; same File System
+   Access requirement (Chrome/Edge). Route unchanged: `/#/opnemen`.
 2. `node tools/convert-audio.mjs app/public/audio/words` — the script already takes a
-   directory argument; no change needed. Commit the mp3s.
-3. **Manifest so the game knows what exists**: a small Vite glob
-   (`import.meta.glob('/public/audio/words/*.mp3')` at build time, or a generated
-   `recorded-words.json` written by `convert-audio.mjs`) → `hasWordRecording(id)`. Used to
-   (a) show ✅ in the studio and (b) let `buildWordExercises` **prefer recorded words** when
-   filling a round, so the first rounds she plays are in Arjan's voice, TTS only appearing once
-   the recorded pool is exhausted.
-4. Recording tips in the studio UI: say the word once, naturally, ~1 s of room before and
-   after; `convert-audio.mjs` trims and normalises to −16 LUFS like the sound clips.
+   directory argument, so no change was needed. Commit the mp3s.
+3. **Manifest**: `vite.config.ts` reads `public/audio/words/` at config time and injects
+   `__RECORDED_WORDS__`; `words.ts` exposes `hasWordRecording(id)`. `buildWordExercises`
+   fills a round with **recorded words first** (inside the shortest-first window, so it
+   reorders which easy words she gets and never pulls a harder one in), falling back to
+   browser speech only once the recordings run out. Note the manifest is a snapshot taken
+   when Vite starts: a clip recorded during a dev session needs a dev-server restart to be
+   picked up.
+
+**What is left for Arjan:** recording the twenty clips (his machine, Chrome, a quiet room),
+converting, committing. Nothing else in the plan waits on it — until then every word plays
+through browser speech.
 
 `generate-word-audio.mjs` (bulk TTS) stays available as the fallback path for the other ~140
 words; that decision (todo.md "stem/backend kiezen") is unaffected by this plan.
@@ -451,10 +453,10 @@ already on the `/#/proberen` test menu, so every step is playable immediately.
 - `docs/reading-mechanics.md` §1 rewritten to describe the new flow; §6 "does goed-but-slow
   earn gems" answered: yes, gems count *goed*, the box holds — two different systems on purpose.
 
-### Step 4 — Words and recordings
+### Step 4 — Words and recordings *(code done; content and recording outstanding)*
+- ~~Studio word mode; manifest; recorded-first selection.~~ Built and verified in the browser.
 - Decide the extra word levels together (§4, §10); add/review words in `words.json`.
-- Studio word mode; manifest; selection preference; Arjan records the 20 starter words;
-  convert and commit mp3s; `todo.md` updated.
+- Arjan records the 20 starter words; convert and commit mp3s.
 
 ### Step 5 — Polish pass on her devices
 - Playwright screenshots on iPad Pro 11 and iPhone 13 per ux-backlog.md method: card size,

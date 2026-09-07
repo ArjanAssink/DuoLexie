@@ -1197,6 +1197,9 @@ button:disabled { cursor: default; }
   background: none; cursor: pointer; font-family: inherit;
 }
 .studio-cell-active { border-color: #E83E5A; border-width: 2px; }
+.studio-modes { display: flex; gap: 10px; margin-bottom: 12px; }
+.studio-mode-off { background: var(--locked); box-shadow: 0 5px 0 var(--locked-shadow); color: var(--muted); }
+.studio-starter { font-size: 14px; font-weight: 700; color: var(--text); cursor: pointer; }
 .studio-cell-id { font-weight: 800; font-size: 18px; }
 .studio-cell-status { font-size: 13px; }
 

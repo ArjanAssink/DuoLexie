@@ -16,3 +16,18 @@ export function wordsForPool(pool: string[]): Word[] {
   const known = new Set(pool)
   return words.filter((w) => w.klanken.every((k) => known.has(k)))
 }
+
+/**
+ * Word ids that have a real recorded clip, as of this build (see vite.config.ts). Everything
+ * else falls back to browser speech synthesis in `playWord`.
+ */
+const recorded = new Set(__RECORDED_WORDS__)
+
+export function hasWordRecording(id: string): boolean {
+  return recorded.has(id)
+}
+
+/** How many of the given words are recorded — for the studio's progress line. */
+export function recordedCount(ids: string[]): number {
+  return ids.filter((id) => recorded.has(id)).length
+}
