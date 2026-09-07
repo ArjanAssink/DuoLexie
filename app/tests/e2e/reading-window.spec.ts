@@ -69,7 +69,23 @@ test('the word is not pronounced until the reading window runs out', async ({ pa
     } catch (e) {
       utteranceError = String(e)
     }
-    return { hooked: w.__speechHooked, spoken: w.__spoke, voiceCount, voicesError, utteranceError }
+    // Does loadWordClip's exact pattern (audio/audio.ts) ever settle for a missing file?
+    // Race it against a timeout rather than await it unconditionally, in case it hangs.
+    const clipOutcome = new Promise<string>((resolve) => {
+      const audio = new Audio('/audio/words/__definitely-missing__.mp3?v=diag')
+      audio.oncanplaythrough = () => resolve('canplaythrough (unexpected)')
+      audio.onerror = () => resolve('error (expected)')
+      audio.load()
+      setTimeout(() => resolve('TIMED OUT — neither event fired in 3s'), 3000)
+    })
+    return Promise.race([clipOutcome]).then((clipOutcome) => ({
+      hooked: w.__speechHooked,
+      spoken: w.__spoke,
+      voiceCount,
+      voicesError,
+      utteranceError,
+      clipOutcome,
+    }))
   })
   console.log('reading-window diagnostic:', JSON.stringify({ ...diag, pageErrors }))
 
