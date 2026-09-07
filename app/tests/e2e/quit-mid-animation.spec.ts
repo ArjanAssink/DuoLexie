@@ -63,6 +63,23 @@ async function waitForOpacity(page: Page, target: string, timeoutMs = 3000) {
   throw new Error(`.word-card opacity never reached "${target}" within ${timeoutMs}ms`)
 }
 
+/**
+ * Same reasoning as waitForOpacity, applied to `expect(locator).toBeVisible()`:
+ * on iPhone in CI, that assertion's own retry/backoff cadence missed a ~420ms
+ * flight window entirely — by the time it resolved "visible" and the test's
+ * next line ran, the flight (and the whole lesson, since it was the last card)
+ * had already completed and unmounted the screen, so the following `.quit`
+ * click hit a detached node. A tight manual poll doesn't have that lag.
+ */
+async function waitForCount(page: Page, selector: string, count: number, timeoutMs = 3000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    if ((await page.locator(selector).count()) === count) return
+    await page.waitForTimeout(10)
+  }
+  throw new Error(`${selector} never reached count ${count} within ${timeoutMs}ms`)
+}
+
 async function swipe(page: Page, direction: 'left' | 'right') {
   const card = page.locator('.word-card')
   const b = (await card.boundingBox())!
@@ -93,7 +110,7 @@ test('Flitsen: quitting during the last card flight credits nothing', async ({ p
   // the browser is, quitting right after the flight becomes visible is always
   // "mid-flight", never "before" or "after" it.
   await page.locator('.kk-face-back').first().click()
-  await expect(page.locator('.kk-fly')).toBeVisible()
+  await waitForCount(page, '.kk-fly', 1)
   await page.locator('.quit').click()
 
   await expect(page.locator('.coin-item').first()).toBeVisible() // back on the path
