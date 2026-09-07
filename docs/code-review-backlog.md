@@ -75,23 +75,28 @@ StrictMode's double-invocation of effects can mask them in dev.
   idempotence guard in `GameScreen.handleComplete` itself, since today every "fire once"
   guarantee lives in the game components.
 
-- [ ] **A rejected `play()` leaves a promise that never resolves — do this before generating
-  word audio** — `audio/audio.ts:91-94` (and identically `49-52`):
-  ```js
-  await clip.play().catch(() => speakWord(text))
-  return new Promise((resolve) => { clip.onended = () => resolve() })
-  ```
-  If `play()` rejects (iOS autoplay policy, or `AbortError` from an interrupting load), the
-  fallback speaks but the returned promise still waits on `onended`, which can never fire
-  because the clip never played. `HardopLezen.commit()` has no `try/finally`, so
-  `busy.current` stays `true` forever: the card stays at `opacity: 0`, no further input is
-  accepted, and ✕ is the only escape. **Currently masked** — `public/audio/words/` is empty,
-  so `clip` is always `null` and the TTS path resolves fine. It activates the moment word
-  mp3s exist, i.e. the first time `tools/generate-word-audio.mjs` is run for real. Fix:
-  resolve on `ended` *or* `error`/rejection, add a timeout, and wrap `commit`'s body in
-  `try/finally` so `busy.current` always clears. Related: `clip.onended =` is an assignment,
-  so two overlapping plays of the same cached element orphan the first promise, and
-  restarting via `currentTime = 0` doesn't fire `ended` for the interrupted play.
+- [x] **A rejected `play()` leaves a promise that never resolves** — fixed. **Reproduced
+  first**, since this was masked by empty `public/audio/words/`: routed a real playable mp3
+  for every word request (so `loadWordClip` resolves non-null, exactly as it will once
+  `tools/generate-word-audio.mjs` is actually run) and forced `HTMLMediaElement.play()` to
+  reject with `AbortError`, simulating the iOS-autoplay-policy/interrupted-load case. Swiped
+  "nog even" (the branch that awaits `playWord` for reinforcement) — confirmed the card froze
+  at `opacity: 0` with no further input accepted, exactly as this item predicted.
+
+  Fix: `audio/audio.ts` gets one shared `playWithFallback(clip, fallback)` used by both
+  `playSound` and `playWord`. It resolves on `ended` *or* `error`, on an 8s timeout backstop,
+  or by awaiting the fallback when `play()` itself rejects — every path that used to leave a
+  caller waiting on an event that could never fire now resolves. It also fixes the related
+  issue for free: `addEventListener`/`removeEventListener` replace the old `clip.onended =`
+  assignment, so two overlapping calls on the same cached element can no longer silently drop
+  one call's handler. `HardopLezen.commit()` also gained a `try/finally` around a new
+  `runCommit()` (the backlog's other ask), so `busy.current` always clears regardless of what
+  runs inside — a pure backstop now that the hang itself is fixed at the source.
+
+  Re-ran the exact repro against the fix: no freeze, card advances normally. New
+  `tests/e2e/audio-fallback.spec.ts` covers it, and — to make sure the test itself has
+  teeth, not just the manual repro — it was verified to fail against the pre-fix
+  `audio.ts` before being checked in.
 
 - [ ] **A second finger auto-grades a word** — `games/HardopLezen.tsx:52-70` tracks no
   `pointerId`: `onPointerDown` unconditionally overwrites `startX.current`, and

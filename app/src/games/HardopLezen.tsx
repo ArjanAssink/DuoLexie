@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import type { Lesson, AnswerRecord, WordResult } from '@shared/src/types'
+import type { Lesson, AnswerRecord, Word, WordResult } from '@shared/src/types'
 import type { GameResult } from '../screens/GameScreen'
 import { buildWordExercises } from '../engine/exerciseSelector'
 import { getWord } from '../words'
@@ -101,6 +101,17 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   async function commit(direction: 'left' | 'right') {
     if (!current || busy.current) return
     busy.current = true
+    try {
+      await runCommit(direction, current)
+    } finally {
+      // playWord() below can no longer hang (audio.ts's playWithFallback always
+      // resolves), but this is the backstop regardless: nothing after this point
+      // should be able to leave the card permanently unresponsive.
+      busy.current = false
+    }
+  }
+
+  async function runCommit(direction: 'left' | 'right', current: Word) {
     // she answered inside the window — don't hand her the word she just read
     window.clearTimeout(windowTimer.current)
     const correct = direction === 'right'
@@ -138,7 +149,6 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
 
     setFlying(false)
     setDragX(0)
-    busy.current = false
     // plain call, not inside setQueue's updater — calling onComplete (which updates
     // GameScreen's state) from inside a functional setState update triggers React's
     // "Cannot update a component while rendering a different component" warning

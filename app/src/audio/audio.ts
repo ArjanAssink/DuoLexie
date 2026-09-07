@@ -42,15 +42,61 @@ async function loadClip(soundId: string): Promise<HTMLAudioElement | null> {
   return result
 }
 
+/**
+ * Bound on how long a clip may take before this gives up on it and resolves
+ * anyway — guards against a real element that never fires `ended` or `error`
+ * (a backgrounded tab, odd browser behaviour) hanging a caller the same way a
+ * rejected `play()` used to.
+ */
+const CLIP_TIMEOUT_MS = 8000
+
+/**
+ * Plays a clip, falling back to speech if `play()` rejects (iOS autoplay policy,
+ * or an `AbortError` from an interrupting load) — and always resolves.
+ *
+ * The bug this replaces: the old code did
+ *   `await clip.play().catch(() => speak(...)); return new Promise(r => clip.onended = r)`
+ * — when `play()` rejected, the fallback ran, but the *returned* promise still
+ * waited on the clip's `ended` event, which a clip that never played can never
+ * fire. Every caller (Hardop lezen's `commit()`) awaits this, so that hung the
+ * game forever with no way out but quitting. `.onended =` was also a plain
+ * assignment, so two overlapping calls on the same cached element silently
+ * dropped the first call's handler — the addEventListener/removeEventListener
+ * pair below can't lose one call's listener to another's.
+ */
+async function playWithFallback(
+  clip: HTMLAudioElement,
+  fallback: () => Promise<void>,
+): Promise<void> {
+  clip.currentTime = 0
+  return new Promise((resolve) => {
+    let settled = false
+    let timeout: ReturnType<typeof setTimeout>
+    function finish() {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      clip.removeEventListener('ended', finish)
+      clip.removeEventListener('error', finish)
+      resolve()
+    }
+    clip.addEventListener('ended', finish)
+    clip.addEventListener('error', finish)
+    timeout = setTimeout(finish, CLIP_TIMEOUT_MS)
+    clip.play().catch(() => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      clip.removeEventListener('ended', finish)
+      clip.removeEventListener('error', finish)
+      fallback().then(resolve)
+    })
+  })
+}
+
 export async function playSound(soundId: string): Promise<void> {
   const clip = await loadClip(soundId)
-  if (clip) {
-    clip.currentTime = 0
-    await clip.play().catch(() => speak(soundId))
-    return new Promise((resolve) => {
-      clip.onended = () => resolve()
-    })
-  }
+  if (clip) return playWithFallback(clip, () => speak(soundId))
   return speak(soundId)
 }
 
@@ -93,13 +139,7 @@ async function loadWordClip(wordId: string): Promise<HTMLAudioElement | null> {
 /** Same fallback strategy as playSound, but for whole words (own cache, own TTS text: the literal word). */
 export async function playWord(wordId: string, text: string): Promise<void> {
   const clip = await loadWordClip(wordId)
-  if (clip) {
-    clip.currentTime = 0
-    await clip.play().catch(() => speakWord(text))
-    return new Promise((resolve) => {
-      clip.onended = () => resolve()
-    })
-  }
+  if (clip) return playWithFallback(clip, () => speakWord(text))
   return speakWord(text)
 }
 
