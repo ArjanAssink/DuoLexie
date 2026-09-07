@@ -57,7 +57,12 @@ export function Bliksemsprint({ onDone }: Props) {
       const screenTop = screen.getBoundingClientRect().top
       const top = header.getBoundingClientRect().bottom - screenTop + 4
       const card = screen.querySelector('.flash-card, .game-stage > *:nth-child(2)')
-      const limit = card ? card.getBoundingClientRect().top - screenTop - 4 : top + BAND_H
+      // -16, not -4: confirmed in CI the card's own position varies by several px between
+      // rounds even after the font-swap re-measure below (different klank glyphs, the
+      // streak-counter text's width, ...) — more sources of small real-world variance than
+      // a one-time measurement can chase individually. A few extra px of unused gap here
+      // is free; the flash card being covered mid-item, even briefly, is not.
+      const limit = card ? card.getBoundingClientRect().top - screenTop - 16 : top + BAND_H
       const height = Math.max(72, Math.min(BAND_H, limit - top))
       const scale = height / BAND_H
 
