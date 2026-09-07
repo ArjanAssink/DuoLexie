@@ -8,6 +8,38 @@ import { test, expect, type Page } from '@playwright/test'
 const FLITSEN = '/#/les/fase1-a-e-o-u-i-l1'
 const LEZEN = '/#/les/fase1-m-s-k-r-t-l5'
 
+/** Mirrors FLY_MS in src/games/Flitsen.tsx — the flight's setTimeout. */
+const FLITSEN_FLY_MS = 420
+/**
+ * Everything HardopLezen.commit() can possibly be waiting on after a wrong swipe:
+ * its 320ms fly-out, audio.ts's 8000ms CLIP_TIMEOUT_MS backstop on the replayed
+ * word, and the 250ms pause after it. Advancing the clock past the sum proves that
+ * no orphaned continuation is left that could still credit the lesson later.
+ */
+const HARDOP_COMMIT_MAX_MS = 320 + 8000 + 250
+
+/*
+ * Why these tests drive a fake clock (page.clock)
+ * ------------------------------------------------
+ * "Quit mid-animation" means tapping ✕ while a game-side setTimeout is still pending:
+ * Flitsen's 420ms flight timer, or the awaits inside HardopLezen.commit(). Earlier
+ * versions of these tests raced that window in real time — first with guessed fixed
+ * delays, then by polling for the observable state and clicking as fast as possible.
+ * Both broke in CI on WebKit, where the round-trips for Playwright's own actionability
+ * checks (visible, enabled, stable) could eat the whole ~400ms window: the timer fired,
+ * the lesson completed, the screen unmounted, and the click hit a detached node and
+ * timed out. Three consecutive red runs on main (43a46e6, b3dc39c, 20fe921) were this.
+ *
+ * With Playwright's clock installed, the page's setTimeout/setInterval/rAF are faked.
+ * The clock keeps pace with real time while the game is played up to the last card, then
+ * is paused right before the decisive action. From that moment the pending timer cannot
+ * fire — however slow the runner or the engine — until the test explicitly advances the
+ * clock. So "click quit while the flight is pending" is no longer a race we try to win;
+ * it's the only possible order of events. Advancing the clock afterwards, past the
+ * timer's due time, then proves the quit really did cancel it. CSS animations/transitions
+ * are unaffected by the fake clock, so the visible state is still real.
+ */
+
 interface Credited {
   gems: number
   xp: number
@@ -42,42 +74,14 @@ async function credited(page: Page): Promise<Credited> {
 }
 
 /**
- * Polls the card's live computed opacity in-page, rather than `expect(locator)
- * .toHaveCSS(...)`: that assertion consistently failed to observe an opacity
- * that a plain `getComputedStyle` poll (this function) catches reliably and
- * repeatedly — confirmed by sampling every 50ms through the whole transition,
- * which shows a real ~170ms window where it's genuinely `0` before rebounding.
- * Whatever internal sampling `toHaveCSS` uses evidently isn't reading the same
- * live value at the same cadence for a fast CSS transition like this one.
+ * Freeze the page's timers. `pauseAt` needs a target at or after the fake clock's
+ * current time (it throws on a target in the past), and the fake clock trails the
+ * test's own wall clock by at most one ~100ms sync tick, so a small forward jump is
+ * the safe way to say "pause now". The jump is far too short to trip anything
+ * long-running in the games (e.g. Hardop lezen's 5000ms reading window).
  */
-async function waitForOpacity(page: Page, target: string, timeoutMs = 3000) {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    const opacity = await page
-      .locator('.word-card')
-      .evaluate((el) => getComputedStyle(el).opacity)
-      .catch(() => null)
-    if (opacity === target) return
-    await page.waitForTimeout(20)
-  }
-  throw new Error(`.word-card opacity never reached "${target}" within ${timeoutMs}ms`)
-}
-
-/**
- * Same reasoning as waitForOpacity, applied to `expect(locator).toBeVisible()`:
- * on iPhone in CI, that assertion's own retry/backoff cadence missed a ~420ms
- * flight window entirely — by the time it resolved "visible" and the test's
- * next line ran, the flight (and the whole lesson, since it was the last card)
- * had already completed and unmounted the screen, so the following `.quit`
- * click hit a detached node. A tight manual poll doesn't have that lag.
- */
-async function waitForCount(page: Page, selector: string, count: number, timeoutMs = 3000) {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    if ((await page.locator(selector).count()) === count) return
-    await page.waitForTimeout(10)
-  }
-  throw new Error(`${selector} never reached count ${count} within ${timeoutMs}ms`)
+async function freezeTimers(page: Page) {
+  await page.clock.pauseAt(Date.now() + 500)
 }
 
 async function swipe(page: Page, direction: 'left' | 'right') {
@@ -93,28 +97,31 @@ async function swipe(page: Page, direction: 'left' | 'right') {
 const swipeRight = (page: Page) => swipe(page, 'right')
 
 test('Flitsen: quitting during the last card flight credits nothing', async ({ page }) => {
+  await page.clock.install()
   await page.goto(FLITSEN)
   await expect(page.locator('.kk-arena')).toBeVisible()
 
   const cards = parseInt(await page.locator('.kk-count').innerText(), 10)
   for (let i = 0; i < cards - 1; i++) {
     await page.locator('.kk-face-back').first().click()
-    await page.waitForTimeout(480)
+    await page.waitForTimeout(FLITSEN_FLY_MS + 60)
   }
 
-  // Click the last card, then quit while ITS flight is still visibly in progress.
-  // Waiting for .kk-fly to actually appear — rather than assuming a fixed 60ms
-  // delay lands inside the 420ms flight — removes a race that showed up as
-  // flakiness under CI/WebKit timing (the identical assumption, on unrelated
-  // unchanged code, passed one run and failed the next): however fast or slow
-  // the browser is, quitting right after the flight becomes visible is always
-  // "mid-flight", never "before" or "after" it.
+  // Freeze time, then flip the last card: its flight timer is now scheduled but can't
+  // fire. Quitting here is guaranteed to be mid-flight — no fixed delay to guess, no
+  // poll to win, nothing for a slow WebKit runner to lose.
+  await freezeTimers(page)
   await page.locator('.kk-face-back').first().click()
-  await waitForCount(page, '.kk-fly', 1)
+  await expect(page.locator('.kk-fly')).toHaveCount(1)
   await page.locator('.quit').click()
 
   await expect(page.locator('.coin-item').first()).toBeVisible() // back on the path
-  await page.waitForTimeout(1200) // well past when the orphaned flight would have fired
+
+  // Now let the orphaned flight's deadline pass. If quit() failed to cancel the timer,
+  // this is exactly when it would fire onComplete and credit the lesson.
+  await page.clock.runFor(FLITSEN_FLY_MS * 2)
+  await page.clock.resume()
+  await page.waitForTimeout(500) // room for a (wrongly) triggered persist to land in IndexedDB
 
   expect(await credited(page), 'quitting must not credit a lesson').toMatchObject({
     gems: 0,
@@ -123,6 +130,7 @@ test('Flitsen: quitting during the last card flight credits nothing', async ({ p
     lessons: 0,
   })
   await expect(page.locator('.reward-screen')).toHaveCount(0)
+  await expect(page.locator('.coin-item').first()).toBeVisible() // still on the path
 })
 
 test('Flitsen: finishing normally still credits exactly once', async ({ page }) => {
@@ -153,6 +161,7 @@ async function progressFraction(page: Page): Promise<number> {
 }
 
 test('Hardop lezen: quitting during the feedback delay credits nothing', async ({ page }) => {
+  await page.clock.install()
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
 
@@ -179,25 +188,28 @@ test('Hardop lezen: quitting during the feedback delay credits nothing', async (
   await expect(page.locator('.word-card')).toBeVisible()
   expect(await progressFraction(page)).toBeCloseTo((total - 1) / total, 2)
 
-  // Swipe the last card WRONG ("nog even"), then quit while its opacity:0 flight-out
-  // is visibly in progress. This is the actual danger case the backlog names —
-  // commit()'s only-on-a-miss branch replays the word before it finishes, which is
-  // why quitting there is worth a dedicated test — and it also sidesteps a razor-
-  // thin race a correct swipe has here: for "goed", the fade-out duration and the
-  // flying-state duration are both exactly 320ms, so opacity is only ever truly 0
-  // for an instant before flipping straight back; for "nog even" the reinforcement
-  // playback holds it at 0 for several hundred ms more, giving a real window to
-  // observe (the same "wait for observable state, not a guessed delay" fix as the
-  // Flitsen test above, and for the same reason: CI/WebKit timing variance made a
-  // fixed-ms guess occasionally land after the window instead of inside it).
+  // Freeze time, then swipe the last card WRONG ("nog even"). commit() runs up to its
+  // first `await setTimeout(320)` and parks there: the card is flying out (opacity 0,
+  // a real CSS transition the fake clock doesn't touch), the answer is recorded, and
+  // the continuation that would replay the word and call onComplete cannot run until
+  // the clock moves. That is the "quit during the feedback delay" state, held open for
+  // as long as the test needs it. The miss branch is the dangerous one — it's the only
+  // path that awaits audio before finishing — which is why it's the one under test.
+  await freezeTimers(page)
   await swipe(page, 'left')
-  await waitForOpacity(page, '0')
+  await expect(page.locator('.word-card')).toHaveCSS('opacity', '0')
   await page.locator('.quit').click()
 
   await expect(page.locator('.coin-item').first()).toBeVisible()
-  await page.waitForTimeout(1500)
+
+  // Advance past every await commit() could still be sitting on. If quit() failed to
+  // cancel, the continuation resumes here, logs the session and credits the lesson.
+  await page.clock.runFor(HARDOP_COMMIT_MAX_MS + 100)
+  await page.clock.resume()
+  await page.waitForTimeout(500) // room for a (wrongly) triggered persist to land in IndexedDB
 
   const after = await credited(page)
   expect(after.sessions, 'quitting mid-commit must not log a session').toBe(0)
   expect(after.gems).toBe(0)
+  await expect(page.locator('.reward-screen')).toHaveCount(0)
 })

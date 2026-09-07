@@ -74,12 +74,19 @@ StrictMode's double-invocation of effects can mask them in dev.
 
   Local Chromium testing repeatedly failed to catch (2) and (3) — there's no WebKit on this
   machine, so every one of these needed a real CI round-trip to surface. `tests/e2e/quit-mid-
-  animation.spec.ts` also needed two rounds of its own: guessed fixed delays (60ms, 80ms) to
-  land "mid-animation" turned out to race real timing on WebKit exactly like the app did;
-  replaced with waiting for the actual observable state (`.kk-fly` present, the card's opacity
-  at `0`) via a tight manual poll, since `expect(locator).toHaveCSS(...)`/`.toBeVisible()`
-  both demonstrably missed windows a few hundred ms wide that a plain in-page
-  `getComputedStyle`/`.count()` poll caught reliably and repeatedly. *(Original finding below,
+  animation.spec.ts` also needed three rounds of its own: guessed fixed delays (60ms, 80ms) to
+  land "mid-animation" raced real timing on WebKit exactly like the app did; polling for the
+  observable state (`.kk-fly` present, opacity `0`) and clicking as fast as possible still
+  lost on CI's WebKit runners, where Playwright's own actionability round-trips ate the whole
+  ~400ms window and the `.quit` click hit a detached node (three consecutive red pushes on
+  main: 43a46e6, b3dc39c, 20fe921). Now deterministic: the tests install Playwright's fake
+  clock (`page.clock`), pause it right before the last flip/swipe so the pending
+  timer/await *cannot* fire, click ✕, then advance the clock past the deadline and assert
+  nothing was credited. No window to hit, nothing to poll. Verified to fail (gems 0→10,
+  sessions 0→1) with the cancellation stripped from both games. Caveat: under a frozen clock
+  navigation always completes before the timer, so the test proves "quit cancels the pending
+  completion" but can't separately distinguish the synchronous `quit()` cancel from the
+  unmount-cleanup backstop — (3) stays a code-reading guarantee. *(Original finding below,
   for context.)*
 
   Was: `games/KlankKaarten.tsx:96`
