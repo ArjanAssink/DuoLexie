@@ -213,51 +213,80 @@ just 5 words and the next one 24:
 | + n·p·b·d·f | 24 (incl. limonade, katapult, trampoline, dromenland) |
 | + g·h·j·l + v·w·z | 38 |
 
-**Widening (as built): one unit of look-ahead, and no more.**
+**The rule (as built): use what she has been taught, top up by one unit if that is thin.**
 
-1. Strict pool (as today), shortest words first.
-2. **Look ahead one unit** on the path: allow words whose klanken are all in the cumulative
-   pool *plus the next unit's sounds*. A word one unit ahead is still built from the klank
-   category she is working in; reading it early is a preview, not a jump.
-3. If that still leaves fewer than 9 readable words, no Lezen node is generated
-   (`MIN_WORDS_FOR_LEZEN` = 9, measured on the widened pool).
+1. Strict pool: words whose every klank has been introduced, shortest first.
+2. If that can't fill a round, **top up with the next unit's sounds** — those words are built
+   from the klank category she is already working in, so reading one early is a preview
+   rather than a jump.
+3. Two conditions on the top-up: **one unit, never two**, and **she must already be able to
+   read something** (a non-empty strict pool). A top-up tops up; it must not conjure a
+   reading node out of sounds she has never seen.
+4. Fewer than 9 readable words after all that, and no Lezen node is generated
+   (`MIN_WORDS_FOR_LEZEN` = 9).
 
-*(as built)* The plan originally allowed a second unit of look-ahead and then the rest of the
-fase. Measuring every unit on the real path killed that: depth 1 already clears the floor
-everywhere, and depth 2 would give the **vowels-only opening unit** a reading node built from
-consonants she has never met — a wall, not a preview. Counts per unit at each depth:
+*(as built)* Both conditions on the top-up were earned rather than guessed. Depth 2 was
+allowed by the original plan, and measuring the real path killed it: it would have given the
+**vowels-only opening unit** a reading node built from consonants she had never met. The
+"already reads something" condition then bit for real when the 4-to-7-letter words landed —
+the opening unit's topped-up pool reached 18 words, and without it that unit would have been
+handed a reading lesson of *storm* and *kruk*.
 
-| Cumulative pool after unit | strict | +1 unit | +2 units |
-|---|---|---|---|
-| De klinkers (a e o u i) | 0 | 5 | 17 |
-| m·s·k·r·t | 5 | **17** | 30 |
-| n·p·b·d·f | 17 | 30 | 38 |
-| g·h·j·l | 30 | 38 | 38 |
-| every later unit | 38–164 | — | — |
+With the current word list the top-up is **dormant**: every unit from the second onwards
+clears a full round on its strict pool alone. It stays because plan.md §3 makes the sound
+order parent-configurable, and a reorder can thin a unit out again.
 
-So the opening unit still has no reading node (correct — she knows five vowels), and the first
-one lands on unit 2 with 17 words, comfortably more than the ten it needs.
+| Cumulative pool after unit | readable words | Lezen node |
+|---|---|---|
+| De klinkers (a e o u i) | 0 strict, top-up refused | none — correct, she knows five vowels |
+| m·s·k·r·t | 15 | first reading node |
+| n·p·b·d·f | 59 | ✓ |
+| g·h·j·l | 104 | ✓ |
+| v·w·z | 131 | ✓ |
 
 The look-ahead happens in `data/path.ts` when the Lezen lesson is built (it already has the
 unit order in hand), so the lesson carries the widened `soundPool` and nothing downstream
 changes: `buildWordExercises` keeps its shortest-first bias and draws 10 **distinct** ids.
 A round is 10 cards; only a 9-word pool yields one word twice, and never adjacent.
 
-**Growing the dictionary is the other half — and the data is worse than "thin".** Fase 1's 38
-readable words are **28 three-letter words and then a cliff**: nothing of 4 to 7 letters at
-all, straight to 8–10-letter compounds (*limonade, katapult, waterval, hagelslag, helikopter,
-trampoline*). There is no ramp to sit on.
+**Growing the dictionary — done, and it was worse than "thin".** Fase 1's original 38
+readable words were **28 three-letter words and then a cliff**: nothing of 4 to 7 letters at
+all, straight to 8–10-letter compounds (*limonade, katapult, hagelslag, helikopter,
+trampoline*). There was no ramp to stand on.
 
-*(as built)* That cliff forced one change: the shortest-first candidate window dropped from
-3× the round size to **2×**. At 3× a ten-card round drew from the 30 shortest of 38 — which
-reaches past the 28 short words into the compounds, so a beginner round could serve
-"katapult" as card three. At 2× it stays inside the three-letter words. Verified: a
-Proefronde really did deal *katapult* before this change.
+*(as built)* 93 words now fill that gap, hand-segmented rather than run through the greedy
+importer. Fase 1 reads **131** words and ramps properly:
 
-Which words to add, and at which level (more 3-letter mkm words, the missing 4–5-letter
-cluster words like *stok/kast/brug*, two-syllable words), is **a decision to take together**
-now that the round is testable — see §10. The `reviewed: false` words already in `words.json`
-(the Hangman import) are the cheapest first source.
+| letters | 3 | 4 | 5 | 6 | 7 | 8–10 |
+|---|---|---|---|---|---|---|
+| words | 28 | 53 | 23 | 7 | 10 | 10 |
+
+The rules the additions had to satisfy, so that hand-segmenting them was mechanical rather
+than a judgement call — and all four are enforced by the script that added them, not just by
+care:
+
+- single syllable, or closed syllables with a schwa (*win-ter*), or compounds of such parts;
+- no vowel digraphs and no ch/ng/nk — checked by testing every adjacent letter pair against
+  the multi-letter klanken in `sounds.json`, so nothing sneaks in as one letter per klank
+  when it is really two;
+- no c/q/x/y and no doubled consonants;
+- **no open syllables.** *zomer*, *lepel* and *kalender* have a long vowel spelled with one
+  letter, which is a separate later step in Dutch reading — not fase-1 words, however
+  innocent their letters look. This is the trap the Hangman import fell into: it segments
+  *limonade* as l-i-m-o-n-a-d-e, which is why those words carry `reviewed: false`.
+
+A second pass then removed eight words the rules allowed but a nine-year-old would not meet:
+rare superlatives and inflected forms (*kortst, strikt, brandt, stampt, stamp, stort, sprak,
+sprints*). *kortst* is a five-consonant cluster, and it was turning up in the very first
+reading lesson.
+
+The new words carry `reviewed: false` too — hand-segmented is not human-checked. They are
+deliberately the easy case (one letter, one klank, nothing ambiguous), and they are a
+separate, smaller review batch from the Hangman import; see §10.
+
+The candidate window also dropped from 3× the round size to **2×**: at 3× a ten-card round
+drew from the 30 shortest of 38, reaching past the short words into the compounds. Verified
+before the fix — a Proefronde really did deal *katapult* as an early card.
 
 **Proefronde: a pool for trying it with her now (built).** The `/proberen` menu has a
 **Proefronde** entry that launches Hardop lezen on a synthetic lesson
@@ -370,16 +399,16 @@ perfect round     +3
 The self-check only works if she hears a real voice. Plan: Arjan records a starter set;
 everything else keeps the TTS fallback until recorded.
 
-**Which words first (as built).** The studio walks `wordsInPathOrder()` — for each Lezen
-node in path order, its readable words shortest-first, deduped — so the clips recorded first
-are the ones she meets first. Its first twenty, which the studio shows by default:
+**Which words first (as built).** The studio walks `wordsInRecordingOrder()` — shortest
+first, and within one length in the order the path introduces it — so the twenty clips
+recorded first are the twenty simplest words she reads. Derived rather than hand-listed, so
+it cannot drift from the curriculum.
 
-> kat, tas, mat, pan, dak, bed, pen, pot, bos, kok, top, bus, put, kus, dik, kip, rib, bal,
-> jas, hek
-
-*(as built)* This is derived rather than hand-listed, so it can't drift from the path. It
-differs slightly from the by-unit list this section carried before, because the widened pool
-(§4) changes which words the first node can reach.
+*(as built)* Length leads for a reason found by looking at the output. Walking the path node
+by node instead recorded all of the first node's words, three letters up to six, before
+reaching the three-letter words the *next* node introduces — so "the first twenty" held
+*strikt* and *kortst* while *pan* and *bed* went unrecorded. Sorting by length first fixes
+that, and matches the ask: record the short ones to begin with.
 
 **Recording flow — built, except the recording itself:**
 
@@ -483,9 +512,13 @@ comes later (§9).
 
 Still open:
 
-1. **Which extra words, from which level?** (§4) To look at together after the first
-   play-test. Options: more 3-letter mkm words; 4-letter cluster words (*stok, kast, brug*);
-   two-syllable words; reviewing the `reviewed: false` Hangman import.
+1. **Check the 93 new words' segmentation** (§4). Done as a batch, mechanically, under the
+   four rules above — but hand-segmented is not human-checked. The likeliest thing to
+   disagree with is not a segmentation but a word choice: whether the first reading node
+   should be serving *storm*, *sterk*, *korst*, *markt* and *trots* at all. It has 15 words
+   with only the five vowels and m·s·k·r·t, so a ten-card round there is necessarily about
+   half simple clusters; the alternative is a shorter round on that one node. Separate from,
+   and much smaller than, the outstanding Hangman-import review.
 2. **Fuse visible?** Recommended yes, with the no-tick, colour-only pressure described. If
    she freezes on it, hide the bar and keep the timing invisible — one CSS class.
 3. **Do *nog even* words come back at the end of the round?** Recommended **no** for now

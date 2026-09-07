@@ -1,10 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import type { Lesson } from '@shared/src/types'
 import { buildWordExercises } from './exerciseSelector'
+import { wordsForPool } from '../words'
 
-/** The first Lezen node's *strict* pool — exactly five readable words (kat/tas/mat/kok/kus). */
-const TINY_POOL = ['a', 'e', 'o', 'u', 'i', 'm', 's', 'k', 'r', 't']
-/** All of fase 1 — the Proefronde pool, 38 readable words. */
+/**
+ * A deliberately narrow pool, used only to make the round longer than the words available.
+ * How many words it yields is read from the curriculum rather than written down here: an
+ * earlier version of these tests hard-coded "five readable words", which quietly stopped
+ * exercising the duplicate branch at all the moment more words were added to words.json.
+ */
+const NARROW_POOL = ['a', 'k', 't', 's']
+/** All of fase 1 — the Proefronde pool. */
 const WIDE_POOL = [
   'a', 'e', 'o', 'u', 'i',
   'b', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'w', 'z',
@@ -39,28 +45,34 @@ describe('buildWordExercises', () => {
   })
 
   it('repeats at most one word when the pool is too small, never a second pass', () => {
+    const available = wordsForPool(NARROW_POOL).length
+    expect(available, 'the pool must be smaller than the round for this to test anything')
+      .toBeLessThan(10)
+    // ask for more cards than there are words, so the pool is what binds
+    const lesson = lezenLesson(NARROW_POOL, available + 5)
+
     for (let run = 0; run < 50; run++) {
-      const round = buildWordExercises(lezenLesson(TINY_POOL))
+      const round = buildWordExercises(lesson)
       const unique = new Set(round)
-      // five readable words -> six cards: every word once, one of them twice
-      expect(unique.size).toBe(5)
-      expect(round).toHaveLength(6)
+      // every word once, exactly one of them twice — never a second pass over the pool
+      expect(unique.size).toBe(available)
+      expect(round).toHaveLength(available + 1)
       expect(round.length - unique.size).toBe(1)
     }
   })
 
   it('never places the repeated word back-to-back', () => {
+    const available = wordsForPool(NARROW_POOL).length
+    const lesson = lezenLesson(NARROW_POOL, available + 5)
     for (let run = 0; run < 100; run++) {
-      expect(adjacentRepeats(buildWordExercises(lezenLesson(TINY_POOL)))).toBe(0)
+      expect(adjacentRepeats(buildWordExercises(lesson))).toBe(0)
     }
   })
 
   it('prefers short words, so a beginner round is never carried by compounds', () => {
-    // Fase 1's readable words are 28 three-letter words and then a cliff straight to
-    // 8-10-letter compounds (limonade, katapult, helikopter, trampoline) with nothing in
-    // between, so "short enough for a beginner round" is a genuinely binary property here.
-    // Run it repeatedly: the candidate window is what keeps the compounds out, and a single
-    // lucky draw would not prove it.
+    // Fase 1 reaches from three-letter words up to 10-letter compounds (limonade,
+    // helikopter, trampoline). The candidate window is what keeps the long end out of a
+    // beginner round; run it repeatedly, since a single lucky draw would not prove it.
     for (let run = 0; run < 40; run++) {
       const round = buildWordExercises(lezenLesson(WIDE_POOL))
       const longest = Math.max(...round.map((id) => id.length))

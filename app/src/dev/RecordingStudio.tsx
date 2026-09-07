@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { allSounds } from '../curriculum'
-import { wordsInPathOrder } from '../data/path'
+import { wordsInRecordingOrder } from '../data/path'
 
 type ClipStatus = 'missing' | 'recorded' | 'new'
 
 type Mode = 'klanken' | 'woorden'
 
-/** Words worth recording first — the front of the path order (docs/hardop-lezen-rework.md §8). */
+/** Words worth recording first — the shortest ones (docs/hardop-lezen-rework.md §8). */
 const STARTER_SET_SIZE = 20
 
 /**
@@ -35,12 +35,12 @@ export function RecordingStudio() {
   // recording the next sound — set to false only for the "pause" escape hatch
   const autoContinue = useRef(true)
 
-  const pathWords = useMemo(() => wordsInPathOrder(), [])
+  const pathWords = useMemo(() => wordsInRecordingOrder(), [])
   const folder = mode === 'klanken' ? 'sounds' : 'words'
   /**
    * The clips this mode records, in recording order. Words are capped to the starter set by
-   * default: all 38 currently-readable words is a long sitting, and the first twenty are the
-   * ones she actually meets first.
+   * default: the whole word list is a long sitting, and the first twenty are the shortest
+   * words she reads (data/path.ts's wordsInRecordingOrder).
    */
   const items = useMemo(() => {
     if (mode === 'klanken') return allSounds
@@ -200,7 +200,7 @@ export function RecordingStudio() {
               checked={starterOnly}
               onChange={(e) => setStarterOnly(e.target.checked)}
             />{' '}
-            alleen de eerste {STARTER_SET_SIZE} (de woorden die ze het eerst tegenkomt)
+            alleen de eerste {STARTER_SET_SIZE} (de kortste woorden)
           </label>
         </p>
       )}

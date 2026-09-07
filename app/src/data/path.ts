@@ -85,22 +85,32 @@ export const LEZEN_ROUND_SIZE = 10
 const MIN_WORDS_FOR_LEZEN = 9
 
 /**
- * The sound pool a Lezen node reads from, widened by one unit when the strict pool can't
- * fill a round (docs/hardop-lezen-rework.md §4).
+ * The sound pool a Lezen node reads from: what she has been taught, topped up with the next
+ * unit's sounds when that isn't enough to fill a round (docs/hardop-lezen-rework.md §4).
  *
- * Strictly, a word is readable only once every klank in it has been introduced — which
- * leaves the first Lezen node with five words (kat/tas/mat/kok/kus) and no way to show ten
- * different ones. Allowing the *next* unit's sounds lifts that to seventeen: those words are
- * built from the klank category she is already working in, so reading one early is a preview
- * rather than a jump.
+ * Strictly, a word is readable only once every klank in it has been introduced. Where that
+ * leaves a unit short of a full round, allowing the *next* unit's sounds is a fair top-up:
+ * those words are built from the klank category she is already working in, so reading one
+ * early is a preview rather than a jump.
  *
- * The look-ahead deliberately stops at one unit. Two would hand the vowels-only opening unit
- * a reading node made of consonants she has never met, and one unit is already enough
- * everywhere on the path — every later unit clears the floor on its strict pool alone.
+ * Two conditions keep the top-up from becoming a wall:
+ *
+ * - **One unit, never two.** Two would reach sounds she has no business meeting yet.
+ * - **She must already be able to read something.** A top-up tops up; it must not conjure a
+ *   reading node entirely out of sounds she has never seen. This is what keeps a node off
+ *   the opening unit, where she knows the five vowels and nothing else: its strict pool is
+ *   empty, so every word would come from the preview. Adding the 4-to-7-letter words made
+ *   this bite for real — the opening unit's topped-up pool reached 18 words, and without
+ *   this condition it would have been handed a reading lesson of "storm" and "kruk".
+ *
+ * With the current word list the top-up is dormant: every unit from the second onwards
+ * clears a full round on its strict pool alone. It stays because a reorder of the sound
+ * order (which plan.md §3 makes parent-configurable) can thin a unit out again.
  */
 function lezenPool(cumulative: string[], nextUnitSounds: string[]): string[] {
-  if (nextUnitSounds.length === 0) return cumulative
-  if (wordsForPool(cumulative).length >= LEZEN_ROUND_SIZE) return cumulative
+  const strict = wordsForPool(cumulative).length
+  if (strict >= LEZEN_ROUND_SIZE) return cumulative
+  if (strict === 0 || nextUnitSounds.length === 0) return cumulative
   return [...cumulative, ...nextUnitSounds]
 }
 
@@ -274,25 +284,27 @@ export function lessonIndex(id: string): number {
 }
 
 /**
- * Every word the path can serve, in the order she will actually meet it: for each Lezen node
- * in path order, that node's readable words shortest-first, deduped.
+ * Every word the path can serve, in the order worth recording it: shortest first, and within
+ * one length, in the order the path introduces it. The studio's word mode walks this
+ * (dev/RecordingStudio.tsx).
  *
- * This is the recording order — the studio's word mode walks it, so the clips that get
- * recorded first are the ones she reads first (dev/RecordingStudio.tsx).
+ * Length leads deliberately. Walking the path node by node instead would record all of the
+ * first node's words — three letters up to six — before reaching the three-letter words that
+ * the *next* node introduces, so a session spent recording "the first twenty" would have
+ * ended up holding "strikt" and "kortst" while "pan" and "bed" went unrecorded. Shortest
+ * first means the twenty clips recorded first are the twenty simplest words she reads.
  */
-export function wordsInPathOrder(): Word[] {
+export function wordsInRecordingOrder(): Word[] {
   const seen = new Set<string>()
   const out: Word[] = []
   for (const lesson of allLessons) {
     if (lesson.gameType !== 'hardop-lezen') continue
-    const words = [...wordsForPool(lesson.soundPool)].sort(
-      (a, b) => a.text.length - b.text.length,
-    )
-    for (const word of words) {
+    for (const word of wordsForPool(lesson.soundPool)) {
       if (seen.has(word.id)) continue
       seen.add(word.id)
       out.push(word)
     }
   }
-  return out
+  // stable sort, so words of equal length keep the path order established above
+  return out.sort((a, b) => a.text.length - b.text.length)
 }
