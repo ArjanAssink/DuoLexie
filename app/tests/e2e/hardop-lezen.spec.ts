@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { installFakeSpeech } from './fixtures/speech'
+import { installNarration } from './fixtures/narration'
 
 /**
  * A full Hardop lezen round: ten different words, each read → heard → sorted onto a pile,
@@ -36,7 +36,7 @@ async function pileCount(page: Page, pile: 'goed' | 'nogEven'): Promise<number> 
 }
 
 test.beforeEach(async ({ page }) => {
-  await installFakeSpeech(page)
+  await installNarration(page)
 })
 
 test('a round is ten different words', async ({ page }) => {
@@ -87,9 +87,12 @@ test('cards stack on the pile she chose, and the reward screen counts both piles
   const chips = await page.locator('.word-chip').allInnerTexts()
   expect(chips.map((c) => c.replace('🔊', '').trim()).sort()).toEqual([...missed].sort())
 
-  // gems: 5 for finishing + 1 per correct word, counted up one at a time
+  // Gems: 5 for finishing + 1 per correct word, counted up one at a time. The generous
+  // timeout is deliberate — this polls a running animation, and CI caught the count-up
+  // still sitting at "+6" after 5s on the ipad profile, where the 90ms interval driving it
+  // clearly does not run at 90ms. The number it settles on is what matters, not the pace.
   await expect
-    .poll(() => page.locator('.reward-line').first().innerText(), { timeout: 5000 })
+    .poll(() => page.locator('.reward-line').first().innerText(), { timeout: 20_000 })
     .toContain('+12')
 })
 
@@ -106,7 +109,7 @@ test('a round she gets entirely wrong still pays for finishing', async ({ page }
   await expect(page.locator('.reward-tally')).toContainText('0 goed')
   // never zero, and never a failure message
   await expect
-    .poll(() => page.locator('.reward-line').first().innerText(), { timeout: 5000 })
+    .poll(() => page.locator('.reward-line').first().innerText(), { timeout: 20_000 })
     .toContain('+5')
   await expect(page.locator('.reward-screen h1')).not.toContainText('Perfect')
 })

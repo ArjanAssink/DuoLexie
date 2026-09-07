@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { installFakeSpeech, spoken } from './fixtures/speech'
+import { installNarration, narrated } from './fixtures/narration'
 
 // Unit ids are stable/sounds-derived, not positional (data/path.ts A3). The first unit has
 // no Lezen node — vowels alone spell nothing — so this is the second unit's.
@@ -24,21 +24,21 @@ function waitForPhase(page: Page, want: string, timeout = 15_000) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await installFakeSpeech(page)
+  await installNarration(page)
 })
 
-test('nothing is spoken while she is still reading', async ({ page }) => {
+test('the word is not played while she is still reading', async ({ page }) => {
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
   await waitForPhase(page, 'reading')
 
   // the pre-rework behaviour spoke 450ms after showing the word
   await page.waitForTimeout(1500)
-  expect(await spoken(page)).toEqual([])
+  expect(await narrated(page)).toEqual([])
   expect(await phase(page)).toBe('reading')
 })
 
-test('a new word gets the full ten seconds, then is spoken exactly once', async ({ page }) => {
+test('a new word gets the full ten seconds, then is played exactly once', async ({ page }) => {
   await page.goto(LEZEN)
   await waitForPhase(page, 'reading')
 
@@ -46,11 +46,14 @@ test('a new word gets the full ten seconds, then is spoken exactly once', async 
   // in Leitner box 1 and the ladder gives it 10s.
   await page.waitForTimeout(6500)
   expect(await phase(page), 'box-1 words must not expire at the old 5s').toBe('reading')
-  expect(await spoken(page)).toEqual([])
+  expect(await narrated(page)).toEqual([])
 
-  await waitForPhase(page, 'listening')
   const word = await page.locator('.word-text').innerText()
-  expect(await spoken(page)).toEqual([word])
+  await waitForPhase(page, 'listening')
+  // Polled, not read once: the phase flips to 'listening' a beat before play() is called
+  // (reveal() renders, then awaits loadWordClip), so reading the list on the transition
+  // itself catches it still empty. Caught locally; it would have been a CI flake.
+  await expect.poll(() => narrated(page), { timeout: 5000 }).toEqual([word])
 })
 
 test('Laat horen reveals the word early, and the card is only gradeable after it', async ({
@@ -68,7 +71,7 @@ test('Laat horen reveals the word early, and the card is only gradeable after it
   await page.locator('.reveal-btn').click()
 
   await waitForPhase(page, 'judging', 5000)
-  expect(await spoken(page), 'revealed once, not twice').toEqual([word])
+  expect(await narrated(page), 'revealed once, not twice').toEqual([word])
   await expect(page.locator('.pile-goed')).toBeEnabled()
   await expect(page.locator('.reveal-btn')).toContainText('Nog eens')
 
@@ -106,8 +109,8 @@ test('the word she got wrong is replayed, the one she got right is not', async (
 
   // "nog even" replays the word as reinforcement, so it is said twice in total
   await expect
-    .poll(async () => (await spoken(page)).filter((t) => t === wrongWord).length, {
-      timeout: 4000,
+    .poll(async () => (await narrated(page)).filter((t) => t === wrongWord).length, {
+      timeout: 8000,
     })
     .toBe(2)
 })

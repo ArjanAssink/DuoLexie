@@ -1,5 +1,5 @@
 import { test, expect, type CDPSession, type Page } from '@playwright/test'
-import { installFakeSpeech } from './fixtures/speech'
+import { installNarration } from './fixtures/narration'
 
 /**
  * HardopLezen's swipe tracked no pointerId: onPointerDown had no "already
@@ -58,7 +58,7 @@ function graded(page: Page): Promise<number> {
 }
 
 test.beforeEach(async ({ page }) => {
-  await installFakeSpeech(page)
+  await installNarration(page)
 })
 
 test('a second finger resting on the card cannot steal the drag', async ({ page, context }) => {

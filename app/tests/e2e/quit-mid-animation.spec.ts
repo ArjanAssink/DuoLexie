@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { installFakeSpeech } from './fixtures/speech'
+import { installNarration } from './fixtures/narration'
 
 /**
  * Unit ids are stable/sounds-derived (data/path.ts, backend-readiness A3):
@@ -163,7 +163,7 @@ async function playCard(page: Page, verdict: 'goed' | 'nogEven') {
 
 test('Hardop lezen: quitting during the feedback delay credits nothing', async ({ page }) => {
   test.slow() // clears a full round bar the last card before the case under test
-  await installFakeSpeech(page)
+  await installNarration(page)
   await page.clock.install()
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
@@ -228,7 +228,7 @@ test('Hardop lezen: quitting during the feedback delay credits nothing', async (
 
 test('Hardop lezen: finishing the round credits exactly one session', async ({ page }) => {
   test.slow() // a full ten-card round
-  await installFakeSpeech(page)
+  await installNarration(page)
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
 
