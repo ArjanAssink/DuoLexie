@@ -83,21 +83,34 @@ function speakWord(text: string): Promise<void> {
 }
 
 async function loadWordClip(wordId: string): Promise<HTMLAudioElement | null> {
+  console.error('TRACE loadWordClip start', wordId)
   const cached = wordClipCache.get(wordId)
-  if (cached) return cached
+  if (cached) {
+    console.error('TRACE loadWordClip cache hit', wordId)
+    return cached
+  }
   const audio = new Audio(`/audio/words/${wordId}.mp3?v=${__AUDIO_VERSION__}`)
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
-    audio.oncanplaythrough = () => resolve(audio)
-    audio.onerror = () => resolve(null)
+    audio.oncanplaythrough = () => {
+      console.error('TRACE loadWordClip oncanplaythrough', wordId)
+      resolve(audio)
+    }
+    audio.onerror = () => {
+      console.error('TRACE loadWordClip onerror', wordId)
+      resolve(null)
+    }
     audio.load()
   })
+  console.error('TRACE loadWordClip resolved', wordId, result)
   if (result) wordClipCache.set(wordId, result)
   return result
 }
 
 /** Same fallback strategy as playSound, but for whole words (own cache, own TTS text: the literal word). */
 export async function playWord(wordId: string, text: string): Promise<void> {
+  console.error('TRACE playWord start', wordId)
   const clip = await loadWordClip(wordId)
+  console.error('TRACE playWord got clip', wordId, !!clip)
   if (clip) {
     clip.currentTime = 0
     await clip.play().catch(() => speakWord(text))
@@ -105,6 +118,7 @@ export async function playWord(wordId: string, text: string): Promise<void> {
       clip.onended = () => resolve()
     })
   }
+  console.error('TRACE playWord calling speakWord', wordId)
   return speakWord(text)
 }
 
