@@ -99,22 +99,39 @@ test('Flitsen: finishing normally still credits exactly once', async ({ page }) 
   expect(after.xp).toBeGreaterThan(0)
 })
 
+async function progressFraction(page: Page): Promise<number> {
+  return page.locator('.progress-fill').evaluate((el) => {
+    const m = /matrix\(([^,]+),/.exec(getComputedStyle(el).transform)
+    return m ? parseFloat(m[1]) : 0
+  })
+}
+
 test('Hardop lezen: quitting during the feedback delay credits nothing', async ({ page }) => {
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
 
-  // clear all but the last word, so the next commit would otherwise complete the lesson
-  const total = await page.locator('.word-card').count()
-  expect(total).toBeGreaterThan(0)
-  for (let i = 0; i < 20; i++) {
-    const remaining = await page.locator('.word-card').count()
-    if (remaining === 0) break
-    // stop when this is the final card: the progress bar is at (n-1)/n
-    const fill = await page.locator('.progress-fill').getAttribute('style')
-    if (fill && /width:\s*(8[0-9]|9[0-9])(\.\d+)?%/.test(fill)) break
+  // The lesson's word count isn't shown anywhere in the UI, and hardcoding a
+  // percentage threshold to detect "one card left" breaks for shorter lessons
+  // (e.g. total=4 never crosses 80%). Swipe once, then derive the exact total
+  // from how far the bar moved for that one card (each swipe advances it by
+  // exactly 1/total) — this works regardless of the lesson's actual length.
+  await swipeRight(page)
+  await page.waitForTimeout(700)
+  const total = Math.round(1 / (await progressFraction(page)))
+  expect(total).toBeGreaterThanOrEqual(2)
+
+  // clear every word but the last (1 already done above)
+  for (let done = 1; done < total - 1; done++) {
+    await expect(page.locator('.word-card')).toBeVisible()
     await swipeRight(page)
     await page.waitForTimeout(700)
   }
+
+  // exactly one card must remain (precision 2: getComputedStyle's matrix() string
+  // is rounded, e.g. 0.799219 for an exact 0.8 — this only needs to catch a real
+  // miscount, which would be off by a whole 1/total, far more than 0.005)
+  await expect(page.locator('.word-card')).toBeVisible()
+  expect(await progressFraction(page)).toBeCloseTo((total - 1) / total, 2)
 
   // swipe the last card, then quit inside commit()'s 320ms await
   await swipeRight(page)

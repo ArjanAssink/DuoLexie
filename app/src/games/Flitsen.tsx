@@ -142,7 +142,7 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
           ✕
         </button>
         <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${(done / deck.length) * 100}%` }} />
+          <div className="progress-fill" style={{ transform: `scaleX(${done / deck.length})` }} />
         </div>
         <div className="timer-big" style={{ color: 'var(--teal)' }}>
           {fmt(elapsed)}

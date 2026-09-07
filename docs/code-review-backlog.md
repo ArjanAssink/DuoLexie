@@ -160,6 +160,33 @@ StrictMode's double-invocation of effects can mask them in dev.
   currently absent from the app. Decide: reintroduce a listening drill that uses them, or
   drop `playSound` + the `TTS_TEXT` map as dead code and stop shipping the clips.
 
+- [x] **Progress bar animated `width`, and the reward mascot ignored reduced motion** —
+  found via `impeccable detect app/src` (an npm-distributed static scanner for UI
+  anti-patterns; ran standalone, nothing installed into the repo or agent config). Two of
+  its four findings were real:
+  1. `.progress-fill { transition: width 0.4s ease }` (`theme.css`) forces layout every
+     frame on all three games' header progress bars. Fixed: fixed `width: 100%` plus
+     `transform: scaleX(fraction)` with `transform-origin: left` — the same technique
+     `.read-timer-fill` already used — with the three call sites (`Flitsen`, `Tijdrit`,
+     `HardopLezen`) passing `transform` instead of `width`.
+  2. `.reward-screen .frida { animation: bounce 1.2s infinite }` — the only `infinite`
+     animation in the app — kept bouncing under `prefers-reduced-motion: reduce`, because
+     `.reward-screen`'s own `animation: none` in the top-of-file reduced-motion block
+     doesn't cascade to a descendant's own `animation` property. **Gotcha hit and fixed:**
+     the first attempt added the override to that same top-of-file block, which sits
+     *before* the bounce rule in source order — equal specificity, so the later (bounce)
+     rule won regardless of the media query, and reduced motion silently did nothing.
+     Moved the override to its own `@media` block immediately after the bounce rule
+     instead, matching this file's own established pattern of small reduced-motion blocks
+     placed next to what they override (e.g. `.frida-tap.laughing` near line 317) rather
+     than one central list.
+     Verified with `page.emulateMedia({ reducedMotion: 'reduce' })`: `animationName` reads
+     `"bounce"` normally and `"none"` under reduced motion.
+  The other two findings (`cubic-bezier(.34,1.56,.64,1)` on `coinPop` and the Bliksemsprint
+  badge spring) were **not** acted on — `ux-backlog.md` names Duolingo as the explicit
+  aesthetic reference for a nine-year-old, and springy easing is that idiom, not a defect.
+  The scanner has no notion of the app's target genre.
+
 - [ ] **`generate-word-audio.mjs` can silently clobber real recordings** — the script writes
   straight into `app/public/audio/words/{id}.mp3` with no check for an existing file. The
   whole premise of the audio design is family-recorded voices; a TTS batch run overwrites

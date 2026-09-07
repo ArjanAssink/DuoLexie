@@ -163,7 +163,7 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
           ✕
         </button>
         <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${(doneCount / total) * 100}%` }} />
+          <div className="progress-fill" style={{ transform: `scaleX(${doneCount / total})` }} />
         </div>
       </div>
       <div className="game-stage hardop-stage">

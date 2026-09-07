@@ -444,10 +444,15 @@ button:disabled { cursor: default; }
   overflow: hidden;
 }
 .progress-fill {
+  width: 100%;
   height: 100%;
   border-radius: 8px;
   background: var(--teal);
-  transition: width 0.4s ease;
+  /* transform, not width: animating width forces layout every frame (impeccable
+     detect flagged this) — scaleX from a fixed 100% width is the same visual
+     result composited on the GPU instead, the pattern .read-timer-fill already uses */
+  transform-origin: left center;
+  transition: transform 0.4s ease;
 }
 .timer-big {
   font-size: 26px;
@@ -814,6 +819,15 @@ button:disabled { cursor: default; }
   padding: 0 16px;
 }
 .reward-screen .frida { width: 180px; animation: bounce 1.2s infinite; }
+/* the top-of-file reduced-motion block (.reward-screen { animation: none })
+   doesn't cascade to this descendant's own animation, and it's the only
+   `infinite` one in the app — without its own override, placed after this
+   rule so equal-specificity source order favours it, this bounces forever
+   regardless of the setting (impeccable detect flagged the bounce easing
+   itself; reduced-motion coverage was the real bug underneath it) */
+@media (prefers-reduced-motion: reduce) {
+  .reward-screen .frida { animation: none; }
+}
 .reward-screen h1 { font-size: 34px; margin: 0; color: var(--orange); }
 .reward-screen .reward-line { font-size: 22px; font-weight: 900; }
 .record-banner {
