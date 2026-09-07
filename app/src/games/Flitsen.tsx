@@ -48,7 +48,10 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
   // Tapping ✕ during a card's flight used to leave the flight's timeout pending: it
   // fired after unmount and still called onComplete, so quitting credited gems/XP,
   // marked the lesson done and (since A2) logged a phantom SessionResult that would
-  // sync to the cloud. Cancel on the way out and refuse to fire afterwards.
+  // sync to the cloud. `quit()` above is the primary fix (cancels synchronously on
+  // the click, before navigation even starts); this cleanup is the backstop for any
+  // other way the component unmounts (StrictMode's dev remount, a future caller that
+  // navigates away without going through `quit()`).
   useEffect(() => {
     // Reset on mount, not just set on unmount: StrictMode runs mount → cleanup →
     // remount in dev, so a cleanup-only flag latches true right after the first mount
@@ -135,10 +138,23 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
   const deckGhostShow = Math.min(Math.max(remaining - 1, 0), 3)
   const discardGhostShow = Math.min(done, 2)
 
+  // Cancel synchronously, on the click itself — not just in the unmount effect's
+  // cleanup. That cleanup only runs once react-router's navigate() actually
+  // unmounts this component, which is not guaranteed to happen before a flight's
+  // setTimeout that's already due; quitting a hair before a flight's natural
+  // 420ms deadline could otherwise still race it. This can't lose that race: it's
+  // the very first thing that runs on the click that starts the navigation.
+  function quit() {
+    cancelled.current = true
+    for (const t of flightTimers.current) window.clearTimeout(t)
+    flightTimers.current = []
+    onQuit()
+  }
+
   return (
     <div className="game-screen">
       <div className="game-header">
-        <button className="quit" onClick={onQuit}>
+        <button className="quit" onClick={quit}>
           ✕
         </button>
         <div className="progress-track">

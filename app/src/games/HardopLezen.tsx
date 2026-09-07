@@ -55,6 +55,10 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   // commit() awaits 320ms, and >1.5s on a miss because it replays the word. Tapping ✕
   // inside that gap used to run the rest of it anyway: onComplete credited the lesson
   // and fired the fanfare and confetti over the path screen she'd just returned to.
+  // `quit()` above is the primary fix (cancels synchronously on the click, before
+  // navigation even starts); this cleanup is the backstop for any other way the
+  // component unmounts (StrictMode's dev remount, a future caller that navigates
+  // away without going through `quit()`).
   useEffect(() => {
     // Reset on mount as well as set on unmount — StrictMode's mount → cleanup →
     // remount in dev would otherwise latch this true and freeze the game.
@@ -186,10 +190,21 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   const rightOpacity = Math.max(0, Math.min(1, dragX / SWIPE_THRESHOLD))
   const leftOpacity = Math.max(0, Math.min(1, -dragX / SWIPE_THRESHOLD))
 
+  // Cancel synchronously, on the click itself — not just in the unmount effect's
+  // cleanup below. That only runs once react-router's navigate() actually unmounts
+  // this component, which isn't guaranteed to happen before commit()'s pending
+  // `await`s resolve; quitting a hair before they do could otherwise still race
+  // them. This can't lose that race: it's the first thing that runs on the click
+  // that starts the navigation.
+  function quit() {
+    cancelled.current = true
+    onQuit()
+  }
+
   return (
     <div className="game-screen">
       <div className="game-header">
-        <button className="quit" onClick={onQuit}>
+        <button className="quit" onClick={quit}>
           ✕
         </button>
         <div className="progress-track">
