@@ -5,12 +5,11 @@ import confetti from 'canvas-confetti'
 import type { AnswerRecord, GameType, Lesson, WordResult } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
-import type { Reward } from '../engine/reward'
 import { Flitsen } from '../games/Flitsen'
 import { Tijdrit } from '../games/Tijdrit'
 import { HardopLezen } from '../games/HardopLezen'
 import { haptic, playEffect } from '../audio/audio'
-import { Frida } from '../components/Frida'
+import { RewardScreen, type DisplayReward } from './RewardScreen'
 
 export interface GameResult {
   answers: AnswerRecord[]
@@ -18,11 +17,6 @@ export interface GameResult {
   score?: number
   /** Hardop lezen only — one entry per word she graded */
   wordResults?: WordResult[]
-}
-
-/** What completeLesson computed (engine/reward.ts), plus the score display alone needs. */
-interface DisplayReward extends Reward {
-  score?: number
 }
 
 interface GameProps {
@@ -97,32 +91,25 @@ export function GameScreen() {
       score: result.score,
       wordResults: result.wordResults,
     })
-    setReward({ ...reward, score: result.score })
+    setReward({ ...reward, score: result.score, wordResults: result.wordResults })
     playEffect('fanfare')
     haptic(reward.newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
-    confetti({ particleCount: reward.newRecord ? 220 : 120, spread: 85, origin: { y: 0.7 } })
+    // a reading round's burst is sized to how much of it she got right, so ten out of ten
+    // visibly outshines four out of ten
+    const correctWords = result.wordResults?.filter((r) => r.correct).length
+    confetti({
+      particleCount: reward.newRecord
+        ? 220
+        : correctWords !== undefined
+          ? 40 + 18 * correctWords
+          : 120,
+      spread: 85,
+      origin: { y: 0.7 },
+    })
   }
 
   if (reward) {
-    return (
-      <div className="reward-screen">
-        <Frida
-          expression={reward.newRecord ? 'head-celebrating' : 'happy'}
-          className="frida"
-          alt="Frida is blij"
-        />
-        {reward.newRecord && <div className="record-banner">NIEUW RECORD!</div>}
-        <h1>{reward.perfect ? 'Perfect!' : 'Goed gedaan!'}</h1>
-        {reward.score !== undefined && (
-          <div className="reward-line">⚡ {reward.score} klanken per minuut</div>
-        )}
-        <div className="reward-line">💎 +{reward.gems}</div>
-        <div className="reward-line">✨ +{reward.xp} XP</div>
-        <button className="btn-primary" onClick={() => navigate('/')}>
-          Verder
-        </button>
-      </div>
-    )
+    return <RewardScreen reward={reward} onDone={() => navigate('/')} />
   }
 
   const Game = GAMES[lesson.gameType]

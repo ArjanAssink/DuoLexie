@@ -118,20 +118,53 @@ export function buildExercises(
 }
 
 /**
- * Hardop lezen deck: a shuffled slice of the words readable with this lesson's sound pool,
- * biased toward shorter words — a beginner's pool can already contain both "kat" and a
- * 10-letter compound like "helikopter" once all their (short-vowel) klanken are known, and
- * mixing those in the same session skips right past the "4-5 letter words first" ramp.
+ * Places one extra copy of a randomly chosen id so the two copies are never adjacent.
+ *
+ * Inserting a copy of the id at index `idx` at position `p` puts it next to the original
+ * exactly when `p` is `idx` or `idx + 1`, so every other slot is fair game. With two or
+ * more distinct ids there is always such a slot; with one there isn't, and a single-word
+ * round is left alone rather than shown twice in a row.
+ */
+function withOneDuplicate(ids: string[]): string[] {
+  if (ids.length < 2) return ids
+  const idx = Math.floor(Math.random() * ids.length)
+  const slots: number[] = []
+  for (let p = 0; p <= ids.length; p++) {
+    if (p !== idx && p !== idx + 1) slots.push(p)
+  }
+  const out = [...ids]
+  out.splice(slots[Math.floor(Math.random() * slots.length)], 0, ids[idx])
+  return out
+}
+
+/**
+ * Hardop lezen deck: `exerciseCount` cards drawn from the words readable with this lesson's
+ * sound pool, biased toward shorter words — a beginner's pool can already contain both "kat"
+ * and a 10-letter compound like "helikopter" once all their (short-vowel) klanken are known,
+ * and mixing those in the same session skips right past the "4-5 letter words first" ramp.
  * Longer/compound words enter the mix naturally once a unit's short-word supply runs thin.
+ *
+ * **Every card is a different word** (docs/hardop-lezen-rework.md §4). A pool too small to
+ * fill the round yields at most *one* repeated word — a short round, never a second pass
+ * over the same words. `data/path.ts` widens a Lezen node's pool precisely so this stays a
+ * fallback: on the real path every round is 10 distinct words.
  */
 export function buildWordExercises(lesson: Lesson): string[] {
   const eligible = wordsForPool(lesson.soundPool)
-  const count = Math.min(lesson.exerciseCount || 8, eligible.length)
+  if (eligible.length === 0) return []
+  // one duplicate at most, so the round is `pool + 1` long when the pool is the binding limit
+  const count = Math.min(lesson.exerciseCount || 10, eligible.length + 1)
+  const distinctCount = Math.min(count, eligible.length)
   const byLength = [...eligible].sort((a, b) => a.text.length - b.text.length)
-  const candidates = byLength.slice(0, Math.max(count * 3, 12))
-  return shuffle(candidates)
-    .slice(0, count)
+  // Twice the round size, not three times. The window has to stay near the round size for
+  // "shortest first" to mean anything: fase 1's readable words are 28 three-letter words
+  // and then, with nothing in between, 8-to-10-letter compounds (limonade, helikopter), so
+  // at 3x a ten-card round starts serving compounds while short words are still unread.
+  const candidates = byLength.slice(0, Math.max(distinctCount * 2, 12))
+  const distinct = shuffle(candidates)
+    .slice(0, distinctCount)
     .map((w) => w.id)
+  return distinct.length < count ? withOneDuplicate(distinct) : distinct
 }
 
 /** Flitsen deck (card-flip): the whole pool shuffled, once each — pure exposure, no weighting. */

@@ -1,4 +1,4 @@
-import type { AnswerRecord, Lesson } from '@shared/src/types'
+import type { AnswerRecord, Lesson, WordResult } from '@shared/src/types'
 
 export interface Reward {
   gems: number
@@ -6,6 +6,15 @@ export interface Reward {
   perfect: boolean
   newRecord: boolean
 }
+
+/**
+ * Hardop lezen's gem formula (docs/hardop-lezen-rework.md §7). Finishing the round is worth
+ * something on its own, so a round she got entirely wrong still pays — the point is to keep
+ * her practising, and a zero would punish exactly the session that was hardest to sit
+ * through. Ten words therefore pay 5…18.
+ */
+const READING_FINISH_GEMS = 5
+const READING_PERFECT_BONUS = 3
 
 /**
  * docs/backend-readiness.md A4 — the one place the reward formula lives. It used to be
@@ -19,7 +28,23 @@ export function computeReward(
   answers: AnswerRecord[],
   prevRecord: number,
   score?: number,
+  wordResults?: WordResult[],
 ): Reward {
+  // A word round is scored per *word*, not per klank. `answers` carries one record per
+  // klank, so a round of long words would otherwise be worth more than the same round of
+  // short ones, and "perfect" would hinge on letter count rather than on how she read.
+  if (wordResults && wordResults.length > 0) {
+    const correct = wordResults.filter((r) => r.correct).length
+    const perfect = correct === wordResults.length
+    return {
+      gems: READING_FINISH_GEMS + correct + (perfect ? READING_PERFECT_BONUS : 0),
+      xp: 10 + correct,
+      perfect,
+      // no score, so nothing to beat — Hardop lezen is untimed by design
+      newRecord: false,
+    }
+  }
+
   const perfect = answers.length > 0 && answers.every((a) => a.correct)
   const newRecord = score !== undefined && score > prevRecord
   const gems =

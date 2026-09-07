@@ -1,4 +1,5 @@
 import { test, expect, type CDPSession, type Page } from '@playwright/test'
+import { installFakeSpeech } from './fixtures/speech'
 
 /**
  * HardopLezen's swipe tracked no pointerId: onPointerDown had no "already
@@ -26,11 +27,39 @@ async function touch(cdp: CDPSession, type: string, points: { id: number; x: num
   })
 }
 
+/**
+ * Gets a card all the way to the phase where it can actually be dragged: the card is inert
+ * until she has heard the word (docs/hardop-lezen-rework.md §2), so a drag test that starts
+ * from a freshly dealt card would pass no matter how broken the pointer handling was.
+ */
 async function ready(page: Page) {
   const card = page.locator('.word-card')
   await expect(card).toBeVisible()
-  return { card, word: await card.innerText() }
+  await page.locator('.reveal-btn').click()
+  await page.waitForFunction(
+    () => document.querySelector('.hardop-screen')?.getAttribute('data-phase') === 'judging',
+    null,
+    { timeout: 6000 },
+  )
+  return { card, word: await page.locator('.word-text').innerText() }
 }
+
+/** Horizontal translation of the card, in px — the part a drag moves. */
+async function translateX(page: Page): Promise<number> {
+  return page.locator('.word-card').evaluate((el) => {
+    const m = new DOMMatrixReadOnly(getComputedStyle(el).transform)
+    return m.m41
+  })
+}
+
+/** Cards graded so far. Zero means nothing was committed, whatever the card is showing. */
+function graded(page: Page): Promise<number> {
+  return page.locator('.pip-done').count()
+}
+
+test.beforeEach(async ({ page }) => {
+  await installFakeSpeech(page)
+})
 
 test('a second finger resting on the card cannot steal the drag', async ({ page, context }) => {
   await page.goto(LEZEN)
@@ -59,12 +88,13 @@ test('a second finger resting on the card cannot steal the drag', async ({ page,
   await touch(cdp, 'touchEnd', [{ id: THUMB_ID, x: thumbX + 15, y }])
   await page.waitForTimeout(900)
 
-  expect(await card.innerText(), 'the twitch + unrelated touch must not grade the word').toBe(word)
+  expect(await graded(page), 'the twitch + unrelated touch must not grade the word').toBe(0)
+  expect(await page.locator('.word-text').innerText()).toBe(word)
 })
 
 test('a genuine single-finger swipe still commits normally', async ({ page, context }) => {
   await page.goto(LEZEN)
-  const { card, word } = await ready(page)
+  const { card } = await ready(page)
   const box = (await card.boundingBox())!
   const y = box.y + box.height / 2
   const startX = box.x + box.width * 0.3
@@ -75,9 +105,8 @@ test('a genuine single-finger swipe still commits normally', async ({ page, cont
   await touch(cdp, 'touchMove', [{ id: THUMB_ID, x: startX + 200, y }])
   await page.waitForTimeout(60)
   await touch(cdp, 'touchEnd', [])
-  await page.waitForTimeout(900)
 
-  expect(await card.innerText().catch(() => null)).not.toBe(word)
+  await expect.poll(() => graded(page), { timeout: 4000 }).toBe(1)
 })
 
 test('a cancelled gesture past the swipe threshold resets instead of grading', async ({ page, context }) => {
@@ -96,6 +125,10 @@ test('a cancelled gesture past the swipe threshold resets instead of grading', a
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] })
   await page.waitForTimeout(900)
 
-  expect(await card.innerText(), 'a cancelled gesture must not grade the word').toBe(word)
-  await expect(card).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)') // drag reset, not left mid-swipe
+  expect(await graded(page), 'a cancelled gesture must not grade the word').toBe(0)
+  expect(await page.locator('.word-text').innerText()).toBe(word)
+  // the drag is reset, not left holding the card 200px off-centre. Checked as a tolerance
+  // rather than an exact identity matrix: an ungrabbed card in this phase runs a slow ±3px
+  // vertical idle drift, so its transform is legitimately never exactly identity.
+  expect(Math.abs(await translateX(page))).toBeLessThan(5)
 })

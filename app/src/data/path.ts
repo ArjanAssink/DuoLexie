@@ -74,10 +74,42 @@ const FASE_DEFS: FaseDef[] = [
   },
 ]
 
-/** A "Lezen" (Hardop lezen) node only makes sense once its pool covers a handful of real words. */
-const MIN_WORDS_FOR_LEZEN = 4
+/** Cards in one Lezen round — ten different words (docs/hardop-lezen-rework.md §4). */
+export const LEZEN_ROUND_SIZE = 10
 
-function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): Lesson[] {
+/**
+ * A "Lezen" node needs enough readable words to fill a round without running the same
+ * words twice. Nine is the floor rather than ten: a nine-word pool still yields ten cards
+ * with a single non-adjacent repeat (`buildWordExercises`), which is a real round.
+ */
+const MIN_WORDS_FOR_LEZEN = 9
+
+/**
+ * The sound pool a Lezen node reads from, widened by one unit when the strict pool can't
+ * fill a round (docs/hardop-lezen-rework.md §4).
+ *
+ * Strictly, a word is readable only once every klank in it has been introduced — which
+ * leaves the first Lezen node with five words (kat/tas/mat/kok/kus) and no way to show ten
+ * different ones. Allowing the *next* unit's sounds lifts that to seventeen: those words are
+ * built from the klank category she is already working in, so reading one early is a preview
+ * rather than a jump.
+ *
+ * The look-ahead deliberately stops at one unit. Two would hand the vowels-only opening unit
+ * a reading node made of consonants she has never met, and one unit is already enough
+ * everywhere on the path — every later unit clears the floor on its strict pool alone.
+ */
+function lezenPool(cumulative: string[], nextUnitSounds: string[]): string[] {
+  if (nextUnitSounds.length === 0) return cumulative
+  if (wordsForPool(cumulative).length >= LEZEN_ROUND_SIZE) return cumulative
+  return [...cumulative, ...nextUnitSounds]
+}
+
+function buildLessons(
+  unitId: string,
+  unitDef: UnitDef,
+  cumulative: string[],
+  nextUnitSounds: string[],
+): Lesson[] {
   const pool = cumulative
   const lessons: Lesson[] = [
     {
@@ -122,8 +154,8 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
     },
   ]
 
-  const eligibleWords = wordsForPool(pool)
-  if (eligibleWords.length >= MIN_WORDS_FOR_LEZEN) {
+  const readingPool = lezenPool(pool, nextUnitSounds)
+  if (wordsForPool(readingPool).length >= MIN_WORDS_FOR_LEZEN) {
     lessons.push({
       id: `${unitId}-l5`,
       unitId,
@@ -131,8 +163,8 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
       title: 'Lezen',
       gameType: 'hardop-lezen',
       newSounds: [],
-      soundPool: pool,
-      exerciseCount: Math.min(8, eligibleWords.length),
+      soundPool: readingPool,
+      exerciseCount: LEZEN_ROUND_SIZE,
     })
   }
 
@@ -184,7 +216,12 @@ function buildPath(): Fase[] {
         title: unitDef.title,
         sounds: unitDef.sounds,
         cumulativeSounds: [...cumulative],
-        lessons: buildLessons(unitId, unitDef, [...cumulative]),
+        lessons: buildLessons(
+          unitId,
+          unitDef,
+          [...cumulative],
+          faseDef.units[i + 1]?.sounds ?? [],
+        ),
       })
     }
     fases.push({
@@ -203,7 +240,31 @@ export const path: Fase[] = buildPath()
 
 export const allLessons: Lesson[] = path.flatMap((f) => f.units.flatMap((u) => u.lessons))
 
+/**
+ * Proefronde — a direct-launch Hardop lezen round over the whole of fase 1 (short vowels +
+ * every consonant, 38 readable words), reachable from `/#/proberen` only.
+ *
+ * Deliberately *not* in `allLessons`: it must not appear on the path, take a slot in the
+ * linear-unlock order, or wait on her progress. It exists so the read → listen → sort
+ * interaction can be tried with her before the word level is tuned to where she actually is
+ * (docs/hardop-lezen-rework.md §4).
+ */
+export const PROEFRONDE_LESSON: Lesson = {
+  id: 'proef-hardop-lezen',
+  unitId: 'proefronde',
+  kind: 'les',
+  title: 'Proefronde lezen',
+  gameType: 'hardop-lezen',
+  newSounds: [],
+  soundPool: [
+    ...(curriculum.categories.find((c) => c.id === 'kort')?.sounds ?? []),
+    ...(curriculum.categories.find((c) => c.id === 'mede')?.sounds ?? []),
+  ],
+  exerciseCount: LEZEN_ROUND_SIZE,
+}
+
 export function lessonById(id: string): Lesson | undefined {
+  if (id === PROEFRONDE_LESSON.id) return PROEFRONDE_LESSON
   return allLessons.find((l) => l.id === id)
 }
 

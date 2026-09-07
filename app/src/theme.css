@@ -450,7 +450,7 @@ button:disabled { cursor: default; }
   background: var(--teal);
   /* transform, not width: animating width forces layout every frame (impeccable
      detect flagged this) — scaleX from a fixed 100% width is the same visual
-     result composited on the GPU instead, the pattern .read-timer-fill already uses */
+     result composited on the GPU instead, the pattern .fuse-fill already uses */
   transform-origin: left center;
   transition: transform 0.4s ease;
 }
@@ -496,11 +496,70 @@ button:disabled { cursor: default; }
 }
 .grade-buttons button { flex: 1; max-width: 220px; }
 
-/* ---------- hardop lezen (swipe card) ---------- */
+/* ---------- hardop lezen (read -> listen -> sort) ---------- */
+/* docs/hardop-lezen-rework.md — the round is ten cards; each one deals in, burns a fuse
+   while she reads it, is spoken, and is then sorted onto one of two visible piles. */
+
+.hardop-stage { gap: clamp(12px, 2.2vh, 22px); }
+
+/* ten discrete cards read better as pips than as one continuous bar */
+.round-pips {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.pip {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--hairline);
+}
+.pip-done { background: var(--teal); }
+.pip-now {
+  background: var(--teal-ring);
+  animation: pipPulse 1.4s ease-in-out infinite;
+}
+@keyframes pipPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+}
+
+/* Frida says what phase she's in, so the screen needs no written instructions */
+.coach {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  align-self: center;
+}
+.coach-frida { width: clamp(44px, 12vw, 58px); height: auto; }
+.coach-bubble {
+  position: relative;
+  margin: 0;
+  background: #fff;
+  border-radius: 16px;
+  padding: 9px 14px;
+  font-weight: 800;
+  font-size: clamp(14px, 2vh, 17px);
+  color: var(--text);
+  box-shadow: 0 3px 0 var(--hairline);
+}
+.coach-bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-left: 0;
+  border-right-color: #fff;
+}
+
 .swipe-arena {
   position: relative;
-  width: min(80vw, 320px);
-  height: min(50vw, 34vh, 220px);
+  width: min(80vw, 340px);
+  height: min(50vw, 30vh, 210px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -508,26 +567,158 @@ button:disabled { cursor: default; }
 .word-card {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: white;
-  border-radius: 22px;
+  border-radius: 24px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(32px, 12vw, 64px);
+  flex-direction: column;
+  padding: 14px;
   color: var(--text);
   box-shadow: 0 8px 0 var(--hairline);
-  cursor: grab;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
   will-change: transform;
 }
-.word-card:active { cursor: grabbing; }
+.word-text {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(40px, 13vw, 72px);
+  line-height: 1;
+}
+/* The deck this card came off, so dealing in has somewhere to come from.
+   z-index and pointer-events are both load-bearing, not decoration: ::after is generated
+   as the arena's *last* child, so at equal z-index it paints on top of the card and hit-
+   tests before it — which silently ate every drag until the card was lifted above it. */
+.swipe-arena::before,
+.swipe-arena::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 24px;
+  background: #fff;
+  opacity: 0.55;
+  box-shadow: 0 6px 0 var(--hairline);
+}
+.swipe-arena::before { transform: translateY(12px) scale(0.94); }
+.swipe-arena::after { transform: translateY(6px) scale(0.97); }
+/* The deck thins out towards the end of the round — but only the deeper card goes. Hiding
+   both left a card-shaped hole in the middle of the screen while the last card was flying
+   to its pile, which is the least appealing moment to have one. */
+.swipe-arena.last-cards::before { display: none; }
+
+/* phase: reading — she reads, the fuse drains, nothing is gradeable yet */
+.word-card.dealing { animation: cardDeal 260ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes cardDeal {
+  from { transform: translateY(-26px) scale(0.86); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.fuse {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: visible;
+}
+.fuse-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--teal);
+  transform-origin: left center;
+  animation: fuseDrain linear both;
+}
+@keyframes fuseDrain {
+  from { transform: scaleX(1); background: var(--teal); }
+  70% { background: var(--orange); }
+  to { transform: scaleX(0); background: var(--red-orange); }
+}
+/* last couple of seconds: pressure via a glow, never a ticking sound */
+.fuse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: fuseUrgent 800ms ease-in-out var(--fuse-urgent-delay, 8s) 3 both;
+}
+@keyframes fuseUrgent {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 84, 47, 0); }
+  50% { box-shadow: 0 0 0 5px rgba(226, 84, 47, 0.26); }
+}
+
+/* phase: listening — the word plays, the card is inert */
+.listen-strip {
+  height: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+}
+.listen-strip span {
+  width: 5px;
+  border-radius: 999px;
+  background: var(--teal);
+  animation: listenBar 620ms ease-in-out infinite;
+}
+.listen-strip span:nth-child(2) { animation-delay: 140ms; }
+.listen-strip span:nth-child(3) { animation-delay: 280ms; }
+@keyframes listenBar {
+  0%, 100% { height: 3px; }
+  50% { height: 10px; }
+}
+
+/* phase: judging — the card lifts and drifts, asking to be picked up */
+.word-card.liftable {
+  box-shadow: 0 14px 0 var(--hairline);
+  cursor: grab;
+}
+.word-card.liftable:active { cursor: grabbing; }
+.word-card.floating { animation: cardFloat 3s ease-in-out infinite; }
+@keyframes cardFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+/* wordless "swipe me", shown only for her first few cards ever */
+.word-card.nudging { animation: cardNudge 1300ms ease-in-out 2; }
+@keyframes cardNudge {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  22% { transform: translateX(-15px) rotate(-1deg); }
+  55% { transform: translateX(15px) rotate(1deg); }
+  78% { transform: translateX(-6px) rotate(-0.4deg); }
+}
+
+/* phase: flying — the card arcs to the pile she chose and is absorbed into it */
+.word-card.flying {
+  z-index: 3;
+  pointer-events: none;
+  animation: cardFly 420ms cubic-bezier(0.35, 0.1, 0.6, 1) forwards;
+}
+@keyframes cardFly {
+  0% {
+    transform: translate(var(--fly-from-x, 0), 0) rotate(var(--fly-from-rot, 0deg)) scale(1);
+    opacity: 1;
+  }
+  55% {
+    transform: translate(calc(var(--fly-x) * 0.55), calc(var(--fly-y) * 0.55 - 26px))
+      rotate(calc(var(--fly-rot) * 0.6)) scale(0.72);
+    opacity: 1;
+  }
+  85% { opacity: 1; }
+  100% {
+    transform: translate(var(--fly-x), var(--fly-y)) rotate(var(--fly-rot)) scale(0.3);
+    opacity: 0;
+  }
+}
+
 .swipe-stamp {
   position: absolute;
-  top: 10px;
+  top: 14px;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 20px;
@@ -536,17 +727,121 @@ button:disabled { cursor: default; }
   border-radius: 10px;
   border: 3px solid;
   pointer-events: none;
-  z-index: 2;
+  z-index: 4;
 }
-.swipe-stamp-right { right: 4px; color: var(--teal); border-color: var(--teal); transform: rotate(8deg); }
-.swipe-stamp-left { left: 4px; color: var(--red-orange); border-color: var(--red-orange); transform: rotate(-8deg); }
-.swipe-hint {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
-  text-align: center;
-  max-width: 280px;
-  margin: 0;
+.swipe-stamp-right { right: 10px; color: var(--teal); border-color: var(--teal); transform: rotate(8deg); }
+.swipe-stamp-left { left: 10px; color: var(--red-orange); border-color: var(--red-orange); transform: rotate(-8deg); }
+
+/* one button in one slot for the whole card: Laat horen -> Luister -> Nog eens */
+.reveal-btn {
+  min-height: 56px;
+  min-width: 190px;
+  font-size: 18px;
+}
+.reveal-btn:disabled { opacity: 0.45; }
+
+/* the two piles: where a graded card lands, and her running count for the round */
+.pile-row {
+  display: flex;
+  justify-content: center;
+  gap: clamp(16px, 6vw, 32px);
+}
+.pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.2s ease, transform 0.18s ease;
+}
+.pile.ready { opacity: 1; }
+.pile.targeted { transform: scale(1.08); }
+.pile-tray {
+  position: relative;
+  width: clamp(104px, 30vw, 132px);
+  height: clamp(72px, 20vw, 92px);
+  border-radius: 18px;
+}
+/* an empty tray still has to read as "a pile cards land on" */
+.pile-tray::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 30px;
+  margin: -15px 0 0 -22px;
+  border-radius: 6px;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+.pile-goed .pile-tray { background: var(--teal); box-shadow: 0 6px 0 var(--teal-shadow); }
+.pile-nog-even .pile-tray { background: var(--orange); box-shadow: 0 6px 0 var(--orange-shadow); }
+.pile.bumped .pile-tray { animation: pileSquash 220ms ease-out; }
+@keyframes pileSquash {
+  0% { transform: scaleY(0.92) scaleX(1.04); }
+  100% { transform: scaleY(1) scaleX(1); }
+}
+.pile-mini {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 30px;
+  margin: -15px 0 0 -22px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(66, 40, 26, 0.25);
+}
+.pile-count {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 900;
+  font-size: 15px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 0 var(--hairline);
+}
+.pile.bumped .pile-count { animation: countBump 220ms ease-out; }
+@keyframes countBump {
+  0% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+.pile-label { font-weight: 900; font-size: 14px; }
+.pile-goed .pile-label { color: var(--teal-shadow); }
+.pile-nog-even .pile-label { color: var(--orange-shadow); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* the mechanism works without any of the motion: no float, no heartbeat, no nudge, and
+     the flight becomes a plain fade into the pile */
+  .pip-now,
+  .word-card.dealing,
+  .word-card.floating,
+  .word-card.nudging,
+  .fuse::after,
+  .listen-strip span,
+  .pile.bumped .pile-tray,
+  .pile.bumped .pile-count {
+    animation: none;
+  }
+  .listen-strip span { height: 8px; }
+  .word-card.flying { animation: cardFade 150ms linear forwards; }
+  @keyframes cardFade {
+    to { opacity: 0; }
+  }
+  .pile.targeted { transform: none; }
 }
 
 /* ---------- flitsen (flip-through deck, ported from CardFlash) ---------- */
@@ -829,6 +1124,41 @@ button:disabled { cursor: default; }
   .reward-screen .frida { animation: none; }
 }
 .reward-screen h1 { font-size: 34px; margin: 0; color: var(--orange); }
+.reward-tally {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.tally {
+  font-weight: 900;
+  font-size: 17px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  border: 2px solid;
+}
+.tally-goed { color: var(--teal-shadow); border-color: var(--teal-pill-border); background: var(--teal-pill); }
+.tally-nog { color: var(--orange-shadow); border-color: var(--orange); background: #FDEBD5; }
+.reward-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 320px;
+}
+.word-chip {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--hairline);
+  background: #fff;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  cursor: pointer;
+}
+.word-chip:active { transform: translateY(2px); }
 .reward-screen .reward-line { font-size: 22px; font-weight: 900; }
 .record-banner {
   font-family: var(--font-display);
@@ -1023,30 +1353,4 @@ button:disabled { cursor: default; }
   .bs-track, .bs-hop, .bs-fig, .bs-bolt, .bs-puff, .bs-hero { opacity: 0; }
   /* the badge still lands, it just doesn't spring */
   .bs-badge { animation: none; opacity: 1; transform: translate(-50%,-50%) scale(1); }
-}
-
-/* ---------- Hardop lezen: reading window ---------- */
-/* Drains while she reads the word herself; the app only pronounces it once this
-   runs out. Duration is set inline per card — it becomes per-word and adaptive,
-   see docs/reading-mechanics.md. */
-.read-timer {
-  width: min(280px, 70%);
-  height: 10px;
-  margin-top: 18px;
-  border-radius: 999px;
-  background: var(--hairline);
-  overflow: hidden;
-}
-.read-timer-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--teal);
-  transform-origin: left center;
-  animation: readDrain linear both;
-}
-/* spent: she ran out of time and is hearing the word */
-.read-timer.spent { background: var(--teal-pill); }
-@keyframes readDrain {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
 }

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import type { GameType } from '@shared/src/types'
-import { allLessons } from '../data/path'
+import { allLessons, PROEFRONDE_LESSON } from '../data/path'
 
 const GAME_ORDER: GameType[] = ['flitsen', 'tijdrit', 'hardop-lezen', 'welke-klank', 'woordbouwer']
 
@@ -29,6 +29,16 @@ export function TestMenuScreen() {
         </button>
         <h1>Probeermenu</h1>
       </header>
+
+      <section className="avatar-picker">
+        <h2>Proberen met haar</h2>
+        <button
+          className="btn-primary test-menu-btn"
+          onClick={() => navigate(`/les/${PROEFRONDE_LESSON.id}`)}
+        >
+          Proefronde lezen — 10 woorden uit heel fase 1
+        </button>
+      </section>
 
       <section className="avatar-picker">
         <h2>Per spelmodus</h2>

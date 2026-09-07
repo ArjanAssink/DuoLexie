@@ -86,7 +86,7 @@ export const useProgress = create<ProgressState>()(
         // The only formula for what a session is worth (engine/reward.ts) — completeLesson
         // no longer takes gems/xp from the caller, so there's nowhere left for a second,
         // silently-divergent copy of this arithmetic to be written.
-        const reward = computeReward(lesson, answers, prevRecord, score)
+        const reward = computeReward(lesson, answers, prevRecord, score, wordResults)
 
         const session: SessionResult = {
           id: crypto.randomUUID(),

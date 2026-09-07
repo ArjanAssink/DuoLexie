@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { installFakeSpeech } from './fixtures/speech'
 
 /**
  * Unit ids are stable/sounds-derived (data/path.ts, backend-readiness A3):
@@ -63,17 +64,6 @@ async function waitForOpacity(page: Page, target: string, timeoutMs = 3000) {
   throw new Error(`.word-card opacity never reached "${target}" within ${timeoutMs}ms`)
 }
 
-async function swipe(page: Page, direction: 'left' | 'right') {
-  const card = page.locator('.word-card')
-  const b = (await card.boundingBox())!
-  const cx = b.x + b.width / 2
-  const cy = b.y + b.height / 2
-  await page.mouse.move(cx, cy)
-  await page.mouse.down()
-  await page.mouse.move(cx + (direction === 'right' ? 180 : -180), cy, { steps: 8 })
-  await page.mouse.up()
-}
-const swipeRight = (page: Page) => swipe(page, 'right')
 
 test('Flitsen: quitting during the last card flight credits nothing', async ({ page }) => {
   await page.goto(FLITSEN)
@@ -128,52 +118,48 @@ test('Flitsen: finishing normally still credits exactly once', async ({ page }) 
   expect(after.xp).toBeGreaterThan(0)
 })
 
-async function progressFraction(page: Page): Promise<number> {
-  return page.locator('.progress-fill').evaluate((el) => {
-    const m = /matrix\(([^,]+),/.exec(getComputedStyle(el).transform)
-    return m ? parseFloat(m[1]) : 0
-  })
+function waitForPhase(page: Page, want: string, timeout = 15_000) {
+  return page.waitForFunction(
+    (p) => document.querySelector('.hardop-screen')?.getAttribute('data-phase') === p,
+    want,
+    { timeout },
+  )
+}
+
+/** Reveal the current word, then sort it onto a pile. */
+async function playCard(page: Page, verdict: 'goed' | 'nogEven') {
+  await waitForPhase(page, 'reading')
+  await page.locator('.reveal-btn').click()
+  await waitForPhase(page, 'judging', 6000)
+  await page.locator(verdict === 'goed' ? '.pile-goed' : '.pile-nog-even').click()
 }
 
 test('Hardop lezen: quitting during the feedback delay credits nothing', async ({ page }) => {
+  test.slow() // clears a full round bar the last card before the case under test
+  await installFakeSpeech(page)
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
 
-  // The lesson's word count isn't shown anywhere in the UI, and hardcoding a
-  // percentage threshold to detect "one card left" breaks for shorter lessons
-  // (e.g. total=4 never crosses 80%). Swipe once, then derive the exact total
-  // from how far the bar moved for that one card (each swipe advances it by
-  // exactly 1/total) — this works regardless of the lesson's actual length.
-  await swipeRight(page)
-  await page.waitForTimeout(700)
-  const total = Math.round(1 / (await progressFraction(page)))
+  // The round's length is on screen now: one pip per card. (It used to have to be derived
+  // from how far a progress bar moved for one swipe, because nothing showed the total.)
+  const total = await page.locator('.pip').count()
   expect(total).toBeGreaterThanOrEqual(2)
 
-  // clear every word but the last (1 already done above)
-  for (let done = 1; done < total - 1; done++) {
-    await expect(page.locator('.word-card')).toBeVisible()
-    await swipeRight(page)
-    await page.waitForTimeout(700)
+  // clear every word but the last
+  for (let done = 0; done < total - 1; done++) {
+    await playCard(page, 'goed')
+    await expect.poll(() => page.locator('.pip-done').count(), { timeout: 6000 }).toBe(done + 1)
   }
-
-  // exactly one card must remain (precision 2: getComputedStyle's matrix() string
-  // is rounded, e.g. 0.799219 for an exact 0.8 — this only needs to catch a real
-  // miscount, which would be off by a whole 1/total, far more than 0.005)
   await expect(page.locator('.word-card')).toBeVisible()
-  expect(await progressFraction(page)).toBeCloseTo((total - 1) / total, 2)
 
-  // Swipe the last card WRONG ("nog even"), then quit while its opacity:0 flight-out
-  // is visibly in progress. This is the actual danger case the backlog names —
-  // commit()'s only-on-a-miss branch replays the word before it finishes, which is
-  // why quitting there is worth a dedicated test — and it also sidesteps a razor-
-  // thin race a correct swipe has here: for "goed", the fade-out duration and the
-  // flying-state duration are both exactly 320ms, so opacity is only ever truly 0
-  // for an instant before flipping straight back; for "nog even" the reinforcement
-  // playback holds it at 0 for several hundred ms more, giving a real window to
-  // observe (the same "wait for observable state, not a guessed delay" fix as the
-  // Flitsen test above, and for the same reason: CI/WebKit timing variance made a
-  // fixed-ms guess occasionally land after the window instead of inside it).
-  await swipe(page, 'left')
+  // Sort the last card WRONG ("nog even"), then quit while its flight-out is visibly in
+  // progress. This is the danger case the backlog names — commit()'s only-on-a-miss branch
+  // replays the word before it finishes, which is why quitting there is worth a dedicated
+  // test — and it also sidesteps a razor-thin race a correct sort has here: "goed" is only
+  // held past the flight by its short landing beat, while "nog even" holds the card
+  // invisible for several hundred ms more, giving a real window to observe. (Same "wait for
+  // observable state, not a guessed delay" rule as the Flitsen test above.)
+  await playCard(page, 'nogEven')
   await waitForOpacity(page, '0')
   await page.locator('.quit').click()
 
@@ -183,4 +169,26 @@ test('Hardop lezen: quitting during the feedback delay credits nothing', async (
   const after = await credited(page)
   expect(after.sessions, 'quitting mid-commit must not log a session').toBe(0)
   expect(after.gems).toBe(0)
+  await expect(page.locator('.reward-screen')).toHaveCount(0)
+})
+
+test('Hardop lezen: finishing the round credits exactly one session', async ({ page }) => {
+  test.slow() // a full ten-card round
+  await installFakeSpeech(page)
+  await page.goto(LEZEN)
+  await expect(page.locator('.word-card')).toBeVisible()
+
+  const total = await page.locator('.pip').count()
+  for (let done = 0; done < total; done++) {
+    await playCard(page, 'goed')
+  }
+
+  await expect(page.locator('.reward-screen')).toBeVisible({ timeout: 8000 })
+  await page.waitForTimeout(2500) // let the gem count-up finish
+
+  const after = await credited(page)
+  expect(after.sessions, 'exactly one session logged').toBe(1)
+  expect(after.lessons).toBe(1)
+  // 5 for finishing + 1 per correct word, all correct here
+  expect(after.gems).toBe(5 + total + 3)
 })

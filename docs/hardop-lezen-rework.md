@@ -11,7 +11,10 @@ stays the reference for *why* the reading window exists and how words are spaced
 replaces its §1 flow description once built. [plan.md](../plan.md) §2 keeps the one-paragraph
 game description.
 
-**Status:** designed, not built. Nothing below is implemented yet.
+**Status:** §1–§7 are **built** — the full read → listen → sort round, the window ladder, the
+piles and their animations, the sounds, the word-based gems and the reward screen. Not yet
+built: the recording-studio word mode and the starter recordings (§8 step 4), and the word-level
+decision in §4/§10. Deviations found while building are marked *(as built)* below.
 
 ---
 
@@ -209,34 +212,59 @@ just 5 words and the next one 24:
 | + n·p·b·d·f | 24 (incl. limonade, katapult, trampoline, dromenland) |
 | + g·h·j·l + v·w·z | 38 |
 
-**Widening, in order, until ≥ 9 unique words (10 preferred):**
+**Widening (as built): one unit of look-ahead, and no more.**
 
 1. Strict pool (as today), shortest words first.
 2. **Look ahead one unit** on the path: allow words whose klanken are all in the cumulative
    pool *plus the next unit's sounds*. A word one unit ahead is still built from the klank
    category she is working in; reading it early is a preview, not a jump.
-3. Look ahead a second unit, then the rest of the same fase.
-4. If a fase still comes up short, the node is not generated (`MIN_WORDS_FOR_LEZEN` becomes 9
-   and is measured on the *widened* pool).
+3. If that still leaves fewer than 9 readable words, no Lezen node is generated
+   (`MIN_WORDS_FOR_LEZEN` = 9, measured on the widened pool).
+
+*(as built)* The plan originally allowed a second unit of look-ahead and then the rest of the
+fase. Measuring every unit on the real path killed that: depth 1 already clears the floor
+everywhere, and depth 2 would give the **vowels-only opening unit** a reading node built from
+consonants she has never met — a wall, not a preview. Counts per unit at each depth:
+
+| Cumulative pool after unit | strict | +1 unit | +2 units |
+|---|---|---|---|
+| De klinkers (a e o u i) | 0 | 5 | 17 |
+| m·s·k·r·t | 5 | **17** | 30 |
+| n·p·b·d·f | 17 | 30 | 38 |
+| g·h·j·l | 30 | 38 | 38 |
+| every later unit | 38–164 | — | — |
+
+So the opening unit still has no reading node (correct — she knows five vowels), and the first
+one lands on unit 2 with 17 words, comfortably more than the ten it needs.
 
 The look-ahead happens in `data/path.ts` when the Lezen lesson is built (it already has the
 unit order in hand), so the lesson carries the widened `soundPool` and nothing downstream
 changes: `buildWordExercises` keeps its shortest-first bias and draws 10 **distinct** ids.
-`exerciseCount` is `min(10, eligible)`; only a 9-word pool yields one word twice, never
-adjacent.
+A round is 10 cards; only a 9-word pool yields one word twice, and never adjacent.
 
-**Growing the dictionary is the other half.** 38 short words across all of fase 1 is thin
-for a game that shows 10 per round several times a week. Which extra words to add, and from
-which level (more 3-letter mkm words, 4-letter cluster words like *stok/kast*, two-syllable
-words), is **a decision to take together** once the round itself is testable — see §10. The
-`reviewed: false` words already in `words.json` (the Hangman import) are the cheapest first
-source.
+**Growing the dictionary is the other half — and the data is worse than "thin".** Fase 1's 38
+readable words are **28 three-letter words and then a cliff**: nothing of 4 to 7 letters at
+all, straight to 8–10-letter compounds (*limonade, katapult, waterval, hagelslag, helikopter,
+trampoline*). There is no ramp to sit on.
 
-**Proefronde: a pool for trying it with her now.** The `/proberen` menu gets a **Proefronde**
-entry that launches Hardop lezen on a synthetic lesson (`lessonById('proef-hardop-lezen')`)
-whose pool is *all* fase-1 sounds (kort + medeklinkers → the 38 words above, shortest first).
-It ignores where she is on the path, so the interaction can be tried with her right away
-without the level being right yet; it credits gems like any lesson, which is fine for a test.
+*(as built)* That cliff forced one change: the shortest-first candidate window dropped from
+3× the round size to **2×**. At 3× a ten-card round drew from the 30 shortest of 38 — which
+reaches past the 28 short words into the compounds, so a beginner round could serve
+"katapult" as card three. At 2× it stays inside the three-letter words. Verified: a
+Proefronde really did deal *katapult* before this change.
+
+Which words to add, and at which level (more 3-letter mkm words, the missing 4–5-letter
+cluster words like *stok/kast/brug*, two-syllable words), is **a decision to take together**
+now that the round is testable — see §10. The `reviewed: false` words already in `words.json`
+(the Hangman import) are the cheapest first source.
+
+**Proefronde: a pool for trying it with her now (built).** The `/proberen` menu has a
+**Proefronde** entry that launches Hardop lezen on a synthetic lesson
+(`PROEFRONDE_LESSON`, id `proef-hardop-lezen`) whose pool is *all* fase-1 sounds (kort +
+medeklinkers → the 38 words above, shortest first). It is deliberately kept out of
+`allLessons`, so it never appears on the path or takes a slot in the linear-unlock order. It
+ignores where she is on the path, so the interaction can be tried with her right away without
+the level being right yet; it credits gems like any lesson, which is fine for a test.
 
 ---
 
