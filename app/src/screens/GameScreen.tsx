@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import confetti from 'canvas-confetti'
@@ -72,6 +72,12 @@ export function GameScreen() {
   const navigate = useNavigate()
   const completeLesson = useProgress((s) => s.completeLesson)
   const [reward, setReward] = useState<DisplayReward | null>(null)
+  /**
+   * Every "credit this lesson once" guarantee used to live inside the game components, so
+   * any game that fired onComplete twice — or once after unmount — double-credited gems, XP
+   * and the session log. Guard it here too, where the crediting actually happens.
+   */
+  const credited = useRef(false)
 
   const lesson = lessonId ? lessonById(lessonId) : undefined
   if (!lesson) {
@@ -80,7 +86,8 @@ export function GameScreen() {
   }
 
   function handleComplete(result: GameResult) {
-    if (!lesson) return
+    if (!lesson || credited.current) return
+    credited.current = true
     // completeLesson computes gems/xp/perfect/newRecord (engine/reward.ts) — nothing here
     // recomputes any of it, so there's nowhere for the credited and displayed numbers to
     // silently disagree the way they used to.

@@ -38,10 +38,28 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
   const inFlight = useRef(0)
   const flyId = useRef(0)
   const finished = useRef(false)
+  const cancelled = useRef(false)
+  const flightTimers = useRef<number[]>([])
 
   const arenaRef = useRef<HTMLDivElement>(null)
   const deckRef = useRef<HTMLDivElement>(null)
   const discardRef = useRef<HTMLDivElement>(null)
+
+  // Tapping ✕ during a card's flight used to leave the flight's timeout pending: it
+  // fired after unmount and still called onComplete, so quitting credited gems/XP,
+  // marked the lesson done and (since A2) logged a phantom SessionResult that would
+  // sync to the cloud. Cancel on the way out and refuse to fire afterwards.
+  useEffect(() => {
+    // Reset on mount, not just set on unmount: StrictMode runs mount → cleanup →
+    // remount in dev, so a cleanup-only flag latches true right after the first mount
+    // and no flight ever completes again.
+    cancelled.current = false
+    return () => {
+      cancelled.current = true
+      for (const t of flightTimers.current) window.clearTimeout(t)
+      flightTimers.current = []
+    }
+  }, [])
 
   useEffect(() => {
     setDeck(buildFlitsDeck(lesson))
@@ -95,7 +113,8 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
     const id = flyId.current++
     setFlights((f) => [...f, { id, sound }])
 
-    setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      if (cancelled.current) return
       setFlights((f) => f.filter((fl) => fl.id !== id))
       setDiscardTop(sound)
       inFlight.current--
@@ -105,6 +124,7 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
         onComplete({ answers: [] })
       }
     }, FLY_MS)
+    flightTimers.current.push(timer)
   }
 
   if (deck.length === 0) return null

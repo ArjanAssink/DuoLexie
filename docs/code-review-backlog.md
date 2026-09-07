@@ -47,7 +47,21 @@ StrictMode's double-invocation of effects can mask them in dev.
 
 ## Priority order
 
-- [ ] **Quitting mid-animation still completes the lesson** — `games/KlankKaarten.tsx:96`
+- [x] **Quitting mid-animation still completes the lesson** — fixed in both games, plus a
+  guard where the crediting actually happens. `games/Flitsen.tsx` now cancels its pending
+  flight timeouts on unmount and refuses to fire afterwards; `games/HardopLezen.tsx` checks a
+  `cancelled` ref after each await in `commit()`; and `GameScreen.handleComplete` carries its
+  own `credited` ref, so "credit once" no longer depends on every game getting it right.
+  Re-ran the original repro: gems/xp/sessions/completedLessons all stay at 0 where they
+  previously went to 10/10/1/1. **Gotcha hit and fixed:** setting the flag only in the effect
+  *cleanup* latched it true immediately, because StrictMode runs mount → cleanup → remount in
+  dev — so no lesson could ever complete on the dev server. It's reset on mount as well now.
+  The regression test ("finishing normally still credits exactly once") is what caught that;
+  the production-build repro alone had looked fine, since StrictMode doesn't double-invoke
+  there. New `tests/e2e/quit-mid-animation.spec.ts` covers both quit paths and the happy path.
+  *(Original finding below, for context.)*
+
+  Was: `games/KlankKaarten.tsx:96`
   schedules the card flight with `setTimeout(..., FLY_MS)` and never cancels it on unmount.
   Tap ✕ during the last card's 420ms flight and the orphaned callback still fires
   `onComplete` → `completeLesson` persists gems/XP and marks the lesson done.

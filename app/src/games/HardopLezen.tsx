@@ -43,6 +43,19 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   const startX = useRef(0)
   const busy = useRef(false)
   const windowTimer = useRef<number | undefined>(undefined)
+  const cancelled = useRef(false)
+
+  // commit() awaits 320ms, and >1.5s on a miss because it replays the word. Tapping ✕
+  // inside that gap used to run the rest of it anyway: onComplete credited the lesson
+  // and fired the fanfare and confetti over the path screen she'd just returned to.
+  useEffect(() => {
+    // Reset on mount as well as set on unmount — StrictMode's mount → cleanup →
+    // remount in dev would otherwise latch this true and freeze the game.
+    cancelled.current = false
+    return () => {
+      cancelled.current = true
+    }
+  }, [])
 
   useEffect(() => {
     const ids = buildWordExercises(lesson)
@@ -115,11 +128,13 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
     haptic(correct ? 12 : [10, 40, 10])
 
     await new Promise((r) => setTimeout(r, 320))
+    if (cancelled.current) return
     if (!correct) {
       // reinforce the right pronunciation before moving on
       await playWord(current.id, current.text)
       await new Promise((r) => setTimeout(r, 250))
     }
+    if (cancelled.current) return
 
     setFlying(false)
     setDragX(0)
