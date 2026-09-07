@@ -58,10 +58,9 @@ const wordClipCache = new Map<string, HTMLAudioElement | null>()
 
 function speakWord(text: string): Promise<void> {
   return new Promise((resolve) => {
-    // Some environments (headless WebKit with no TTS backend, seen in CI) throw
-    // synchronously here instead of ever reaching onerror — this call is fire-and-forget
-    // from HardopLezen, so an uncaught throw here would be a silent, permanent no-op
-    // rather than a crash. Audio is never worth hanging a game over.
+    // Wrapped like playEffect/haptic below: audio is never worth hanging a game over,
+    // and this call is fire-and-forget from HardopLezen, so an uncaught throw here would
+    // be a silent, permanent no-op rather than a crash.
     try {
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = 'nl-NL'
@@ -72,45 +71,28 @@ function speakWord(text: string): Promise<void> {
       utterance.onerror = () => resolve()
       speechSynthesis.cancel()
       speechSynthesis.speak(utterance)
-    } catch (e) {
-      // TEMP diagnostic (see reading-window investigation in git history): this used to be
-      // a silent catch, which would hide exactly the error this is trying to find — remove
-      // the logging once resolved, keep the catch/resolve.
-      console.error('speakWord caught:', e)
+    } catch {
       resolve()
     }
   })
 }
 
 async function loadWordClip(wordId: string): Promise<HTMLAudioElement | null> {
-  console.error('TRACE loadWordClip start', wordId)
   const cached = wordClipCache.get(wordId)
-  if (cached) {
-    console.error('TRACE loadWordClip cache hit', wordId)
-    return cached
-  }
+  if (cached) return cached
   const audio = new Audio(`/audio/words/${wordId}.mp3?v=${__AUDIO_VERSION__}`)
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
-    audio.oncanplaythrough = () => {
-      console.error('TRACE loadWordClip oncanplaythrough', wordId)
-      resolve(audio)
-    }
-    audio.onerror = () => {
-      console.error('TRACE loadWordClip onerror', wordId)
-      resolve(null)
-    }
+    audio.oncanplaythrough = () => resolve(audio)
+    audio.onerror = () => resolve(null)
     audio.load()
   })
-  console.error('TRACE loadWordClip resolved', wordId, result)
   if (result) wordClipCache.set(wordId, result)
   return result
 }
 
 /** Same fallback strategy as playSound, but for whole words (own cache, own TTS text: the literal word). */
 export async function playWord(wordId: string, text: string): Promise<void> {
-  console.error('TRACE playWord start', wordId)
   const clip = await loadWordClip(wordId)
-  console.error('TRACE playWord got clip', wordId, !!clip)
   if (clip) {
     clip.currentTime = 0
     await clip.play().catch(() => speakWord(text))
@@ -118,7 +100,6 @@ export async function playWord(wordId: string, text: string): Promise<void> {
       clip.onended = () => resolve()
     })
   }
-  console.error('TRACE playWord calling speakWord', wordId)
   return speakWord(text)
 }
 
