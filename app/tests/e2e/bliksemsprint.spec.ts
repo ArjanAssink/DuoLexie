@@ -41,38 +41,44 @@ test('a wrong answer resets the streak', async ({ page }) => {
 })
 
 test('the celebration never covers the flash card or the grade buttons', async ({ page }) => {
-  await startRound(page)
-  const goed = page.locator('.btn-primary')
-  for (let i = 0; i < 3; i++) await goed.click()
-  await expect(page.locator('.bs-band')).toBeVisible()
+  // TEMP (see bliksemsprint investigation in git history): this has failed ~50% of the
+  // time in CI, always on [iphone], never [ipad]/[desktop] — consistent with the
+  // component's own comment that its hardcoded fallback geometry can collide on shorter
+  // viewports if its own layout measurement doesn't land before paint. A single run only
+  // has a coin-flip's chance of reproducing it; repeating the round several times (each a
+  // full fresh mount via startRound's page.goto) raises the odds of catching it in one CI
+  // pass instead of gambling across separate pushes. Collapse back to one attempt once
+  // this is root-caused and fixed.
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    await startRound(page)
+    const goed = page.locator('.btn-primary')
+    for (let i = 0; i < 3; i++) await goed.click()
+    await expect(page.locator('.bs-band')).toBeVisible()
 
-  // she is mid-item on a timed drill — obscuring the letter costs her the answer
-  const clear = await page.evaluate(() => {
-    const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect()
-    const hits = (a: DOMRect, b: DOMRect) =>
-      !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)
-    const bsEl = document.querySelector('.bs') as HTMLElement
-    const band = box('.bs-band')
-    return {
-      overCard: hits(band, box('.flash-card')),
-      overButtons: hits(band, box('.grade-buttons')),
-      passesClicks: getComputedStyle(bsEl).pointerEvents,
-      // TEMP diagnostic (see bliksemsprint investigation in git history): confirm whether
-      // Bliksemsprint.tsx's own layout measurement (useLayoutEffect) actually landed before
-      // this read, or whether the fallback values baked into the CSS (which the component's
-      // own comment says can collide on shorter viewports) are what's in effect.
-      measuredTop: bsEl.style.getPropertyValue('--bs-band-top'),
-      measuredH: bsEl.style.getPropertyValue('--bs-band-h'),
-      band,
-      card: box('.flash-card'),
-      viewport: { w: window.innerWidth, h: window.innerHeight },
-    }
-  })
-  console.log('bliksemsprint diagnostic:', JSON.stringify(clear))
+    // she is mid-item on a timed drill — obscuring the letter costs her the answer
+    const clear = await page.evaluate(() => {
+      const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect()
+      const hits = (a: DOMRect, b: DOMRect) =>
+        !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)
+      const bsEl = document.querySelector('.bs') as HTMLElement
+      const band = box('.bs-band')
+      return {
+        overCard: hits(band, box('.flash-card')),
+        overButtons: hits(band, box('.grade-buttons')),
+        passesClicks: getComputedStyle(bsEl).pointerEvents,
+        measuredTop: bsEl.style.getPropertyValue('--bs-band-top'),
+        measuredH: bsEl.style.getPropertyValue('--bs-band-h'),
+        band,
+        card: box('.flash-card'),
+        viewport: { w: window.innerWidth, h: window.innerHeight },
+      }
+    })
+    console.log(`bliksemsprint diagnostic (attempt ${attempt}):`, JSON.stringify(clear))
 
-  expect(clear.overCard, 'celebration overlaps the flash card').toBe(false)
-  expect(clear.overButtons, 'celebration overlaps the grade buttons').toBe(false)
-  expect(clear.passesClicks).toBe('none')
+    expect(clear.overCard, `celebration overlaps the flash card (attempt ${attempt})`).toBe(false)
+    expect(clear.overButtons, `celebration overlaps the grade buttons (attempt ${attempt})`).toBe(false)
+    expect(clear.passesClicks).toBe('none')
+  }
 })
 
 test('the celebration unmounts itself when it finishes', async ({ page }) => {
