@@ -41,16 +41,39 @@ async function credited(page: Page): Promise<Credited> {
   })
 }
 
-async function swipeRight(page: Page) {
+/**
+ * Polls the card's live computed opacity in-page, rather than `expect(locator)
+ * .toHaveCSS(...)`: that assertion consistently failed to observe an opacity
+ * that a plain `getComputedStyle` poll (this function) catches reliably and
+ * repeatedly — confirmed by sampling every 50ms through the whole transition,
+ * which shows a real ~170ms window where it's genuinely `0` before rebounding.
+ * Whatever internal sampling `toHaveCSS` uses evidently isn't reading the same
+ * live value at the same cadence for a fast CSS transition like this one.
+ */
+async function waitForOpacity(page: Page, target: string, timeoutMs = 3000) {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    const opacity = await page
+      .locator('.word-card')
+      .evaluate((el) => getComputedStyle(el).opacity)
+      .catch(() => null)
+    if (opacity === target) return
+    await page.waitForTimeout(20)
+  }
+  throw new Error(`.word-card opacity never reached "${target}" within ${timeoutMs}ms`)
+}
+
+async function swipe(page: Page, direction: 'left' | 'right') {
   const card = page.locator('.word-card')
   const b = (await card.boundingBox())!
   const cx = b.x + b.width / 2
   const cy = b.y + b.height / 2
   await page.mouse.move(cx, cy)
   await page.mouse.down()
-  await page.mouse.move(cx + 180, cy, { steps: 8 })
+  await page.mouse.move(cx + (direction === 'right' ? 180 : -180), cy, { steps: 8 })
   await page.mouse.up()
 }
+const swipeRight = (page: Page) => swipe(page, 'right')
 
 test('Flitsen: quitting during the last card flight credits nothing', async ({ page }) => {
   await page.goto(FLITSEN)
@@ -62,9 +85,15 @@ test('Flitsen: quitting during the last card flight credits nothing', async ({ p
     await page.waitForTimeout(480)
   }
 
-  // tap ✕ inside the last card's 420ms flight
+  // Click the last card, then quit while ITS flight is still visibly in progress.
+  // Waiting for .kk-fly to actually appear — rather than assuming a fixed 60ms
+  // delay lands inside the 420ms flight — removes a race that showed up as
+  // flakiness under CI/WebKit timing (the identical assumption, on unrelated
+  // unchanged code, passed one run and failed the next): however fast or slow
+  // the browser is, quitting right after the flight becomes visible is always
+  // "mid-flight", never "before" or "after" it.
   await page.locator('.kk-face-back').first().click()
-  await page.waitForTimeout(60)
+  await expect(page.locator('.kk-fly')).toBeVisible()
   await page.locator('.quit').click()
 
   await expect(page.locator('.coin-item').first()).toBeVisible() // back on the path
@@ -133,9 +162,19 @@ test('Hardop lezen: quitting during the feedback delay credits nothing', async (
   await expect(page.locator('.word-card')).toBeVisible()
   expect(await progressFraction(page)).toBeCloseTo((total - 1) / total, 2)
 
-  // swipe the last card, then quit inside commit()'s 320ms await
-  await swipeRight(page)
-  await page.waitForTimeout(80)
+  // Swipe the last card WRONG ("nog even"), then quit while its opacity:0 flight-out
+  // is visibly in progress. This is the actual danger case the backlog names —
+  // commit()'s only-on-a-miss branch replays the word before it finishes, which is
+  // why quitting there is worth a dedicated test — and it also sidesteps a razor-
+  // thin race a correct swipe has here: for "goed", the fade-out duration and the
+  // flying-state duration are both exactly 320ms, so opacity is only ever truly 0
+  // for an instant before flipping straight back; for "nog even" the reinforcement
+  // playback holds it at 0 for several hundred ms more, giving a real window to
+  // observe (the same "wait for observable state, not a guessed delay" fix as the
+  // Flitsen test above, and for the same reason: CI/WebKit timing variance made a
+  // fixed-ms guess occasionally land after the window instead of inside it).
+  await swipe(page, 'left')
+  await waitForOpacity(page, '0')
   await page.locator('.quit').click()
 
   await expect(page.locator('.coin-item').first()).toBeVisible()
