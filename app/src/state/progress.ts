@@ -47,9 +47,21 @@ interface ProgressState extends Aggregates {
    * kept as real store fields so reads stay O(1) instead of replaying on every render.
    */
   sessions: SessionResult[]
-  settings: { font: 'standaard' | 'dyslexie' }
+  settings: {
+    font: 'standaard' | 'dyslexie'
+    /**
+     * Swipes she has made *herself* in Hardop lezen — not cards sorted. Tapping a pile and
+     * the desktop arrow keys deliberately do not count, because the whole point of the
+     * counter is to decide when she no longer needs to be taught the swipe, and being
+     * taught it by tapping is not the same as having done it (docs/hardop-lezen-swipe-v2.md
+     * §4.4).
+     */
+    selfSwipes: number
+  }
 
   toggleFont: () => void
+  /** One more swipe she made herself; the teaching layers switch off at SWIPES_TO_LEARN. */
+  noteSelfSwipe: () => void
   /** Deducts gems for a shop purchase; returns false (no-op) if the balance is insufficient. */
   spendGems: (amount: number) => boolean
   completeLesson: (args: {
@@ -66,12 +78,20 @@ export const useProgress = create<ProgressState>()(
     (set, get) => ({
       ...emptyAggregates(),
       sessions: [],
-      settings: { font: 'standaard' },
+      settings: { font: 'standaard', selfSwipes: 0 },
 
+      // Both of these spread the existing settings rather than rebuilding the object: with
+      // more than one key in here, writing a fresh literal silently resets the other.
       toggleFont: () =>
         set((s) => ({
-          settings: { font: s.settings.font === 'standaard' ? 'dyslexie' : 'standaard' },
+          settings: {
+            ...s.settings,
+            font: s.settings.font === 'standaard' ? 'dyslexie' : 'standaard',
+          },
         })),
+
+      noteSelfSwipe: () =>
+        set((s) => ({ settings: { ...s.settings, selfSwipes: s.settings.selfSwipes + 1 } })),
 
       spendGems: (amount) => {
         const s = get()

@@ -4,9 +4,9 @@ import { installNarration } from './fixtures/narration'
 /**
  * HardopLezen's swipe tracked no pointerId: onPointerDown had no "already
  * dragging" guard and onPointerMove/onPointerUp read a single shared
- * `startX`/`dragging` regardless of which pointer fired them. A second finger
- * merely resting on the card (a 9-year-old's palm) overwrote `startX`, and
- * either finger lifting could commit a grade neither gesture intended.
+ * start point and `dragging` regardless of which pointer fired them. A second
+ * finger merely resting on the card (a 9-year-old's palm) overwrote the gesture's
+ * origin, and either finger lifting could commit a grade neither gesture intended.
  *
  * A plain `dispatchEvent(new PointerEvent(...))` can't reproduce this: Chromium
  * validates `setPointerCapture` against its real active-pointer table and
@@ -44,11 +44,11 @@ async function ready(page: Page) {
   return { card, word: await page.locator('.word-text').innerText() }
 }
 
-/** Horizontal translation of the card, in px — the part a drag moves. */
-async function translateX(page: Page): Promise<number> {
+/** Vertical translation of the card, in px — the axis a drag moves it on. */
+async function translateY(page: Page): Promise<number> {
   return page.locator('.word-card').evaluate((el) => {
     const m = new DOMMatrixReadOnly(getComputedStyle(el).transform)
-    return m.m41
+    return m.m42
   })
 }
 
@@ -65,27 +65,28 @@ test('a second finger resting on the card cannot steal the drag', async ({ page,
   await page.goto(LEZEN)
   const { card, word } = await ready(page)
   const box = (await card.boundingBox())!
-  const y = box.y + box.height / 2
-  const thumbX = box.x + box.width * 0.6
-  const fingerX = box.x + box.width * 0.2
+  const x = box.x + box.width / 2
+  const thumbY = box.y + box.height * 0.6
+  const fingerY = box.y + box.height * 0.2
   const cdp = await context.newCDPSession(page)
 
-  await touch(cdp, 'touchStart', [{ id: THUMB_ID, x: thumbX, y }])
+  await touch(cdp, 'touchStart', [{ id: THUMB_ID, x, y: thumbY }])
   await page.waitForTimeout(80)
   // a second finger touches down elsewhere on the card, thumb still resting
   await touch(cdp, 'touchStart', [
-    { id: THUMB_ID, x: thumbX, y },
-    { id: FINGER_ID, x: fingerX, y },
+    { id: THUMB_ID, x, y: thumbY },
+    { id: FINGER_ID, x, y: fingerY },
   ])
   await page.waitForTimeout(80)
-  // the thumb barely twitches — 15px, well under the 90px swipe threshold
+  // The thumb barely twitches — 15px, under the 80px swipe distance and under the 24px a
+  // flick needs before it counts as one, so neither route to a verdict is open.
   await touch(cdp, 'touchMove', [
-    { id: THUMB_ID, x: thumbX + 15, y },
-    { id: FINGER_ID, x: fingerX, y },
+    { id: THUMB_ID, x, y: thumbY + 15 },
+    { id: FINGER_ID, x, y: fingerY },
   ])
   await page.waitForTimeout(80)
   // the second finger lifts
-  await touch(cdp, 'touchEnd', [{ id: THUMB_ID, x: thumbX + 15, y }])
+  await touch(cdp, 'touchEnd', [{ id: THUMB_ID, x, y: thumbY + 15 }])
   await page.waitForTimeout(900)
 
   expect(await graded(page), 'the twitch + unrelated touch must not grade the word').toBe(0)
@@ -96,13 +97,13 @@ test('a genuine single-finger swipe still commits normally', async ({ page, cont
   await page.goto(LEZEN)
   const { card } = await ready(page)
   const box = (await card.boundingBox())!
-  const y = box.y + box.height / 2
-  const startX = box.x + box.width * 0.3
+  const x = box.x + box.width / 2
+  const startY = box.y + box.height * 0.7
   const cdp = await context.newCDPSession(page)
 
-  await touch(cdp, 'touchStart', [{ id: THUMB_ID, x: startX, y }])
+  await touch(cdp, 'touchStart', [{ id: THUMB_ID, x, y: startY }])
   await page.waitForTimeout(60)
-  await touch(cdp, 'touchMove', [{ id: THUMB_ID, x: startX + 200, y }])
+  await touch(cdp, 'touchMove', [{ id: THUMB_ID, x, y: startY - 200 }])
   await page.waitForTimeout(60)
   await touch(cdp, 'touchEnd', [])
 
@@ -113,13 +114,13 @@ test('a cancelled gesture past the swipe threshold resets instead of grading', a
   await page.goto(LEZEN)
   const { card, word } = await ready(page)
   const box = (await card.boundingBox())!
-  const y = box.y + box.height / 2
-  const startX = box.x + box.width * 0.3
+  const x = box.x + box.width / 2
+  const startY = box.y + box.height * 0.7
   const cdp = await context.newCDPSession(page)
 
-  await touch(cdp, 'touchStart', [{ id: THUMB_ID, x: startX, y }])
+  await touch(cdp, 'touchStart', [{ id: THUMB_ID, x, y: startY }])
   await page.waitForTimeout(60)
-  await touch(cdp, 'touchMove', [{ id: THUMB_ID, x: startX + 200, y }]) // past the threshold
+  await touch(cdp, 'touchMove', [{ id: THUMB_ID, x, y: startY - 200 }]) // past the threshold
   await page.waitForTimeout(60)
   // the browser cancels the gesture (edge back-swipe, scroll takeover, an incoming call)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] })
@@ -127,8 +128,9 @@ test('a cancelled gesture past the swipe threshold resets instead of grading', a
 
   expect(await graded(page), 'a cancelled gesture must not grade the word').toBe(0)
   expect(await page.locator('.word-text').innerText()).toBe(word)
-  // the drag is reset, not left holding the card 200px off-centre. Checked as a tolerance
+  // The drag is reset, not left holding the card 200px off-centre. Checked as a tolerance
   // rather than an exact identity matrix: an ungrabbed card in this phase runs a slow ±3px
-  // vertical idle drift, so its transform is legitimately never exactly identity.
-  expect(Math.abs(await translateX(page))).toBeLessThan(5)
+  // idle drift — now on the same axis the drag uses, which is why this reads it at rest,
+  // after the 900ms above, rather than straight off the cancel.
+  expect(Math.abs(await translateY(page))).toBeLessThan(5)
 })

@@ -9,7 +9,7 @@ It is written to be implemented by a fresh session that has not seen the convers
 it. Everything needed is here or in the files it names. Where it says *must*, that is an
 acceptance criterion; where it says *suggested*, use judgement.
 
-**Status:** specified, not built.
+**Status:** **built.** Deviations from this spec found while building are marked *(as built)* in the sections they belong to.
 
 ---
 
@@ -69,7 +69,12 @@ Everything stays inside the existing `.game-screen.hardop-screen` / `.game-heade
 - **`.swipe-arena` / `.word-card`** — unchanged size and position. The stamps become
   vertical: `GOED!` centred *above* the card text, `NOG EVEN` centred *below* it, both inside
   the card (so they move with it), faded in by drag progress exactly as the side stamps are
-  today.
+  today. *(As built: the stamps sit hard against the card's top and bottom edges rather than
+  tucked in beside the word, and they are a size smaller. The card is only ~195px tall on an
+  iPhone with the word filling the middle of it — a position that clears both the word and
+  the audio badge does not exist. Covering the word she is judging is the worse of the two
+  collisions, so the badge, which paints above them, clips a corner of `GOED!` when the two
+  meet.)*
 - **`.tray`** — the existing `.pile.pile-nog-even` button, moved below the arena, widened to
   the card's width (`width: min(80vw, 340px)`), lower than it is tall (suggested height 64px +
   label). It keeps its mini-card stack and count badge.
@@ -83,7 +88,10 @@ Everything stays inside the existing `.game-screen.hardop-screen` / `.game-heade
   - `judging` / `flying`: the badge widens into a pill with visible text **"🔊 Nog eens"**
     (min-height 44px). It replays the word (existing `replay()`).
   - The badge **must stop pointer events from starting a drag**: `onPointerDown={(e) =>
-    e.stopPropagation()}` on the badge, since it sits inside the draggable card.
+    e.stopPropagation()}` on the badge, since it sits inside the draggable card. *(As built:
+    it calls `resumeAudio()` first. The screen-level `onPointerDown={resumeAudio}` is what
+    unlocks WebAudio on iOS, and stopping propagation here would otherwise mean the one
+    control whose whole job is to make a sound never unlocks the audio to make it with.)*
 - **iPhone 13 (390×664) must fit without scrolling.** Suggested vertical budget: header 76,
   top row 100, arena 195, tray 84, three gaps of 12–16. Verify with a real screenshot, not
   arithmetic (see §8).
@@ -91,6 +99,16 @@ Everything stays inside the existing `.game-screen.hardop-screen` / `.game-heade
 Bliksemsprint's band finder already matches `.swipe-arena` explicitly
 (`components/Bliksemsprint.tsx`); confirm it still measures the arena after the row above it
 changes, and that the band never covers the pocket or the card.
+
+*(As built: it does not still measure the arena, because measuring the arena is what would
+cover the pocket — the band would run from the header all the way down to the card, with the
+whole `.top-row` inside it, and the "3 op een rij!" badge landing on the coach bubble. The
+selector list gained `.top-row`, which wins on this screen by document order, so the band and
+its badge now sit in the empty gap above that row. The band's 72px floor can still reach a
+few px into the row on a short phone, so `.top-row` also paints above the overlay
+(`z-index: 31` against `.bs`'s 30) — a paint order only; `.bs` is `pointer-events: none`.
+Measured on both devices: iPhone 13 band 80–152 against a pocket at 137–220 and an arena at
+267; iPad Pro 11 band 267–361, pocket 377–466, arena 528.)*
 
 ---
 
@@ -135,7 +153,10 @@ single sample → null.
 ### 3.2 In the component
 
 - State: `dragY` (replaces `dragX`); keep a `samples` ref (`SwipeSample[]`, push on every
-  pointermove, reset on pointerdown; cap at ~20).
+  pointermove, reset on pointerdown; cap at ~20). *(As built: the cap evicts the **second**
+  sample, not the first. `resolveSwipe` measures total distance from sample zero, so dropping
+  the origin would make a long, slow, deliberate drag read as a short one and spring back.
+  The tail, which is all the flick velocity needs, is what the cap is really bounding.)*
 - `onPointerUp`: `const verdict = resolveSwipe(samples.current)`; if non-null →
   `commit(verdict, 'swipe')`; else spring back (`setDragY(0)`).
 - Keep **everything** that exists for pointer robustness: `activePointerId`,
@@ -223,6 +244,15 @@ timers. `tests/e2e/quit-mid-animation.spec.ts` freezes the page's timers with
 reached 0 — CSS animations keep running under the fake clock, JS timers do not. `DEMO_MS`
 must be added to that spec's `HARDOP_COMMIT_MAX_MS` sum (§7).
 
+*(As built, and this is the load-bearing detail: the demonstration and the flight are **one
+CSS animation list** on the card — `demoSwipeUp 950ms, cardFlyUp 420ms 950ms forwards` — set
+up in a single render the moment the tap commits. Sequencing them from JS (wait, then apply
+the flight class) would have put a JS timer between the two halves, and the card's opacity
+would never have reached 0 under the frozen clock. The `await wait(DEMO_MS)` is still there,
+but all it times is *state*: when Frida stops teaching and starts reacting, and when the card
+lands on the pile. Verified in both directions: with `cancelled.current = true` stripped from
+the game the quit test fails on sessions 0→1, and passes with it restored.)*
+
 ### 4.4 When she has learned it
 
 Persist a count of **swipes she made herself**, not cards sorted: taps and keys must not
@@ -235,7 +265,12 @@ count, or the teaching switches off before she has ever swiped.
 - `const SWIPES_TO_LEARN = 5` in the component. `learned = selfSwipes >= SWIPES_TO_LEARN`,
   read once at mount via `useProgress.getState()` like the existing `showHint`, *and* updated
   live within the round (so the fifth swipe of her first round already switches the hints
-  off for the sixth card).
+  off for the sixth card). *(As built: subscribed, not read once at mount. Reading once is
+  wrong in a way `showHint` got away with and this does not — the store rehydrates from
+  IndexedDB asynchronously, so a deep link straight into a lesson can mount the game before
+  her saved count arrives, and a child who learned the gesture last week would be taught it
+  again. Subscribing covers that and the within-round case in one, since `noteSelfSwipe()`
+  writes to the store the component is watching.)*
 - `commit(pile, 'swipe')` calls `noteSelfSwipe()`. `'tap'` and `'key'` do not.
 - Remove the old `HINT_UNTIL_SORTED` / `showHint` (which counted all cards ever sorted, taps
   included) — this replaces it.
@@ -256,6 +291,14 @@ Under `prefers-reduced-motion: reduce` (the existing `@media` block in `theme.cs
 game): no ghost swipe (§4.1), no drifting chevrons (show them static), no touch-dot travel in
 the taught tap (the card fades into the pile as today, `cardFade`), no grow/shrink during
 drag. Sounds unaffected.
+
+*(As built: the taught tap is skipped outright rather than having its motion stripped — the
+component reads `prefers-reduced-motion` once at mount and a tap simply takes the quick path,
+which is the end state this section describes and avoids holding the screen for 950ms of
+deliberately invisible demonstration. Same for the ghost swipe, which is never scheduled. The
+grow/shrink during a drag is an inline style, so it too is a JS branch rather than a CSS
+override. Measured under emulated reduced motion: chevrons present with `animation-name:
+none`, no `.touch-dot` ever mounted, tap to landing 892ms.)*
 
 ---
 
@@ -279,6 +322,12 @@ Run everything from `app/`. Unit: `npm test`. E2E: `npx playwright test --projec
 - `hardop-lezen.spec.ts`: "swiping the card sorts it" → drag **up** 200px, assert
   `.swipe-stamp-goed` (rename from `-right`) fades in at 60px, lands on `.pile-goed`; "a short
   drag springs back" → 40px up; "arrow keys" → `ArrowDown` lands on `.pile-nog-even`.
+  *(As built: the short drag has to be **slow** as well as short, and the test now pauses
+  80ms between its four 10px steps. `page.mouse.move()` fires its steps back to back, so 40px
+  in a couple of milliseconds is a flick by any measure and `resolveSwipe` commits it —
+  rightly, that is what FLICK_MIN_PX is for. The hesitation is the thing the test is about,
+  so the test now performs one. A "a sideways drag never lands on a pile" case was added
+  alongside it to cover the axis lock end to end.)*
 - `reading-window.spec.ts` "dragging during reading cannot grade" → drag up.
 - `pointer-isolation.spec.ts`: thumb/finger offsets become vertical (`y ± 15`, `y − 200`);
   `translateX()` helper → `translateY()` reading `m.m42`; tolerance stays < 5px (the idle
@@ -290,6 +339,16 @@ Run everything from `app/`. Unit: `npm test`. E2E: `npx playwright test --projec
   `cancelled.current = true` from the game, the test must fail (sessions 0→1); restore it,
   the test must pass. That check has caught a toothless version of this test once already.
 - Every spec: `.pile-row` no longer exists; `.reveal-btn` does (on the card).
+
+*(As built, one more thing this section did not anticipate: a fresh Playwright context is a
+profile that has never swiped, so **every tap in every round test takes the demonstration** —
+about ten seconds per ten-card test, to be taught something those tests are not about. The
+first CI run on this branch went from main's 80 tests in 5.0 minutes to 89 in 8.9, with two
+per-step timeouts on the ipad's heaviest rounds. `tests/e2e/fixtures/profile.ts` seeds an
+already-learned profile for the four tests about words, counts, gems and crediting, which
+puts them back at their pre-change times. `quit-mid-animation.spec.ts`'s quit test
+deliberately does **not** get it: the taught tap is the longest the commit chain ever gets,
+which is exactly what that test needs to be pointed at.)*
 
 **Selectors that must keep existing**, because the specs and the Bliksemsprint band finder
 use them: `.hardop-screen[data-phase]`, `.word-card`, `.word-text`, `.swipe-arena`,
@@ -309,6 +368,11 @@ Do all of these before pushing, in this order, and say in the commit which you r
    **delete it before committing**. Expect exactly one failure that is not yours:
    `path-to-lesson.spec.ts` asserts a clean console and this sandbox blocks
    fonts.googleapis.com; it fails identically on untouched `main`.
+   *(As built: neither applied this time. The pinned Playwright resolved its own Chromium at
+   the standard `~/.cache/ms-playwright` path, so no throwaway launch config was needed, and
+   `path-to-lesson.spec.ts` passed — fonts.googleapis.com was reachable. A baseline run on
+   untouched `main` before any of this work was **30/30 green**, so every failure seen during
+   this change was genuinely mine.)*
 3. **Screenshots on iPhone 13 and iPad Pro 11** (Playwright `devices`, Chromium is fine for
    layout) of `/#/les/proef-hardop-lezen` in `reading`, `judging` with chevrons, mid-drag
    up, mid-drag down, the taught tap mid-demo, and the landing. Measure with
