@@ -265,7 +265,12 @@ count, or the teaching switches off before she has ever swiped.
 - `const SWIPES_TO_LEARN = 5` in the component. `learned = selfSwipes >= SWIPES_TO_LEARN`,
   read once at mount via `useProgress.getState()` like the existing `showHint`, *and* updated
   live within the round (so the fifth swipe of her first round already switches the hints
-  off for the sixth card).
+  off for the sixth card). *(As built: subscribed, not read once at mount. Reading once is
+  wrong in a way `showHint` got away with and this does not — the store rehydrates from
+  IndexedDB asynchronously, so a deep link straight into a lesson can mount the game before
+  her saved count arrives, and a child who learned the gesture last week would be taught it
+  again. Subscribing covers that and the within-round case in one, since `noteSelfSwipe()`
+  writes to the store the component is watching.)*
 - `commit(pile, 'swipe')` calls `noteSelfSwipe()`. `'tap'` and `'key'` do not.
 - Remove the old `HINT_UNTIL_SORTED` / `showHint` (which counted all cards ever sorted, taps
   included) — this replaces it.
@@ -334,6 +339,16 @@ Run everything from `app/`. Unit: `npm test`. E2E: `npx playwright test --projec
   `cancelled.current = true` from the game, the test must fail (sessions 0→1); restore it,
   the test must pass. That check has caught a toothless version of this test once already.
 - Every spec: `.pile-row` no longer exists; `.reveal-btn` does (on the card).
+
+*(As built, one more thing this section did not anticipate: a fresh Playwright context is a
+profile that has never swiped, so **every tap in every round test takes the demonstration** —
+about ten seconds per ten-card test, to be taught something those tests are not about. The
+first CI run on this branch went from main's 80 tests in 5.0 minutes to 89 in 8.9, with two
+per-step timeouts on the ipad's heaviest rounds. `tests/e2e/fixtures/profile.ts` seeds an
+already-learned profile for the four tests about words, counts, gems and crediting, which
+puts them back at their pre-change times. `quit-mid-animation.spec.ts`'s quit test
+deliberately does **not** get it: the taught tap is the longest the commit chain ever gets,
+which is exactly what that test needs to be pointed at.)*
 
 **Selectors that must keep existing**, because the specs and the Bliksemsprint band finder
 use them: `.hardop-screen[data-phase]`, `.word-card`, `.word-text`, `.swipe-arena`,
