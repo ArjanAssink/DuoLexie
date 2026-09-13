@@ -69,13 +69,22 @@ export function toAudioClock(cues, pauses = [], offsetMs = 0) {
  * Which of the take's first bursts are the lead-in countdown (§4.3).
  *
  * Deliberately shape-based rather than a search for a known frequency: what identifies the
- * countdown is that it is four short things, evenly spaced a second apart, the last of which
- * is higher than the three before it. Nothing a human does in front of a microphone looks
- * like that, and a take whose beeps were generated at some other pitch — an older cue sheet,
- * a different browser's oscillator — still matches.
+ * countdown is that it is short things, evenly spaced a second apart, the last of which is
+ * higher than the ones before it. Nothing a human does in front of a microphone looks like
+ * that, and a take whose beeps were generated at some other pitch — an older cue sheet, a
+ * different browser's oscillator — still matches.
  *
- * A run is searched for rather than assumed at index 0, because the very start of a take is
- * where a stray click (the mouse that pressed "start", a chair) is most likely to be.
+ * Two allowances, both of them things a recorded take actually does. A run is searched for
+ * rather than assumed at index 0, because the start of a take is where a stray click (the
+ * mouse that pressed start, a chair) is most likely to be. And the *first* beep is treated as
+ * unreliable: `MediaRecorder.start()` frequently returns partway through it, so it arrives
+ * clipped, smeared by the encoder warming up, and at a pitch that measures nothing like the
+ * tone it was — 552Hz for an 880Hz beep, in the take this was tuned against. So a run of
+ * three is accepted as well as four, and the pitches are judged against their median with a
+ * majority rather than requiring all of them to agree.
+ *
+ * What is never relaxed is the last beep standing clear of the rest. That is what says which
+ * beep was the *last* one, and its end is the millisecond the whole alignment hangs on.
  *
  * @param {{ startMs: number, endMs: number, hz: number | null }[]} candidates first few bursts
  * @param {{ spacingMs?: number, toleranceMs?: number, maxDurationMs?: number, pitchRatio?: number }} [options]
@@ -87,22 +96,28 @@ export function chooseBeepRun(candidates, options = {}) {
   const maxDurationMs = options.maxDurationMs ?? 350
   const pitchRatio = options.pitchRatio ?? 1.15
 
-  for (let first = 0; first + 4 <= candidates.length; first++) {
-    const run = candidates.slice(first, first + 4)
-    if (run.some((b) => b.endMs - b.startMs > maxDurationMs)) continue
-    const spacingOk = [1, 2, 3].every((i) =>
-      Math.abs(run[i].startMs - run[i - 1].startMs - spacingMs) <= toleranceMs)
-    if (!spacingOk) continue
-    const [a, b, c, zero] = run.map((x) => x.hz)
-    if (a && b && c && zero) {
-      const counts = (a + b + c) / 3
-      // the three counts should agree with each other, and the zero beep should stand clear
-      // of them — that last one is what says the countdown ended here rather than a second
-      // earlier, which is the whole millisecond this is being measured for
-      if (Math.max(a, b, c) / Math.min(a, b, c) > 1.15) continue
-      if (zero / counts < pitchRatio) continue
+  const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]
+
+  const looksLikeCountdown = (run) => {
+    if (run.some((b) => b.endMs - b.startMs > maxDurationMs)) return false
+    for (let i = 1; i < run.length; i++) {
+      if (Math.abs(run[i].startMs - run[i - 1].startMs - spacingMs) > toleranceMs) return false
     }
-    return { first, beeps: run, endMs: run[3].endMs }
+    const counts = run.slice(0, -1).map((b) => b.hz).filter((hz) => hz)
+    const zero = run[run.length - 1].hz
+    if (!zero || counts.length === 0) return true // no pitch to go on: shape alone will do
+    const mid = median(counts)
+    const agreeing = counts.filter((hz) => Math.max(hz, mid) / Math.min(hz, mid) <= 1.2).length
+    return agreeing >= Math.ceil(counts.length / 2) && zero / mid >= pitchRatio
+  }
+
+  // four beeps is the whole countdown; three is the same countdown with its first beep lost
+  // to the recorder starting up, and the zero beep — the one that matters — is still there
+  for (const length of [4, 3]) {
+    for (let first = 0; first + length <= candidates.length; first++) {
+      const run = candidates.slice(first, first + length)
+      if (looksLikeCountdown(run)) return { first, beeps: run, endMs: run[length - 1].endMs }
+    }
   }
   return null
 }

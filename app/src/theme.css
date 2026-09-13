@@ -1202,6 +1202,68 @@ button:disabled { cursor: default; }
 .studio-starter { font-size: 14px; font-weight: 700; color: var(--text); cursor: pointer; }
 .studio-cell-id { font-weight: 800; font-size: 18px; }
 .studio-cell-status { font-size: 13px; }
+.studio-error { color: var(--red-orange, #c0392b); font-weight: 700; }
+.studio-hint { color: var(--muted); font-size: 14px; max-width: 62ch; }
+.studio-retake { font-size: 15px; }
+.studio-link { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.studio-next pre {
+  background: var(--locked, #eee); padding: 10px 12px; border-radius: 8px;
+  overflow-x: auto; font-size: 14px;
+}
+/* peak meter: the two ways to lose a three-minute take are silent and clipped, and both
+   show up here in two seconds — hence the hard red above -3 dBFS */
+.studio-meter {
+  display: flex; align-items: center; gap: 10px;
+  height: 18px; margin: 8px 0 14px;
+}
+.studio-meter i {
+  display: block; height: 100%; min-width: 2px; border-radius: 9px;
+  background: linear-gradient(90deg, #4caf50, #ffc107 75%, #e53935);
+  transition: width 60ms linear;
+}
+.studio-meter b { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+.studio-meter i.studio-meter-hot { background: #e53935; }
+
+/* ---------- teleprompter ---------- */
+/* Nothing here is interactive during a take and nothing needs to be: every click lands on the
+   same desk as the microphone. One word, a bar that drains, and a position. */
+.tp { text-align: center; padding: 40px 20px; }
+.tp-progress { font-size: 15px; font-weight: 700; color: var(--muted); }
+.tp-pending { color: #e53935; }
+.tp .big-sound { font-size: min(22vw, 140px); margin: 24px 0 12px; }
+.tp-count { color: var(--muted); }
+.tp-paused { color: var(--muted); font-size: min(10vw, 56px) !important; }
+.tp-word-flagged { color: #e53935; }
+.tp-bar { height: 8px; background: var(--hairline); border-radius: 4px; overflow: hidden; max-width: 480px; margin: 0 auto; }
+.tp-bar i { display: block; height: 100%; background: #E83E5A; transform-origin: left; animation: tp-drain linear forwards; }
+@keyframes tp-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .tp-bar i { animation: none; transform: scaleX(1); }
+}
+.tp-keys { color: var(--muted); font-size: 14px; margin-top: 28px; }
+.tp-stop { background: none; border: 0; font: inherit; color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+/* ---------- take review ---------- */
+.review { margin-top: 18px; }
+.review-warning { color: var(--red-orange, #c0392b); font-weight: 700; }
+.review-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.review-actions .btn-primary { font-size: 16px; padding: 8px 16px; }
+.review-list { list-style: none; padding: 0; margin: 12px 0; }
+.review-row {
+  display: grid; align-items: center; gap: 10px;
+  grid-template-columns: auto auto 6em 9em 6em 5em 1fr;
+  padding: 6px 8px; border-bottom: 1px solid var(--hairline);
+  font-variant-numeric: tabular-nums;
+}
+.review-row-flagged { background: #fff4f4; }
+.review-play { background: none; border: 0; font-size: 18px; cursor: pointer; }
+.review-id { font-weight: 800; }
+.review-status, .review-dur, .review-peak, .review-heard { font-size: 13px; color: var(--muted); }
+.review-row-flagged .review-status { color: #c0392b; font-weight: 700; }
+@media (max-width: 640px) {
+  .review-row { grid-template-columns: auto auto 1fr; }
+  .review-dur, .review-peak, .review-heard { display: none; }
+}
 
 /* ---------- Bliksemsprint: 3-op-een-rij celebration ---------- */
 /* Prototype + tunable dials: art/avatar animation/frida-lightning-dash.html

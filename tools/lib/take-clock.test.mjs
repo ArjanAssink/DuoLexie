@@ -120,9 +120,39 @@ test('beeps whose pitch could not be estimated still match on shape alone', () =
   assert.equal(chooseBeepRun(run).endMs, 3120)
 })
 
-test('fewer than four bursts is never a countdown', () => {
+test('three counts with no higher one at the end are not a countdown', () => {
   assert.equal(chooseBeepRun(countdown().slice(0, 3)), null)
   assert.equal(chooseBeepRun([]), null)
+  assert.equal(chooseBeepRun(countdown().slice(0, 2)), null)
+})
+
+test('the first beep may be clipped and mismeasured, as the recorder starting up makes it', () => {
+  // measured from a take recorded through the studio: MediaRecorder.start() returned partway
+  // through beep one, so it arrived 186ms long and reading 552Hz for an 880Hz tone
+  const run = [
+    { startMs: 0, endMs: 186, hz: 552 },
+    { startMs: 1067, endMs: 1186, hz: 859 },
+    { startMs: 2067, endMs: 2186, hz: 859 },
+    { startMs: 3067, endMs: 3187, hz: 1293 },
+  ]
+
+  const found = chooseBeepRun(run)
+
+  assert.equal(found.first, 0)
+  assert.equal(found.endMs, 3187)
+})
+
+test('a first beep lost entirely still leaves a findable countdown', () => {
+  const run = countdown().slice(1)
+  const found = chooseBeepRun(run)
+
+  assert.equal(found.beeps.length, 3)
+  assert.equal(found.endMs, 3120)
+})
+
+test('the zero beep is still required to stand clear, however lenient the rest is', () => {
+  const flat = countdown().map((b, i) => ({ ...b, hz: i === 0 ? 552 : 880 }))
+  assert.equal(chooseBeepRun(flat), null)
 })
 
 test('the countdown spacing follows the lead-in, so a 4s lead-in still matches', () => {
