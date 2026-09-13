@@ -13,7 +13,7 @@ jobs:
   test:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    name: E2E Tests (desktop/ipad/iphone)
+    name: Tests (unit, tools, e2e on desktop/ipad/iphone)
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v4
@@ -24,6 +24,15 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: npm ci
+      - name: Run unit tests
+        working-directory: app
+        run: npm test
+      # tools/ is plain node with no package of its own. The end-to-end split test generates
+      # a take with ffmpeg and cuts it up again; the runner has ffmpeg, the Claude sandbox may
+      # not, and that test skips rather than fails where it is missing — so this job is where
+      # it actually runs.
+      - name: Run tool tests
+        run: node --test tools/
       - name: Install Playwright browsers
         working-directory: app
         run: npx playwright install --with-deps
