@@ -118,7 +118,7 @@ test('a round she gets entirely wrong still pays for finishing', async ({ page }
   await expect(page.locator('.reward-screen h1')).not.toContainText('Perfect')
 })
 
-test('swiping the card sorts it, the same as tapping a pile', async ({ page }) => {
+test('swiping the card up sorts it, the same as tapping a pile', async ({ page }) => {
   await page.goto(PROEFRONDE)
   await waitForPhase(page, 'reading')
   await page.locator('.reveal-btn').click()
@@ -126,23 +126,24 @@ test('swiping the card sorts it, the same as tapping a pile', async ({ page }) =
 
   const card = page.locator('.word-card')
   const b = (await card.boundingBox())!
+  const cx = b.x + b.width / 2
   const cy = b.y + b.height / 2
-  await page.mouse.move(b.x + b.width / 2, cy)
+  await page.mouse.move(cx, cy)
   await page.mouse.down()
-  // far enough for the stamp to show, still short of the 90px commit threshold
-  await page.mouse.move(b.x + b.width / 2 + 60, cy, { steps: 4 })
+  // far enough for the stamp to show, still short of the 80px commit threshold
+  await page.mouse.move(cx, cy - 60, { steps: 4 })
   expect(
-    Number(await page.locator('.swipe-stamp-right').evaluate((el) => getComputedStyle(el).opacity)),
+    Number(await page.locator('.swipe-stamp-goed').evaluate((el) => getComputedStyle(el).opacity)),
     'the GOED! stamp fades in as she drags toward it',
   ).toBeGreaterThan(0.4)
-  await page.mouse.move(b.x + b.width / 2 + 200, cy, { steps: 6 })
+  await page.mouse.move(cx, cy - 200, { steps: 6 })
   await page.mouse.up()
 
   await expect.poll(() => pileCount(page, 'goed'), { timeout: 4000 }).toBe(1)
   expect(await pileCount(page, 'nogEven')).toBe(0)
 })
 
-test('a short drag springs back instead of grading', async ({ page }) => {
+test('a short, hesitant drag springs back instead of grading', async ({ page }) => {
   await page.goto(PROEFRONDE)
   await waitForPhase(page, 'reading')
   await page.locator('.reveal-btn').click()
@@ -150,15 +151,45 @@ test('a short drag springs back instead of grading', async ({ page }) => {
 
   const card = page.locator('.word-card')
   const b = (await card.boundingBox())!
+  const cx = b.x + b.width / 2
   const cy = b.y + b.height / 2
-  await page.mouse.move(b.x + b.width / 2, cy)
+  await page.mouse.move(cx, cy)
   await page.mouse.down()
-  await page.mouse.move(b.x + b.width / 2 + 40, cy, { steps: 4 }) // under the 90px threshold
+  // Under the 80px threshold *and* slow, which takes both routes to a verdict away. The
+  // pauses are the point: page.mouse.move() fires its steps back to back, and 40px covered
+  // in a couple of milliseconds is a flick by any measure — games/swipe.ts would commit it,
+  // rightly. A finger that moves 40px over a third of a second is the hesitation this test
+  // is actually about.
+  for (let i = 1; i <= 4; i++) {
+    await page.mouse.move(cx, cy - i * 10)
+    await page.waitForTimeout(80)
+  }
   await page.mouse.up()
 
   await page.waitForTimeout(600)
   expect(await pileCount(page, 'goed')).toBe(0)
   expect(await pileCount(page, 'nogEven')).toBe(0)
+  expect(await page.locator('.pip-done').count()).toBe(0)
+})
+
+test('a sideways drag never lands on a pile, however far it goes', async ({ page }) => {
+  await page.goto(PROEFRONDE)
+  await waitForPhase(page, 'reading')
+  await page.locator('.reveal-btn').click()
+  await waitForPhase(page, 'judging', 6000)
+
+  const card = page.locator('.word-card')
+  const b = (await card.boundingBox())!
+  const cx = b.x + b.width / 2
+  const cy = b.y + b.height / 2
+  await page.mouse.move(cx, cy)
+  await page.mouse.down()
+  // a sloppy diagonal, mostly sideways: it must spring back rather than be rounded onto
+  // whichever pile happens to be nearer
+  await page.mouse.move(cx + 240, cy - 120, { steps: 8 })
+  await page.mouse.up()
+
+  await page.waitForTimeout(600)
   expect(await page.locator('.pip-done').count()).toBe(0)
 })
 
@@ -168,6 +199,80 @@ test('the arrow keys sort a card, for building and reviewing on a desktop', asyn
   await page.locator('.reveal-btn').click()
   await waitForPhase(page, 'judging', 6000)
 
-  await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('ArrowDown')
   await expect.poll(() => pileCount(page, 'nogEven'), { timeout: 4000 }).toBe(1)
+})
+
+/**
+ * The teaching layers (docs/hardop-lezen-swipe-v2.md §4). A fresh Playwright context is a
+ * fresh profile, so `settings.selfSwipes` starts at 0 in every one of these and she counts
+ * as still learning the gesture.
+ */
+
+/** Card translation in px — negative is up, towards the Goed! pocket. */
+function translateY(page: Page): Promise<number> {
+  return page.locator('.word-card').evaluate((el) => {
+    const m = new DOMMatrixReadOnly(getComputedStyle(el).transform)
+    return m.m42
+  })
+}
+
+test('tapping a pile performs the swipe before the card lands, in both directions', async ({
+  page,
+}) => {
+  await page.goto(PROEFRONDE)
+  await waitForPhase(page, 'reading')
+  await page.locator('.reveal-btn').click()
+  await waitForPhase(page, 'judging', 6000)
+
+  // up: the card travels towards the pocket with a finger-shaped dot on it
+  await page.locator('.pile-goed').click()
+  await expect(page.locator('.touch-dot')).toBeVisible()
+  await expect.poll(() => translateY(page), { timeout: 2000 }).toBeLessThan(-20)
+  await expect.poll(() => pileCount(page, 'goed'), { timeout: 5000 }).toBe(1)
+
+  // down: the same, the other way, onto the tray
+  await waitForPhase(page, 'reading', 10_000)
+  await page.locator('.reveal-btn').click()
+  await waitForPhase(page, 'judging', 6000)
+  await page.locator('.pile-nog-even').click()
+  await expect(page.locator('.touch-dot')).toBeVisible()
+  await expect.poll(() => translateY(page), { timeout: 2000 }).toBeGreaterThan(20)
+  await expect.poll(() => pileCount(page, 'nogEven'), { timeout: 8000 }).toBe(1)
+})
+
+test('five swipes she makes herself switch the teaching off', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto(PROEFRONDE)
+
+  for (let i = 0; i < 5; i++) {
+    await waitForPhase(page, 'reading', 12_000)
+    await page.locator('.reveal-btn').click()
+    await waitForPhase(page, 'judging', 6000)
+    const b = (await page.locator('.word-card').boundingBox())!
+    const cx = b.x + b.width / 2
+    const cy = b.y + b.height / 2
+    await page.mouse.move(cx, cy)
+    await page.mouse.down()
+    await page.mouse.move(cx, cy - 200, { steps: 6 })
+    await page.mouse.up()
+    await expect.poll(() => page.locator('.pip-done').count(), { timeout: 6000 }).toBe(i + 1)
+  }
+
+  // The sixth card: she has swiped five, so nothing is trying to teach her any more.
+  await waitForPhase(page, 'reading', 12_000)
+  await page.locator('.reveal-btn').click()
+  await waitForPhase(page, 'judging', 6000)
+  expect(
+    await page.locator('.chevrons.pointing').count(),
+    'the chevrons stop once she knows which way the card goes',
+  ).toBe(0)
+
+  const tapped = Date.now()
+  await page.locator('.pile-goed').click()
+  expect(await page.locator('.touch-dot').count(), 'no demonstration on a taught tap').toBe(0)
+  await expect.poll(() => pileCount(page, 'goed'), { timeout: 5000 }).toBe(6)
+  expect(Date.now() - tapped, 'a tap is the quick flight again, not the ~1.4s lesson').toBeLessThan(
+    1800,
+  )
 })

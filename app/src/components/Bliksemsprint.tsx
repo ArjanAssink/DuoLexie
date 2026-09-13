@@ -56,12 +56,17 @@ export function Bliksemsprint({ onDone }: Props) {
 
       const screenTop = screen.getBoundingClientRect().top
       const top = header.getBoundingClientRect().bottom - screenTop + 4
-      // .swipe-arena is named explicitly: Hardop lezen puts a coach row above the card, so
-      // "second child of the stage" is the arena there only by luck of ordering, and one
-      // layout tweak would silently point this at the wrong element. querySelector returns
-      // the first match in *document order* for a comma list, and no screen contains more
-      // than one of these, so listing both is safe.
-      const card = screen.querySelector('.flash-card, .swipe-arena, .game-stage > *:nth-child(2)')
+      // Named explicitly rather than positionally: "second child of the stage" was only ever
+      // the right element by luck of ordering, and one layout tweak would silently point
+      // this at the wrong thing. querySelector returns the first match in *document order*
+      // for a comma list, so .top-row wins on the Hardop lezen screen — which is what we
+      // want, because the thing the band has to stay clear of there is no longer the card
+      // alone. The Goed! pocket now sits in that row, and it is both a tap target and where
+      // the card she just earned is landing: a three-in-a-row streak fires at the exact
+      // moment a card is flying into it.
+      const card = screen.querySelector(
+        '.flash-card, .top-row, .swipe-arena, .game-stage > *:nth-child(2)',
+      )
       // -16, not -4: confirmed in CI the card's own position varies by several px between
       // rounds even after the font-swap re-measure below (different klank glyphs, the
       // streak-counter text's width, ...) — more sources of small real-world variance than
