@@ -23,21 +23,34 @@ const VERSION = 3
  * Writing the blob straight into IndexedDB is enough because the store subscribes to
  * `settings.selfSwipes` rather than reading it once at mount — if rehydration lands after
  * the game has mounted, the teaching still switches itself off.
+ *
+ * The write merges into whatever is already stored rather than replacing it. This runs on
+ * *every* navigation, and a test that also calls skipOnboarding (fixtures/onboarded.ts) has
+ * an onboarding flag sitting in that same blob — a blind put would drop it on the next
+ * `goto` and bounce the test to the welkom-flow.
  */
 export async function installLearnedSwipe(page: Page): Promise<void> {
   await page.addInitScript(
     ({ dbName, store, key, version }) => {
-      const blob = JSON.stringify({
-        state: { settings: { font: 'standaard', selfSwipes: 5 } },
-        version,
-      })
       // Opened at version 1 with the same object store zustand's storage creates, so the
       // app's own openDB() finds the database already in the shape it expects.
       const req = indexedDB.open(dbName, 1)
       req.onupgradeneeded = () => req.result.createObjectStore(store)
       req.onsuccess = () => {
-        const db = req.result
-        db.transaction(store, 'readwrite').objectStore(store).put(blob, key)
+        const objectStore = req.result.transaction(store, 'readwrite').objectStore(store)
+        const read = objectStore.get(key)
+        read.onsuccess = () => {
+          const existing = typeof read.result === 'string' ? JSON.parse(read.result) : null
+          const blob = {
+            ...existing,
+            state: {
+              ...existing?.state,
+              settings: { font: 'standaard', ...existing?.state?.settings, selfSwipes: 5 },
+            },
+            version,
+          }
+          objectStore.put(JSON.stringify(blob), key)
+        }
       }
     },
     { dbName: DB_NAME, store: STORE, key: KEY, version: VERSION },

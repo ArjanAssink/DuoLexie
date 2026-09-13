@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test'
+import { skipOnboarding } from './fixtures/onboarded'
 
 test('the leerpad draws a connecting road behind the lesson coins', async ({ page }) => {
+  await skipOnboarding(page)
   await page.goto('/')
   const track = page.locator('.path-track path').first()
   await expect(track).toBeVisible()
@@ -20,6 +22,7 @@ test('the leerpad draws a connecting road behind the lesson coins', async ({ pag
 
 test('respects prefers-reduced-motion', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
+  await skipOnboarding(page)
   await page.goto('/')
   const coin = page.locator('.coin-item').first()
   await expect(coin).toBeVisible()
@@ -28,6 +31,7 @@ test('respects prefers-reduced-motion', async ({ page }) => {
 })
 
 test('the viewport is configured for iPhone safe areas', async ({ page }) => {
+  await skipOnboarding(page)
   await page.goto('/')
   const content = await page.locator('meta[name="viewport"]').getAttribute('content')
   expect(content).toContain('viewport-fit=cover')
