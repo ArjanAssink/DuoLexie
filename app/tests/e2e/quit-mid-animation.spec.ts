@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { installNarration } from './fixtures/narration'
+import { installLearnedSwipe } from './fixtures/profile'
 
 /**
  * Unit ids are stable/sounds-derived (data/path.ts, backend-readiness A3):
@@ -12,14 +13,16 @@ const LEZEN = '/#/les/fase1-m-s-k-r-t-l5'
 /** Mirrors FLY_MS in src/games/Flitsen.tsx — the flight's setTimeout. */
 const FLITSEN_FLY_MS = 420
 /**
- * Everything HardopLezen.commit() can possibly be waiting on after a wrong sort: the 420ms
- * flight to the pile, the 220ms landing, audio.ts's 8000ms CLIP_TIMEOUT_MS backstop on the
- * replayed word (its 6000ms speech backstop is shorter, so the clip figure is the bound),
- * the 250ms pause after it, and — since this is the round's last card — the 600ms closing
- * beat before onComplete. Advancing the clock past the sum proves no orphaned continuation
- * is left that could still credit the lesson later.
+ * Everything HardopLezen.commit() can possibly be waiting on after a wrong sort: the 950ms
+ * DEMO_MS the card spends showing her the swipe she could have made (this profile has never
+ * swiped, so tapping a pile takes the taught path — docs/hardop-lezen-swipe-v2.md §4.3),
+ * the 420ms flight to the pile, the 220ms landing, audio.ts's 8000ms CLIP_TIMEOUT_MS
+ * backstop on the replayed word (its 6000ms speech backstop is shorter, so the clip figure
+ * is the bound), the 250ms pause after it, and — since this is the round's last card — the
+ * 600ms closing beat before onComplete. Advancing the clock past the sum proves no orphaned
+ * continuation is left that could still credit the lesson later.
  */
-const HARDOP_COMMIT_MAX_MS = 420 + 220 + 8000 + 250 + 600
+const HARDOP_COMMIT_MAX_MS = 950 + 420 + 220 + 8000 + 250 + 600
 
 /*
  * Why these tests drive a fake clock (page.clock)
@@ -187,15 +190,18 @@ test('Hardop lezen: quitting during the feedback delay credits nothing', async (
   await waitForPhase(page, 'judging', 6000)
 
   // Now freeze time and sort it WRONG ("nog even"). commit() runs up to its first
-  // `await wait(FLY_MS)` and parks there: the card is flying out (a CSS animation, which
-  // the fake clock doesn't touch), the answer is recorded, and the continuation that would
+  // `await wait(...)` and parks there: the card is leaving (CSS animations, which the fake
+  // clock doesn't touch — the demonstration and the flight are deliberately one CSS chain
+  // for exactly this reason), the answer is recorded, and the continuation that would
   // replay the word and call onComplete cannot run until the clock moves. That is the
   // "quit during the feedback delay" state, held open for as long as the test needs it.
   // The miss branch is the dangerous one — it's the only path that awaits audio before
   // finishing — which is why it's the one under test.
   await freezeTimers(page)
   await page.locator('.pile-nog-even').click()
-  await expect(page.locator('.word-card')).toHaveCSS('opacity', '0')
+  // ~1.4s of real time, not 0.42s: the tap is taught, so the card demonstrates the swipe
+  // before it flies. Both halves are CSS, so both still run with the clock frozen.
+  await expect(page.locator('.word-card')).toHaveCSS('opacity', '0', { timeout: 8000 })
   await page.locator('.quit').click()
 
   await expect(page.locator('.coin-item').first()).toBeVisible()
@@ -229,6 +235,10 @@ test('Hardop lezen: quitting during the feedback delay credits nothing', async (
 test('Hardop lezen: finishing the round credits exactly one session', async ({ page }) => {
   test.setTimeout(120_000) // a full ten-card round
   await installNarration(page)
+  // About crediting, not about the swipe — so it does not pay to be taught it ten times.
+  // The test above deliberately does NOT do this: the taught tap is exactly what its final
+  // pile click has to exercise, since that is the longest the commit chain ever gets.
+  await installLearnedSwipe(page)
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
 

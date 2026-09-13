@@ -525,14 +525,33 @@ button:disabled { cursor: default; }
   50% { transform: scale(1.35); }
 }
 
+/* Frida and the Goed! pocket share the top row: a good word flies up to her, and she is
+   standing right beside where it lands. */
+.top-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(86vw, 380px);
+  align-self: center;
+  /* Above the Bliksemsprint overlay (.bs is z-index 30). The band is measured to stop at
+     this row, but its minimum height can still reach a few px into it on a short phone —
+     and a celebration that hides the pocket the card is flying into would be covering the
+     very thing it is celebrating. Purely a paint order: .bs is pointer-events: none. */
+  position: relative;
+  z-index: 31;
+}
+
 /* Frida says what phase she's in, so the screen needs no written instructions */
 .coach {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 54px;
-  align-self: center;
+  /* the bubble is the part that must not push the pocket off the row */
+  min-width: 0;
 }
+.coach-bubble { min-width: 0; }
 .coach-frida { width: clamp(44px, 12vw, 58px); height: auto; }
 .coach-bubble {
   position: relative;
@@ -554,6 +573,36 @@ button:disabled { cursor: default; }
   border: 7px solid transparent;
   border-left: 0;
   border-right-color: #fff;
+}
+
+/* The piles' labels, turned into directions. They hold their row whether or not they are
+   showing: chevrons that came and went would shift the card mid-gesture. */
+.chevrons {
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.chevrons.pointing { opacity: 1; }
+.chevrons svg { width: 24px; height: 14px; display: block; }
+.chevrons-up { color: var(--teal); }
+.chevrons-down { color: var(--orange); }
+.chevrons-down svg { transform: rotate(180deg); }
+.chevrons.pointing svg { animation: chevronDrift 1.4s ease-in-out infinite; }
+.chevrons.pointing svg:nth-child(2) { animation-delay: 0.22s; }
+@keyframes chevronDrift {
+  0%, 100% { transform: translateY(4px); opacity: 0.35; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+/* the down pair drifts the other way, and has to keep its 180° flip while it does */
+.chevrons-down.pointing svg { animation-name: chevronDriftDown; }
+@keyframes chevronDriftDown {
+  0%, 100% { transform: translateY(-4px) rotate(180deg); opacity: 0.35; }
+  50% { transform: translateY(4px) rotate(180deg); opacity: 1; }
 }
 
 .swipe-arena {
@@ -684,28 +733,55 @@ button:disabled { cursor: default; }
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
 }
-/* wordless "swipe me", shown only for her first few cards ever */
-.word-card.nudging { animation: cardNudge 1300ms ease-in-out 2; }
-@keyframes cardNudge {
-  0%, 100% { transform: translateX(0) rotate(0deg); }
-  22% { transform: translateX(-15px) rotate(-1deg); }
-  55% { transform: translateX(15px) rotate(1deg); }
-  78% { transform: translateX(-6px) rotate(-0.4deg); }
+/* Layer 1 of teaching the swipe (docs/hardop-lezen-swipe-v2.md §4.1): left alone for a
+   moment, the card shows her the gesture — up to the pocket, then down to the tray — with a
+   finger-shaped dot riding along. Once, per card, and only until she has swiped five herself. */
+.word-card.ghosting { animation: cardGhostSwipe 1700ms ease-in-out both; }
+@keyframes cardGhostSwipe {
+  0%, 11.8% { transform: translateY(0); }
+  47% { transform: translateY(-40px); }
+  58.8%, 62% { transform: translateY(0); }
+  82.4% { transform: translateY(24px); }
+  100% { transform: translateY(0); }
 }
 
-/* phase: flying — the card arcs to the pile she chose and is absorbed into it */
+/* Layer 3 (§4.3): she tapped a pile, so the card performs the swipe on her behalf before it
+   flies. Demonstration and flight are one CSS chain rather than two JS timers — see the
+   comment in runCommit() about quit-mid-animation.spec.ts and the fake clock. */
+@keyframes demoSwipeUp {
+  0%, 21% { transform: translateY(0) scale(1); }
+  84%, 100% { transform: translateY(-120px) scale(1.06); }
+}
+@keyframes demoSwipeDown {
+  0%, 21% { transform: translateY(0) scale(1); }
+  84%, 100% { transform: translateY(120px) scale(0.96); }
+}
+
+/* phase: flying — the card travels to the pile she chose and is absorbed into it */
 .word-card.flying {
   z-index: 3;
   pointer-events: none;
-  animation: cardFly 420ms cubic-bezier(0.35, 0.1, 0.6, 1) forwards;
 }
-@keyframes cardFly {
+.word-card.flying.fly-up { animation: cardFlyUp 420ms cubic-bezier(0.35, 0.1, 0.6, 1) forwards; }
+.word-card.flying.fly-down { animation: cardFlyDown 420ms cubic-bezier(0.5, 0, 0.75, 0.9) forwards; }
+.word-card.flying.taught.fly-up {
+  animation:
+    demoSwipeUp 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both,
+    cardFlyUp 420ms cubic-bezier(0.35, 0.1, 0.6, 1) 950ms forwards;
+}
+.word-card.flying.taught.fly-down {
+  animation:
+    demoSwipeDown 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both,
+    cardFlyDown 420ms cubic-bezier(0.5, 0, 0.75, 0.9) 950ms forwards;
+}
+/* Up keeps a small arc — a lob towards Frida. */
+@keyframes cardFlyUp {
   0% {
-    transform: translate(var(--fly-from-x, 0), 0) rotate(var(--fly-from-rot, 0deg)) scale(1);
+    transform: translate(0, var(--fly-from-y, 0)) rotate(0deg) scale(1);
     opacity: 1;
   }
   55% {
-    transform: translate(calc(var(--fly-x) * 0.55), calc(var(--fly-y) * 0.55 - 26px))
+    transform: translate(calc(var(--fly-x) * 0.55), calc(var(--fly-y) * 0.55 - 14px))
       rotate(calc(var(--fly-rot) * 0.6)) scale(0.72);
     opacity: 1;
   }
@@ -715,42 +791,141 @@ button:disabled { cursor: default; }
     opacity: 0;
   }
 }
+/* Down does not: a card dropped into a tray has no business bouncing upward first. */
+@keyframes cardFlyDown {
+  0% {
+    transform: translate(0, var(--fly-from-y, 0)) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  85% { opacity: 1; }
+  100% {
+    transform: translate(var(--fly-x), var(--fly-y)) rotate(var(--fly-rot)) scale(0.3);
+    opacity: 0;
+  }
+}
 
+/* The verdict stamps live inside the card so they travel with it. Vertical now: GOED! above
+   the word, NOG EVEN below, each fading in as she drags that way. */
 .swipe-stamp {
   position: absolute;
-  top: 14px;
+  left: 50%;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 20px;
+  font-size: clamp(14px, 3.8vw, 18px);
   letter-spacing: 1px;
-  padding: 6px 14px;
+  padding: 4px 10px;
   border-radius: 10px;
   border: 3px solid;
+  background: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
   pointer-events: none;
   z-index: 4;
+  /* The base state. A stamp is faded in either by her drag (inline opacity) or by the
+     taught tap's own animation; with no base, the stamp for the direction she is *not*
+     going would sit there fully opaque. */
+  opacity: 0;
 }
-.swipe-stamp-right { right: 10px; color: var(--teal); border-color: var(--teal); transform: rotate(8deg); }
-.swipe-stamp-left { left: 10px; color: var(--red-orange); border-color: var(--red-orange); transform: rotate(-8deg); }
+/* Hard against the card's edges, not tucked in beside the word. The card is only ~195px
+   tall on an iPhone and the word fills the middle of it; a stamp with room to clear both
+   the word and the audio badge does not exist. Covering the word she is judging is the
+   worse of the two, so the stamps take the edges and the badge (z-index 6, above them)
+   clips a corner of GOED! when the two meet. */
+.swipe-stamp-goed {
+  top: 16px;
+  color: var(--teal);
+  border-color: var(--teal);
+  transform: translateX(-50%) rotate(-3deg);
+}
+.swipe-stamp-nog-even {
+  bottom: 16px;
+  color: var(--red-orange);
+  border-color: var(--red-orange);
+  transform: translateX(-50%) rotate(3deg);
+}
+/* During a taught tap the drag is zero, so the stamp is faded in by the demonstration's
+   own clock instead of by her finger. */
+.stamp-demo { animation: stampDemo 950ms ease-out both; }
+@keyframes stampDemo {
+  0%, 21% { opacity: 0; }
+  84%, 100% { opacity: 1; }
+}
 
-/* one button in one slot for the whole card: Laat horen -> Luister -> Nog eens */
+/* "A finger is here" — no art needed, and it reads the same at any age. */
+.touch-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 2px solid rgba(66, 40, 26, 0.35);
+  box-shadow: 0 2px 8px rgba(66, 40, 26, 0.2);
+  pointer-events: none;
+  z-index: 5;
+}
+.dot-ghost { animation: dotGhostSwipe 1700ms ease-in-out both; }
+@keyframes dotGhostSwipe {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  11.8% { opacity: 1; transform: translateY(0) scale(1); }
+  47% { opacity: 1; transform: translateY(-40px) scale(1); }
+  58.8% { opacity: 0; transform: translateY(0) scale(1); }
+  65% { opacity: 1; transform: translateY(6px) scale(1); }
+  82.4% { opacity: 1; transform: translateY(24px) scale(1); }
+  100% { opacity: 0; transform: translateY(0) scale(1); }
+}
+.dot-demo-up { animation: dotDemoUp 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both; }
+@keyframes dotDemoUp {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  21% { opacity: 1; transform: translateY(0) scale(1); }
+  84% { opacity: 1; transform: translateY(-120px) scale(1); }
+  100% { opacity: 0; transform: translateY(-120px) scale(1.15); }
+}
+.dot-demo-down { animation: dotDemoDown 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both; }
+@keyframes dotDemoDown {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  21% { opacity: 1; transform: translateY(0) scale(1); }
+  84% { opacity: 1; transform: translateY(120px) scale(1); }
+  100% { opacity: 0; transform: translateY(120px) scale(1.15); }
+}
+
+/* The audio control is a badge in the card's own top-right corner. It used to be a button
+   under the card; the tray needs that vertical room on an iPhone, and the control belongs
+   to the word anyway. Class kept so the e2e selectors stay put. */
 .reveal-btn {
-  min-height: 56px;
-  min-width: 190px;
-  font-size: 18px;
-}
-.reveal-btn:disabled { opacity: 0.45; }
-
-/* the two piles: where a graded card lands, and her running count for the round */
-.pile-row {
-  display: flex;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 6;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--teal);
+  box-shadow: 0 3px 0 var(--teal-shadow);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  gap: clamp(16px, 6vw, 32px);
+  gap: 2px;
+  cursor: pointer;
 }
+.reveal-btn:disabled { opacity: 0.45; cursor: default; }
+.reveal-label { white-space: nowrap; font-size: 15px; }
+
+/* The two piles are no longer a row of equals. The Goed! pocket sits up beside Frida, the
+   Nog even tray lies flat under the card — the two directions the card can go. */
 .pile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 44px;
   min-height: 44px;
   background: none;
@@ -764,11 +939,9 @@ button:disabled { cursor: default; }
 .pile.targeted { transform: scale(1.08); }
 .pile-tray {
   position: relative;
-  width: clamp(104px, 30vw, 132px);
-  height: clamp(72px, 20vw, 92px);
   border-radius: 18px;
 }
-/* an empty tray still has to read as "a pile cards land on" */
+/* an empty pile still has to read as "somewhere cards land" */
 .pile-tray::before {
   content: '';
   position: absolute;
@@ -780,8 +953,31 @@ button:disabled { cursor: default; }
   border-radius: 6px;
   border: 2px dashed rgba(255, 255, 255, 0.5);
 }
-.pile-goed .pile-tray { background: var(--teal); box-shadow: 0 6px 0 var(--teal-shadow); }
-.pile-nog-even .pile-tray { background: var(--orange); box-shadow: 0 6px 0 var(--orange-shadow); }
+
+/* the pocket: small, high, and right next to Frida, because up means "to her" */
+.pocket .pile-tray {
+  width: clamp(88px, 25vw, 104px);
+  height: clamp(56px, 15vw, 64px);
+  background: var(--teal);
+  box-shadow: 0 6px 0 var(--teal-shadow);
+}
+
+/* the oefenbakje: the card's own width, and lower than it is tall, so putting a word down
+   into it is a small drop rather than a throw */
+.tray {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+  align-self: center;
+  width: min(80vw, 340px);
+  height: 64px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: var(--orange);
+  box-shadow: 0 6px 0 var(--orange-shadow);
+}
+.tray .pile-tray { width: 56px; height: 40px; }
+.tray .pile-tray::before { border-color: rgba(255, 255, 255, 0.6); }
 .pile.bumped .pile-tray { animation: pileSquash 220ms ease-out; }
 @keyframes pileSquash {
   0% { transform: scaleY(0.92) scaleX(1.04); }
@@ -820,24 +1016,39 @@ button:disabled { cursor: default; }
   100% { transform: scale(1); }
 }
 .pile-label { font-weight: 900; font-size: 14px; }
-.pile-goed .pile-label { color: var(--teal-shadow); }
-.pile-nog-even .pile-label { color: var(--orange-shadow); }
+.pocket .pile-label { color: var(--teal-shadow); }
+/* inside the orange bar rather than under it, so the tray reads as one object */
+.tray .pile-label { color: #fff; font-size: clamp(15px, 4.4vw, 18px); }
 
 @media (prefers-reduced-motion: reduce) {
-  /* the mechanism works without any of the motion: no float, no heartbeat, no nudge, and
-     the flight becomes a plain fade into the pile */
+  /* The mechanism works without any of the motion: no float, no heartbeat, no demonstration
+     of the swipe, and the flight becomes a plain fade into the pile. The chevrons stay —
+     they are the only part of the teaching that is information rather than movement — but
+     they stop drifting. */
   .pip-now,
   .word-card.dealing,
   .word-card.floating,
-  .word-card.nudging,
+  .word-card.ghosting,
+  .chevrons.pointing svg,
   .fuse::after,
   .listen-strip span,
   .pile.bumped .pile-tray,
   .pile.bumped .pile-count {
     animation: none;
   }
+  .chevrons { transition: none; }
+  .chevrons-down.pointing svg { transform: rotate(180deg); }
   .listen-strip span { height: 8px; }
-  .word-card.flying { animation: cardFade 150ms linear forwards; }
+  /* One rule for every flight variant: the taught tap never starts here (the component
+     checks prefers-reduced-motion before choosing to teach), so there is no demonstration
+     left to fade out of. */
+  .word-card.flying,
+  .word-card.flying.fly-up,
+  .word-card.flying.fly-down,
+  .word-card.flying.taught.fly-up,
+  .word-card.flying.taught.fly-down {
+    animation: cardFade 150ms linear forwards;
+  }
   @keyframes cardFade {
     to { opacity: 0; }
   }

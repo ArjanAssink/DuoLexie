@@ -85,10 +85,11 @@ test('dragging the card during the reading phase cannot grade it', async ({ page
 
   const card = page.locator('.word-card')
   const b = (await card.boundingBox())!
+  const cx = b.x + b.width / 2
   const cy = b.y + b.height / 2
-  await page.mouse.move(b.x + b.width / 2, cy)
+  await page.mouse.move(cx, cy)
   await page.mouse.down()
-  await page.mouse.move(b.x + b.width / 2 + 220, cy, { steps: 8 })
+  await page.mouse.move(cx, cy - 220, { steps: 8 }) // a committing swipe, in the wrong phase
   await page.mouse.up()
 
   await page.waitForTimeout(500)
