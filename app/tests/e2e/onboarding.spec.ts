@@ -4,6 +4,23 @@ import { skipOnboarding } from './fixtures/onboarded'
 /** A silent, deep-linkable lesson — the gate must never stand between a link and a game. */
 const FLITSEN = '/#/les/fase1-a-e-o-u-i-l1'
 
+/** How long to allow for the ~900ms closing beat plus the redirect, on the slowest runner. */
+const BEAT_TIMEOUT = 20_000
+
+/**
+ * Run this test on the desktop project only.
+ *
+ * docs/onboarding-welkom.md ss8 asks for the desktop project plus ipad/iphone "for the layout
+ * assertions", and that split is worth keeping to: the ipad and iphone projects are two WebKit
+ * contexts on a two-core runner, and the suite there is already close enough to its budget to
+ * have a documented contention flake (playwright.config.ts). What is left running on all three
+ * is everything about routing, hydration and layout — which is where the engines actually
+ * differ, and where this flow has already been bitten once.
+ */
+function behaviourOnly(projectName: string) {
+  test.skip(projectName !== 'desktop', 'behaviour, not layout or routing — one engine is enough')
+}
+
 /** The persisted progress blob, straight out of IndexedDB. */
 function readProgress(page: Page) {
   return page.evaluate(() => readStore('duolexie-progress'))
@@ -99,7 +116,9 @@ test('?test=true opens the leerpad without a detour', async ({ page }) => {
 
 // ---------------------------------------------------------------- the flow
 
-test('the GitHub link opens in a new tab', async ({ page }) => {
+test('the GitHub link opens in a new tab', async ({ page }, testInfo) => {
+  behaviourOnly(testInfo.project.name)
+
   await page.goto('/#/welkom')
 
   const link = page.locator('.wip-note a')
@@ -108,7 +127,11 @@ test('the GitHub link opens in a new tab', async ({ page }) => {
   expect(await link.getAttribute('rel')).toContain('noopener')
 })
 
-test("Frida's bubble reacts to every keystroke, and Verder waits for a name", async ({ page }) => {
+test("Frida's bubble reacts to every keystroke, and Verder waits for a name", async ({
+  page,
+}, testInfo) => {
+  behaviourOnly(testInfo.project.name)
+
   await page.goto('/#/welkom')
   await page.getByRole('button', { name: 'Aan de slag' }).click()
 
@@ -131,7 +154,9 @@ test("Frida's bubble reacts to every keystroke, and Verder waits for a name", as
   await expect(verder).toBeDisabled()
 })
 
-test('Liever geen naam continues with no name at all', async ({ page }) => {
+test('Liever geen naam continues with no name at all', async ({ page }, testInfo) => {
+  behaviourOnly(testInfo.project.name)
+
   await page.goto('/#/welkom')
   await page.getByRole('button', { name: 'Aan de slag' }).click()
   await page.getByRole('button', { name: 'Liever geen naam' }).click()
@@ -144,7 +169,11 @@ test('Liever geen naam continues with no name at all', async ({ page }) => {
     .toBe('')
 })
 
-test('an avatar choice on step 3 is written straight to the avatar store', async ({ page }) => {
+test('an avatar choice on step 3 is written straight to the avatar store', async ({
+  page,
+}, testInfo) => {
+  behaviourOnly(testInfo.project.name)
+
   await page.goto('/#/welkom')
   await page.getByRole('button', { name: 'Aan de slag' }).click()
   await page.getByRole('button', { name: 'Liever geen naam' }).click()
@@ -174,12 +203,15 @@ test('finishing the flow lands on the leerpad, with her name, and stays there', 
 
   await expect(page.locator('.coach-bubble')).toHaveText('Veel plezier, Lotte!')
 
-  await expect(page).toHaveURL(/#\/$/, { timeout: 3000 })
-  await expect(page.locator('.coin-item.active')).toBeVisible()
+  // Wait on the destination, generously, rather than on the beat's nominal 900ms: on a CI
+  // runner holding two WebKit contexts on two cores, getting through the confetti and
+  // committing the redirect has taken several seconds.
+  await expect(page.locator('.coin-item.active')).toBeVisible({ timeout: BEAT_TIMEOUT })
+  await expect(page).toHaveURL(/#\/$/)
   await expect(page.locator('.path-greeting')).toHaveText('Hoi, Lotte!')
 
   await page.reload()
-  await expect(page.locator('.coin-item.active')).toBeVisible()
+  await expect(page.locator('.coin-item.active')).toBeVisible({ timeout: BEAT_TIMEOUT })
   expect(page.url()).not.toContain('/welkom')
 
   const settings = settingsOf(await readProgress(page))
@@ -199,8 +231,8 @@ test('Profiel can re-open the intro, and finishing it returns to the leerpad', a
   await page.getByRole('button', { name: 'Liever geen naam' }).click()
   await page.getByRole('button', { name: 'Klaar!' }).click()
 
-  await expect(page).toHaveURL(/#\/$/, { timeout: 3000 })
-  await expect(page.locator('.coin-item.active')).toBeVisible()
+  await expect(page.locator('.coin-item.active')).toBeVisible({ timeout: BEAT_TIMEOUT })
+  await expect(page).toHaveURL(/#\/$/)
 })
 
 // ---------------------------------------------------------------- layout and motion
