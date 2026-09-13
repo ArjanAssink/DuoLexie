@@ -32,7 +32,10 @@ jobs:
       # not, and that test skips rather than fails where it is missing — so this job is where
       # it actually runs.
       - name: Run tool tests
-        run: node --test tools/
+        # globs rather than `--test tools/`: this runner's Node 22 reads a bare directory as a
+        # module path and dies with MODULE_NOT_FOUND before running a single test, where newer
+        # Node scans it. Spelling out the files works on both.
+        run: node --test tools/*.test.mjs tools/lib/*.test.mjs
       - name: Install Playwright browsers
         working-directory: app
         run: npx playwright install --with-deps
