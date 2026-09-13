@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { installNarration } from './fixtures/narration'
+import { installLearnedSwipe } from './fixtures/profile'
 
 /**
  * A full Hardop lezen round: ten different words, each read → heard → sorted onto a pile,
@@ -41,6 +42,8 @@ test.beforeEach(async ({ page }) => {
 
 test('a round is ten different words', async ({ page }) => {
   test.setTimeout(120_000) // ten cards, each with a deal-in, a clip and a flight to the pile
+  // not a test about the teaching — skip the ~950ms demonstration on each of the ten taps
+  await installLearnedSwipe(page)
   await page.goto(PROEFRONDE)
   await expect(page.locator('.word-card')).toBeVisible()
   await expect(page.locator('.pip')).toHaveCount(10)
@@ -68,6 +71,8 @@ test('cards stack on the pile she chose, and the reward screen counts both piles
   page,
 }) => {
   test.setTimeout(120_000)
+  // not a test about the teaching — skip the ~950ms demonstration on each of the ten taps
+  await installLearnedSwipe(page)
   await page.goto(PROEFRONDE)
   await expect(page.locator('.word-card')).toBeVisible()
 
@@ -102,6 +107,8 @@ test('cards stack on the pile she chose, and the reward screen counts both piles
 
 test('a round she gets entirely wrong still pays for finishing', async ({ page }) => {
   test.setTimeout(120_000) // every card replays the word before the next one deals in
+  // not a test about the teaching — skip the ~950ms demonstration on each of the ten taps
+  await installLearnedSwipe(page)
   await page.goto(PROEFRONDE)
   await expect(page.locator('.word-card')).toBeVisible()
 

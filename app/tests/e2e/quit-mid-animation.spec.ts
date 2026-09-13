@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { installNarration } from './fixtures/narration'
+import { installLearnedSwipe } from './fixtures/profile'
 
 /**
  * Unit ids are stable/sounds-derived (data/path.ts, backend-readiness A3):
@@ -234,6 +235,10 @@ test('Hardop lezen: quitting during the feedback delay credits nothing', async (
 test('Hardop lezen: finishing the round credits exactly one session', async ({ page }) => {
   test.setTimeout(120_000) // a full ten-card round
   await installNarration(page)
+  // About crediting, not about the swipe — so it does not pay to be taught it ten times.
+  // The test above deliberately does NOT do this: the taught tap is exactly what its final
+  // pile click has to exercise, since that is the longest the commit chain ever gets.
+  await installLearnedSwipe(page)
   await page.goto(LEZEN)
   await expect(page.locator('.word-card')).toBeVisible()
 

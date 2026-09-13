@@ -164,14 +164,15 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
   const [burst, setBurst] = useState(0)
 
   /**
-   * Swipes she has made herself. Seeded from the profile at mount and kept up to date
-   * within the round, so the fifth swipe of her very first round switches the teaching off
-   * for the sixth card rather than at the start of the next session.
+   * Swipes she has made herself. Subscribed rather than read once at mount, which covers
+   * both directions this has to be right in: the fifth swipe of her very first round
+   * switches the teaching off for the sixth card, and a profile that is still rehydrating
+   * from IndexedDB when this mounts — which is what a deep link straight into a lesson
+   * looks like — switches it off the moment her saved count arrives, instead of teaching
+   * the gesture all over again to a child who learned it last week.
    */
-  const [selfSwipes, setSelfSwipes] = useState(() => useProgress.getState().settings.selfSwipes)
+  const selfSwipes = useProgress((s) => s.settings.selfSwipes)
   const learned = selfSwipes >= SWIPES_TO_LEARN
-  /** The same count, readable synchronously from inside commit()'s handlers. */
-  const selfSwipesRef = useRef(selfSwipes)
 
   /**
    * Read once: the teaching layers are all motion, and under reduced motion the taught tap
@@ -473,16 +474,16 @@ export function HardopLezen({ lesson, onComplete, onQuit }: Props) {
     })
 
     // Only a swipe she made herself counts towards no longer being taught the swipe.
-    if (via === 'swipe') {
-      selfSwipesRef.current += 1
-      setSelfSwipes(selfSwipesRef.current)
-      noteSelfSwipe()
-    }
+    if (via === 'swipe') noteSelfSwipe()
 
     // A tap, while she is still learning, is answered by showing her the gesture: the card
-    // travels the way her finger would have, and only then flies. Read from the ref, so the
-    // swipe two cards ago that reached the threshold counts even if this render is behind.
-    const taught = via === 'tap' && selfSwipesRef.current < SWIPES_TO_LEARN && !reducedMotion
+    // travels the way her finger would have, and only then flies. Read straight out of the
+    // store rather than from this render's closure, which can be a step behind the swipe
+    // that just crossed the threshold.
+    const taught =
+      via === 'tap' &&
+      useProgress.getState().settings.selfSwipes < SWIPES_TO_LEARN &&
+      !reducedMotion
 
     setGhosting(false)
     setFlight({
