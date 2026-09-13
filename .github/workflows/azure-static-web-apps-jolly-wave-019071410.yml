@@ -20,7 +20,10 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    # No `closed`: the only job that ever used it was the preview teardown, and there are
+    # no previews to tear down now. Leaving it in would fire a run on every merge in which
+    # every job skips — a permanently grey check that means nothing.
+    types: [opened, synchronize, reopened]
     branches:
       - main
   workflow_dispatch:
@@ -30,11 +33,8 @@ on:
 
 jobs:
   test:
-    # Every trigger except the pull_request "closed" event, which exists only to tear the
-    # preview environment down. Deliberately written as an exclusion rather than a list of
-    # allowed events: an allow-list is how adding `workflow_dispatch` above would have
-    # skipped both jobs and quietly done nothing at all.
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    # No condition: every trigger this workflow accepts should run the tests, now that the
+    # "closed" event is gone from the list above.
     runs-on: ubuntu-latest
     name: Tests (unit, tools, e2e on desktop/ipad/iphone)
     steps:
@@ -43,10 +43,29 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          # Both lockfiles: the api is installed here too now, so a change to either
+          # should miss the cache.
+          cache-dependency-path: |
+            app/package-lock.json
+            api/package-lock.json
       - name: Install dependencies
         working-directory: app
         run: npm ci
+      # Load-bearing, and new with this change. Neither `npm test` (vitest, esbuild) nor the
+      # e2e suite (which runs against the *dev* server) typechecks anything, so until now the
+      # only thing in CI compiling this project was Azure's Oryx build inside the deploy job.
+      # Taking that job off pull requests without this would have let a type error sail
+      # through a green PR and break the deploy on main — trading a noisy failure for a
+      # silent one. Both packages, because Oryx built both.
+      - name: Build app
+        working-directory: app
+        run: npm run build
+      - name: Install api dependencies
+        working-directory: api
+        run: npm ci
+      - name: Build api
+        working-directory: api
+        run: npm run build
       - name: Run unit tests
         working-directory: app
         run: npm test
@@ -75,13 +94,22 @@ jobs:
 
   build_and_deploy_job:
     needs: test
-    # As above, plus a guard the old condition got for free from `push` being restricted to
-    # main: anything that is not a pull request deploys to *production*, not to a preview
-    # environment. Without the second clause, dispatching this workflow from a feature
-    # branch would put that branch on the live site.
-    if: >-
-      (github.event_name != 'pull_request' || github.event.action != 'closed')
-      && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+    # Production only, and never from a pull request.
+    #
+    # Pull requests used to deploy to an Azure preview environment. The Free plan allows
+    # three, and three were permanently occupied by orphans: PRs 1, 2 and 3 were merged
+    # within ten seconds of being opened, while their deploy job still sat behind an
+    # eight-minute test job, so the teardown ran first and the deploy then recreated the
+    # environment with no `closed` event left to remove it. Every pull request after that
+    # failed here with "maximum number of staging environments" — in the same workflow as
+    # the tests, which is the real cost: a check that is always red teaches you to ignore
+    # the one signal that would tell you a test broke. Nobody ever opened a preview URL on
+    # a solo repo whose PRs live for minutes, so previews go rather than the limit rising.
+    #
+    # The ref check is the other half, and it is not redundant: `workflow_dispatch` and
+    # `schedule` carry no branch restriction of their own, so without it dispatching this
+    # workflow from a feature branch would put that branch on the live site.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
@@ -102,15 +130,3 @@ jobs:
           api_location: "api" # Api source code path - optional
           output_location: "dist" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_JOLLY_WAVE_019071410 }}
-          action: "close"
