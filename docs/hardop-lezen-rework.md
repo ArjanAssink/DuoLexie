@@ -17,6 +17,16 @@ studio's word mode and the recorded-word manifest. Outstanding: the twenty start
 recordings themselves (Arjan's machine) and the word-level decision in §4/§10. Deviations
 found while building are marked *(as built)* below.
 
+> **The sorting gesture has since been reworked and no longer matches this document.**
+> Play-testing showed the horizontal axis was wrong and that nothing on screen taught her
+> the gesture. Sorting is now **vertical** — up into a *Goed!* pocket beside Frida, down into
+> a *Nog even* tray — and a tap on a pile performs the swipe on her behalf until she has
+> swiped five cards herself. [hardop-lezen-swipe-v2.md](hardop-lezen-swipe-v2.md) is the
+> reference for the gesture, the layout around the card and the teaching layers; the passages
+> below that describe the horizontal version are marked where they are superseded.
+> Everything else here — the phases, the window ladder, the word pool, the sounds, the gems —
+> is unchanged and still current.
+
 ---
 
 ## 1. What changes, in one table
@@ -100,26 +110,23 @@ Triggered when the clip ends.
 
 - The card **lifts**: shadow grows from `0 8px 0` to `0 14px 0`, scale 1.04, and it settles
   into a very slow idle float (±3 px, 3 s loop) so it visibly "wants" to be picked up.
-- The button under the card now reads **🔊 Nog eens**. She is judging *by ear*, so hearing
-  it again must always be one tap away. Replaying does not affect timing or score.
+- The audio control now reads **🔊 Nog eens**. She is judging *by ear*, so hearing it again
+  must always be one tap away. Replaying does not affect timing or score.
 - Piles light up to full opacity, each with its label and current count. Frida is `sass`,
   bubble: **"Was het goed?"**
-- **Idle hint:** if she hasn't touched the card for ~2.5 s, it does a small nudge left, then
-  right (translate ±14 px with the stamps peeking in) — a wordless "swipe me" for the first
-  rounds. The hint stops appearing after she has sorted 5 cards in her lifetime (persisted
-  in the progress store's `settings`, not per round).
-- **Two ways to sort**, both first-class:
-  1. **Drag** the card (existing pointer logic: `setPointerCapture`, `activePointerId`
-     guard, `onPointerCancel` reset — keep all of it). Card follows the finger with rotation
-     `dragX / 18`. The pile under the drag direction **scales to 1.08 and brightens**, its
-     label bolds, and the matching stamp (GOED! / NOG EVEN) fades in over the card exactly as
-     today. Release past `SWIPE_THRESHOLD` (90 px) commits; short of it, the card springs
-     back (`transform 0.32s cubic-bezier(.2,1.4,.4,1)` for a little overshoot).
-  2. **Tap a pile.** The trays are `<button>`s. Tapping *Goed!* or *Nog even* commits the same
-     way as a swipe. This is what makes the game playable with a mouse on the desktop build
-     and by a child who never discovers swiping; it also gives the e2e tests a deterministic
-     path that doesn't depend on pointer geometry.
-- Also accepted: keyboard ← / → for desktop testing.
+- **Two ways to sort**, both first-class: dragging the card onto a pile, and tapping the pile
+  itself. Tapping is what makes the game playable with a mouse on the desktop build and by a
+  child who never discovers swiping; it also gives the e2e tests a deterministic path that
+  doesn't depend on pointer geometry. Both keep the existing pointer robustness
+  (`setPointerCapture`, the `activePointerId` guard, the `onPointerCancel` reset).
+- Also accepted: the arrow keys, for desktop testing.
+
+> **Superseded by [hardop-lezen-swipe-v2.md](hardop-lezen-swipe-v2.md) §3 and §4:** the drag
+> axis (now vertical, with a flick and an axis lock rather than a flat 90 px threshold), what
+> the card does while she drags it, where the audio control sits, and how she is taught the
+> gesture in the first place — the "nudge left, then right" idle hint described here is gone,
+> replaced by three teaching layers that switch off on a count of swipes she has made
+> *herself*.
 
 ### Phase 4 — Vliegen (the card lands)
 
@@ -127,9 +134,11 @@ On commit:
 
 - The card **flies** to its pile: a ~420 ms transform from its current position to the pile's
   centre (measured via `getBoundingClientRect` at commit time, so it's correct on every
-  viewport), scaling down to the tray's mini-card size (~0.28) and rotating to a random
-  ±6° so the stack looks hand-dealt. Slight arc: `translateY` dips by 24 px mid-flight via a
-  two-step keyframe.
+  viewport), scaling down to the tray's mini-card size and rotating slightly so the stack
+  looks hand-dealt. *(Superseded in part by
+  [hardop-lezen-swipe-v2.md](hardop-lezen-swipe-v2.md) §3: there are now two flights, an
+  upward one that keeps a small arc and a downward one that does not, and the rotation is
+  smaller.)*
 - **Landing**: the pile does a squash (`scaleY .92 → 1`, 180 ms), a new mini-card is
   appended to its stack (offset 2 px per card, capped visually at 5 visible, count badge
   keeps the true number), and the badge bumps (`scale 1.3 → 1`).
@@ -142,9 +151,10 @@ On commit:
   bubble says **"Bijna! Nog een keer luisteren."** No red flash, no "fout" text anywhere.
 - Streak: the third consecutive *Goed!* fires **Bliksemsprint** exactly like Tijdrit does
   (`streak.current === STREAK_FOR_BURST`). The band measures the gap between the header and
-  the card via the selector `.flash-card, .game-stage > *:nth-child(2)` — give `.word-card`'s
-  arena a `.flash-card`-equivalent hook (or widen that selector) so the coach row added in §5
-  doesn't make it measure the wrong element.
+  the first thing below it, by an explicit selector list in `components/Bliksemsprint.tsx`.
+  *(As built, and since widened again: the band now stops at the `.top-row` that holds Frida
+  and the Goed! pocket, and that row paints above the celebration overlay, so a streak firing
+  while a card is flying into the pocket cannot hide the pocket.)*
 - ~350 ms after landing the next card deals in (phase 1 again). Total dead time between
   cards stays under a second; the game must never feel like it is waiting on animations.
 
@@ -321,25 +331,24 @@ reference feel (ux-backlog.md standing note).
 - **Deck hint**: two faint card outlines peeking 6 px and 12 px behind the live card (static
   `::before/::after`) so it reads as "cards from a deck", and the deal-in animation has
   somewhere to come from. They disappear when ≤2 cards remain.
-- **Piles** (`.pile`, two `<button>`s in a row under the card, `gap 24px`):
-  - Tray: 132 × 96 px, `border-radius 18px`, 3D shadow. *Nog even* = `--orange` with
-    `--orange-shadow` (warm, not red — it's "not yet", not "wrong"); *Goed!* = `--teal` with
-    `--teal-shadow`, label turns gold-badged at 10/10.
-  - Inside: up to 5 stacked mini-cards (white, 40 × 28 px, each offset 2 px and rotated
-    ±3°), a count badge top-right (white circle, Nunito 900), label under the tray in
-    Nunito 900 14 px matching the tray colour.
-  - States: dimmed (phase 1–2), ready (phase 3), targeted (during drag toward it: scale 1.08,
-    brighter), landing (squash).
-- **Stamps** (GOED! / NOG EVEN): keep the existing rotated bordered stamps, they work; move
-  them to sit over the card corners rather than the arena corners.
-- **Replay button**: pill under the card, `--teal-pill` background, speaker icon + "Nog eens",
-  min 48 px tall (tap-target rule from ux-backlog.md).
-- **Tablet/desktop**: everything stays inside the centred 480 px app card; piles scale with
-  `clamp()` on height so the layout works on iPad Pro 11 portrait, iPhone 13 and a desktop
+- **Piles** (`.pile`, `<button>`s): *Nog even* = `--orange` with `--orange-shadow` (warm, not
+  red — it's "not yet", not "wrong"); *Goed!* = `--teal` with `--teal-shadow`. Inside each: up
+  to 5 stacked mini-cards (white, each offset and rotated a few degrees), a count badge
+  (white circle, Nunito 900) and a label in Nunito 900 matching the pile's colour. States:
+  dimmed (phase 1–2), ready (phase 3), targeted (while the card is heading for it: scale
+  1.08), landing (squash).
+- **Tablet/desktop**: everything stays inside the centred 480 px app card; the pieces scale
+  with `clamp()` so the layout works on iPad Pro 11 portrait, iPhone 13 and a desktop
   window — the three Playwright projects.
 - **Reduced motion** (`prefers-reduced-motion: reduce`, existing blocks in `theme.css`): no
-  idle float, no heartbeat, no nudge hint, flight becomes a 150 ms fade to the pile, confetti
-  off. Sounds unaffected.
+  idle float, no heartbeat, no demonstration of the swipe, flight becomes a 150 ms fade to
+  the pile, confetti off. Sounds unaffected.
+
+> **Superseded by [hardop-lezen-swipe-v2.md](hardop-lezen-swipe-v2.md) §2:** where the two
+> piles *are*. They are no longer a row of equal trays under the card — the Goed! pocket sits
+> up beside Frida and the Nog even tray lies flat under the card, at the card's own width —
+> and the stamps and the audio control have moved onto the card itself, which is where the
+> vertical room for the tray came from.
 
 ---
 
