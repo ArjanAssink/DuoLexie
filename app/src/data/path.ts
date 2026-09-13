@@ -78,6 +78,15 @@ const FASE_DEFS: FaseDef[] = [
 export const LEZEN_ROUND_SIZE = 10
 
 /**
+ * Cards in one Flitsen round. Fixed, rather than "however many klanken this unit knows":
+ * the pool runs from five (the opening unit) to forty-five, so a pool-sized round was over
+ * in a handful of taps early on and a slog at the end. Twenty is long enough to be a round
+ * and short enough to stay a quick game. `buildFlitsDeck` repeats or samples the pool to
+ * reach it.
+ */
+export const FLITS_DECK_SIZE = 20
+
+/**
  * A "Lezen" node needs enough readable words to fill a round without running the same
  * words twice. Nine is the floor rather than ten: a nine-word pool still yields ten cards
  * with a single non-adjacent repeat (`buildWordExercises`), which is a real round.
@@ -130,7 +139,7 @@ function buildLessons(
       gameType: 'flitsen',
       newSounds: unitDef.sounds,
       soundPool: pool,
-      exerciseCount: 10,
+      exerciseCount: FLITS_DECK_SIZE,
     },
     {
       id: `${unitId}-l2`,
@@ -150,7 +159,7 @@ function buildLessons(
       gameType: 'flitsen',
       newSounds: [],
       soundPool: pool,
-      exerciseCount: 12,
+      exerciseCount: FLITS_DECK_SIZE,
     },
     {
       id: `${unitId}-l4`,
