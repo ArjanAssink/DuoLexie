@@ -8,3 +8,8 @@ dist/
 test-results/
 playwright-report/
 app/public/audio/raw-webm/
+
+# raw takes from the recording studio — megabytes each, and not what ships; the app only
+# ever gets the mp3s split out of them
+recordings/*
+!recordings/README.md

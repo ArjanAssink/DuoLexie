@@ -26,13 +26,29 @@ npm run dev
 
 ## Audio opnemen
 
-De app gebruikt zelf opgenomen klankclips (val terug op browser-TTS zolang die ontbreken):
+De app gebruikt zelf opgenomen klanken en woorden (browser-TTS is de terugval zolang een clip
+ontbreekt). Opnemen gaat in **één doorlopende take** die daarna automatisch geknipt wordt —
+niet meer klik-per-clip. Dat is geen gemak maar geluidskwaliteit: elke klik zat in de opname,
+en een clip van 300ms is te kort om apart te normaliseren. Zie
+[docs/recording-pipeline-v2.md](docs/recording-pipeline-v2.md) voor het waarom.
 
-1. `npm run dev` en open `http://localhost:5173/#/opnemen` (alleen in dev-mode)
-2. Kies de map `app/public/audio/sounds` (File System Access API — gebruik Chrome)
-3. Neem elke klank op; bestanden worden als `{klank}.webm` opgeslagen
-4. Converteer naar mp3: `node tools/convert-audio.mjs` (vereist ffmpeg)
-5. Commit de mp3's
+1. Zorg voor een stille kamer. `npm run dev`, open `http://localhost:5173/#/opnemen` in
+   **Chrome of Edge** (File System Access API), en kies de map `recordings/`.
+2. Kies de set (klanken / woorden-startset / alle woorden, eventueel *alleen ontbrekende*) en
+   het tempo. Check de microfoon: de meter mag niet in het rood, en "test 3 seconden" laat
+   horen of je de juiste ingang te pakken hebt.
+3. **Start take.** Na `3 · 2 · 1 · piep` verschijnt elk woord om de beurt. Lees het één keer
+   rustig voor. **Handen van het bureau** — toetsen en muisklikken komen mee de opname in.
+   - **spatie** — deze ging mis; het woord komt vanzelf achteraan terug
+   - **backspace** — de vorige ging mis (je merkte het een tel te laat)
+   - **Esc** — pauze; nog een keer Esc hervat met een nieuwe aftelling
+4. Knip de take: `node tools/split-take.mjs recordings/<take>.webm` (vereist ffmpeg). Dat
+   schrijft één mp3 per woord in `app/public/audio/` plus een rapport.
+5. Luister terug op `/#/opnemen` → **Rapport laden**: gemarkeerde clips staan bovenaan, "alles
+   afluisteren" speelt de hele set achter elkaar. Vink aan wat opnieuw moet en druk op
+   *Deze opnieuw opnemen* — dat start een take met alleen die woorden.
+6. **Herstart de dev-server** (`vite.config.ts` leest `public/audio/words/` één keer bij het
+   starten) en commit de mp3's. De `.webm`-takes zelf blijven in `recordings/`, gitignored.
 
 ## Deploy (Azure Static Web Apps, gratis tier)
 

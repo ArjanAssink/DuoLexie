@@ -1,274 +1,381 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { allSounds } from '../curriculum'
 import { wordsInRecordingOrder } from '../data/path'
-
-type ClipStatus = 'missing' | 'recorded' | 'new'
-
-type Mode = 'klanken' | 'woorden'
+import { DEFAULT_PACE_MS, PACE_RANGE, takeBasename, type TakeKind } from './cueSheet'
+import { micConstraints, openTakeGraph, peakDbfs, supportedRecorderOptions } from './takeAudio'
+import { Teleprompter, type Take } from './Teleprompter'
+import { TakeReview, type SplitReport } from './TakeReview'
 
 /** Words worth recording first — the shortest ones (docs/hardop-lezen-rework.md §8). */
 const STARTER_SET_SIZE = 20
 
+type SetChoice = 'klanken' | 'woorden-startset' | 'woorden'
+type Stage = 'setup' | 'recording' | 'saved'
+
+const SET_KIND: Record<SetChoice, TakeKind> = {
+  klanken: 'klanken',
+  'woorden-startset': 'woorden',
+  woorden: 'woorden',
+}
+
 /**
- * Dev-only recording studio (/opnemen): record the family voice clips.
- * Saves .webm files via the File System Access API into a chosen folder, then run
- * `node tools/convert-audio.mjs <dir>` to convert to normalized MP3s.
+ * Dev-only recording studio (/opnemen), rebuilt around one continuous take
+ * (docs/recording-pipeline-v2.md).
  *
- * Two modes, because the app needs two kinds of clip:
- *   Klanken — the 45 graphemes, into app/public/audio/sounds
- *   Woorden — whole words for Hardop lezen, into app/public/audio/words, walked in the order
- *             she meets them on the path so the first clips recorded are the first she hears
+ * The old studio recorded one clip per click: forty-five starts, forty-five stops, every one
+ * of them a mouse or key press on the same desk as the microphone. That is the first of the
+ * four things in §1 that made the first batch sound clacky, and no amount of post-processing
+ * takes a click back out of a 300ms clip. So the recording is hands-free now: a teleprompter
+ * shows one word at a time while a single MediaRecorder runs, and everything that used to be
+ * a click is a timer instead.
+ *
+ * This screen is the setup and the loop around it — which set, how fast, which microphone,
+ * where the take goes — plus, after `tools/split-take.mjs` has run, the report that says
+ * which of the clips are worth a listen and the one button that re-records them (§5).
  */
 export function RecordingStudio() {
-  const [mode, setMode] = useState<Mode>('klanken')
-  const [starterOnly, setStarterOnly] = useState(true)
-  const [statuses, setStatuses] = useState<Record<string, ClipStatus>>({})
-  const [currentIdx, setCurrentIdx] = useState(0)
-  const [recording, setRecording] = useState(false)
+  const [choice, setChoice] = useState<SetChoice>('woorden-startset')
+  const [missingOnly, setMissingOnly] = useState(false)
+  const [paceMs, setPaceMs] = useState(DEFAULT_PACE_MS.woorden)
+  const [stage, setStage] = useState<Stage>('setup')
+  const [recorded, setRecorded] = useState<Record<string, boolean>>({})
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+  const [deviceId, setDeviceId] = useState<string | null>(null)
+  const [level, setLevel] = useState<number | null>(null)
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null)
-  const [lastBlob, setLastBlob] = useState<Blob | null>(null)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const recorder = useRef<MediaRecorder | null>(null)
-  const chunks = useRef<Blob[]>([])
-  const micStream = useRef<MediaStream | null>(null)
-  // when the primary button stops a take, it normally chains straight into
-  // recording the next sound — set to false only for the "pause" escape hatch
-  const autoContinue = useRef(true)
+  const [error, setError] = useState<string | null>(null)
+  const [savedAs, setSavedAs] = useState<string | null>(null)
+  const [report, setReport] = useState<SplitReport | null>(null)
+  const [retakeIds, setRetakeIds] = useState<string[] | null>(null)
+  const [testClip, setTestClip] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
 
+  const kind = SET_KIND[choice]
+  const folder = kind === 'klanken' ? 'sounds' : 'words'
   const pathWords = useMemo(() => wordsInRecordingOrder(), [])
-  const folder = mode === 'klanken' ? 'sounds' : 'words'
-  /**
-   * The clips this mode records, in recording order. Words are capped to the starter set by
-   * default: the whole word list is a long sitting, and the first twenty are the shortest
-   * words she reads (data/path.ts's wordsInRecordingOrder).
-   */
-  const items = useMemo(() => {
-    if (mode === 'klanken') return allSounds
+
+  const fullSet = useMemo(() => {
+    if (choice === 'klanken') return allSounds
     const ids = pathWords.map((w) => w.id)
-    return starterOnly ? ids.slice(0, STARTER_SET_SIZE) : ids
-  }, [mode, starterOnly, pathWords])
+    return choice === 'woorden-startset' ? ids.slice(0, STARTER_SET_SIZE) : ids
+  }, [choice, pathWords])
 
-  const currentItem = items[Math.min(currentIdx, items.length - 1)]
+  /** What the next take will actually prompt: the set, narrowed by the gaps-only switch. */
+  const ids = useMemo(() => {
+    if (retakeIds) return retakeIds
+    return missingOnly ? fullSet.filter((id) => !recorded[id]) : fullSet
+  }, [fullSet, missingOnly, recorded, retakeIds])
 
-  useEffect(() => {
-    // in case the auto-record chain is still running when this page unmounts
-    return () => {
-      autoContinue.current = false
-      micStream.current?.getTracks().forEach((t) => t.stop())
-    }
-  }, [])
+  useEffect(() => setPaceMs(DEFAULT_PACE_MS[kind]), [kind])
 
   useEffect(() => {
-    // check which mp3s already exist (dev server serves HTML fallback for
-    // missing files, so verify the content type too)
-    for (const id of items) {
-      fetch(`/audio/${folder}/${id}.mp3`, { method: 'HEAD' }).then((r) => {
+    // which ids already have an mp3 (the dev server serves an HTML fallback for missing
+    // files, so the content type has to be checked too)
+    let live = true
+    for (const id of fullSet) {
+      void fetch(`/audio/${folder}/${id}.mp3`, { method: 'HEAD' }).then((r) => {
         const isAudio = r.ok && (r.headers.get('content-type') ?? '').startsWith('audio')
-        setStatuses((s) => ({ ...s, [id]: isAudio ? 'recorded' : (s[id] ?? 'missing') }))
-      })
+        if (live) setRecorded((s) => (s[id] === isAudio ? s : { ...s, [id]: isAudio }))
+      }).catch(() => {})
     }
-  }, [items, folder])
+    return () => { live = false }
+  }, [fullSet, folder])
 
-  /** Switching mode starts that mode's list from the top, and drops the other's take. */
-  function switchMode(next: Mode) {
-    if (next === mode) return
-    autoContinue.current = false
-    recorder.current?.stop()
-    setMode(next)
-    setCurrentIdx(0)
-    setStatuses({})
-    setLastBlob(null)
-  }
+  /**
+   * Live level meter and device list.
+   *
+   * Worth the code: a three-minute take is a long thing to throw away, and the two ways to
+   * lose one are silent (wrong input selected) or clipped (gain too high). Both are visible
+   * here in two seconds, before committing to the take.
+   */
+  useEffect(() => {
+    if (stage !== 'setup') return
+    let cancelled = false
+    let raf = 0
+    let graph: ReturnType<typeof openTakeGraph> | null = null
+    let stream: MediaStream | null = null
 
-  const supportsFileSystemAccess = typeof (window as any).showDirectoryPicker === 'function'
-
-  async function pickFolder() {
-    if (!supportsFileSystemAccess) {
-      setSaveError('Deze browser ondersteunt geen mapopslag (File System Access API). Open /opnemen in Chrome of Edge.')
-      return
-    }
-    try {
-      // @ts-expect-error File System Access API (Chrome/Edge)
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite' })
-      setDirHandle(handle)
-      setSaveError(null)
-    } catch (err) {
-      if ((err as DOMException).name !== 'AbortError') {
-        setSaveError(`Map kiezen mislukt: ${(err as Error).message}`)
-      }
-    }
-  }
-
-  async function startRecording(idx: number) {
-    setCurrentIdx(idx)
-    setLastBlob(null)
-    const soundId = items[idx]
-    let stream: MediaStream
-    try {
-      // reuse one mic stream for the whole session — re-requesting getUserMedia
-      // for every single sound was flaky and could silently kill the auto-chain
-      if (!micStream.current || micStream.current.getAudioTracks().every((t) => t.readyState === 'ended')) {
-        micStream.current = await navigator.mediaDevices.getUserMedia({ audio: true })
-      }
-      stream = micStream.current
-    } catch (err) {
-      setSaveError(`Microfoon starten mislukt: ${(err as Error).message}`)
-      setRecording(false)
-      return
-    }
-    chunks.current = []
-    const rec = new MediaRecorder(stream, { mimeType: 'audio/webm' })
-    rec.ondataavailable = (e) => chunks.current.push(e.data)
-    rec.onstop = async () => {
-      const blob = new Blob(chunks.current, { type: 'audio/webm' })
-      setLastBlob(blob)
-      setRecording(false)
-      if (dirHandle) {
-        try {
-          const file = await dirHandle.getFileHandle(`${soundId}.webm`, { create: true })
-          const writable = await file.createWritable()
-          await writable.write(blob)
-          await writable.close()
-          setStatuses((s) => ({ ...s, [soundId]: 'new' }))
-          setSaveError(null)
-        } catch (err) {
-          setSaveError(`Opslaan van "${soundId}" mislukt: ${(err as Error).message}`)
-          return
-        }
-      }
-      if (!autoContinue.current) {
-        // done for now — release the mic instead of leaving it open indefinitely
-        micStream.current?.getTracks().forEach((t) => t.stop())
-        micStream.current = null
+    void (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(micConstraints(deviceId))
+      } catch (err) {
+        if (!cancelled) setError(`Microfoon starten mislukt: ${(err as Error).message}`)
         return
       }
-      // always move to the plain next item, whether or not it already has a
-      // take — a full redo pass needs to walk every one, not just the gaps
-      startRecording((idx + 1) % items.length)
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+      setError(null)
+      const all = await navigator.mediaDevices.enumerateDevices()
+      if (!cancelled) setDevices(all.filter((d) => d.kind === 'audioinput'))
+      graph = openTakeGraph(stream)
+      const buffer = new Float32Array(graph.analyser.fftSize)
+      const tick = () => {
+        if (cancelled || !graph) return
+        setLevel(peakDbfs(graph.analyser, buffer))
+        raf = requestAnimationFrame(tick)
+      }
+      tick()
+    })()
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+      graph?.close()
+      stream?.getTracks().forEach((t) => t.stop())
+      setLevel(null)
     }
-    recorder.current = rec
-    rec.start()
-    setRecording(true)
+  }, [stage, deviceId])
+
+  const supportsPicker = typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function'
+
+  async function pickFolder() {
+    if (!supportsPicker) {
+      setError('Deze browser ondersteunt geen mapopslag (File System Access API). Open /opnemen in Chrome of Edge.')
+      return
+    }
+    try {
+      const picker = (window as unknown as {
+        showDirectoryPicker: (o: { mode: string }) => Promise<FileSystemDirectoryHandle>
+      }).showDirectoryPicker
+      setDirHandle(await picker({ mode: 'readwrite' }))
+      setError(null)
+    } catch (err) {
+      if ((err as DOMException).name !== 'AbortError') setError(`Map kiezen mislukt: ${(err as Error).message}`)
+    }
   }
 
-  /** Primary button: stop the current take, save it, and immediately start the next one. */
-  function stopAndContinue() {
-    autoContinue.current = true
-    recorder.current?.stop()
+  async function write(name: string, data: Blob | string) {
+    if (!dirHandle) {
+      // no picker (or he cancelled it): hand the file to the browser's downloads instead of
+      // losing a take that has already been recorded
+      const url = URL.createObjectURL(typeof data === 'string' ? new Blob([data], { type: 'application/json' }) : data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      a.click()
+      URL.revokeObjectURL(url)
+      return
+    }
+    const file = await dirHandle.getFileHandle(name, { create: true })
+    const writable = await file.createWritable()
+    await writable.write(data)
+    await writable.close()
   }
 
-  /** Escape hatch: stop and save, but don't auto-start the next recording. */
-  function stopAndPause() {
-    autoContinue.current = false
-    recorder.current?.stop()
+  const onTakeDone = useCallback(async (take: Take) => {
+    const base = takeBasename(take.sheet.kind, new Date(take.sheet.startedAt))
+    try {
+      await write(`${base}.webm`, take.blob)
+      await write(`${base}.json`, `${JSON.stringify(take.sheet, null, 2)}\n`)
+      setSavedAs(base)
+      setStage('saved')
+      setRetakeIds(null)
+    } catch (err) {
+      setError(`Opslaan mislukt: ${(err as Error).message}`)
+      setStage('setup')
+    }
+    // `write` closes over dirHandle, which is set before a take can start
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirHandle])
+
+  /** Read the report the splitter left next to the take, and switch to the review list. */
+  async function loadReport() {
+    if (!dirHandle || !savedAs) return
+    try {
+      const handle = await dirHandle.getFileHandle(`${savedAs}.report.json`)
+      setReport(JSON.parse(await (await handle.getFile()).text()) as SplitReport)
+      setError(null)
+    } catch {
+      setError(`Nog geen ${savedAs}.report.json in de map — draai eerst het split-commando hieronder.`)
+    }
   }
 
-  function playBack() {
-    if (!lastBlob) return
-    new Audio(URL.createObjectURL(lastBlob)).play()
+  /** Three seconds and play it back: enough to hear a hum, a clip, or the wrong input. */
+  async function testThreeSeconds() {
+    setTesting(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(micConstraints(deviceId))
+      const rec = new MediaRecorder(stream, supportedRecorderOptions())
+      const chunks: Blob[] = []
+      rec.ondataavailable = (e) => chunks.push(e.data)
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop())
+        setTestClip(URL.createObjectURL(new Blob(chunks, { type: 'audio/webm' })))
+        setTesting(false)
+      }
+      rec.start()
+      window.setTimeout(() => rec.stop(), 3000)
+    } catch (err) {
+      setError(`Testopname mislukt: ${(err as Error).message}`)
+      setTesting(false)
+    }
   }
 
-  function skipToNext() {
-    setLastBlob(null)
-    setCurrentIdx((currentIdx + 1) % items.length)
+  if (stage === 'recording') {
+    return (
+      <div className="studio">
+        <Teleprompter
+          ids={ids}
+          kind={kind}
+          paceMs={paceMs}
+          deviceId={deviceId}
+          onDone={onTakeDone}
+          onError={(message) => { setError(message); setStage('setup') }}
+        />
+      </div>
+    )
   }
 
-  const doneCount = items.filter((id) => (statuses[id] ?? 'missing') !== 'missing').length
+  const doneCount = fullSet.filter((id) => recorded[id]).length
+  const hot = level !== null && level > -3
 
   return (
     <div className="studio">
       <h1>🎙️ Opnamestudio</h1>
-      <div className="studio-modes">
-        <button
-          className={`btn-primary${mode === 'klanken' ? '' : ' studio-mode-off'}`}
-          onClick={() => switchMode('klanken')}
-        >
-          Klanken ({allSounds.length})
-        </button>
-        <button
-          className={`btn-primary${mode === 'woorden' ? '' : ' studio-mode-off'}`}
-          onClick={() => switchMode('woorden')}
-        >
-          Woorden ({pathWords.length})
-        </button>
-      </div>
-      {mode === 'woorden' && (
-        <p>
-          <label className="studio-starter">
-            <input
-              type="checkbox"
-              checked={starterOnly}
-              onChange={(e) => setStarterOnly(e.target.checked)}
-            />{' '}
-            alleen de eerste {STARTER_SET_SIZE} (de kortste woorden)
-          </label>
-        </p>
-      )}
-      <p>
-        {doneCount}/{items.length} {mode} opgenomen.{' '}
-        {!dirHandle && (
-          <button className="btn-primary" style={{ fontSize: 16, padding: '8px 16px' }} onClick={pickFolder}>
-            Kies map (app/public/audio/{folder})
-          </button>
-        )}
-        {dirHandle && (
-          <b>
-            Map gekozen ✓ (webm → draai daarna{' '}
-            <code>node tools/convert-audio.mjs app/public/audio/{folder}</code>)
-          </b>
-        )}
-      </p>
-      {mode === 'woorden' && (
-        <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-          Spreek het woord één keer natuurlijk uit, met een seconde stilte ervoor en erna —
-          convert-audio.mjs knipt die eraf en normaliseert naar -16 LUFS.
-        </p>
-      )}
-      {!supportsFileSystemAccess && (
-        <p style={{ color: 'var(--red-orange, #c0392b)', fontWeight: 700 }}>
-          ⚠️ Deze browser ondersteunt geen mapopslag. Open /opnemen in Chrome of Edge om op te nemen.
-        </p>
-      )}
-      {saveError && <p style={{ color: 'var(--red-orange, #c0392b)', fontWeight: 700 }}>⚠️ {saveError}</p>}
 
-      <div className="big-sound">{currentItem}</div>
-      <div className="studio-controls">
-        {!recording ? (
-          <button className="btn-primary" disabled={!dirHandle} style={{ opacity: dirHandle ? 1 : 0.4 }} onClick={() => startRecording(currentIdx)}>
-            🔴 Opnemen
-          </button>
-        ) : (
-          <button className="btn-bad" onClick={stopAndContinue}>⏹ Klaar → volgende 🔴</button>
-        )}
-        <button className="btn-primary" disabled={!lastBlob} style={{ opacity: lastBlob ? 1 : 0.4 }} onClick={playBack}>
-          ▶️ Luister
-        </button>
-        <button className="btn-primary" onClick={skipToNext}>Overslaan ➡️</button>
-      </div>
-      {recording && (
-        <p style={{ textAlign: 'center' }}>
-          <button style={{ fontSize: 14, color: 'var(--muted)', textDecoration: 'underline' }} onClick={stopAndPause}>
-            stoppen zonder door te gaan
-          </button>
-        </p>
+      {error && <p className="studio-error">⚠️ {error}</p>}
+
+      {stage === 'saved' && savedAs && (
+        <div className="studio-next">
+          <p>
+            Take opgeslagen als <code>{savedAs}.webm</code> + <code>{savedAs}.json</code>.
+            Knip hem nu op:
+          </p>
+          <pre>node tools/split-take.mjs recordings/{savedAs}.webm</pre>
+          <p className="studio-hint">
+            Daarna: <b>herstart de dev-server</b> — <code>vite.config.ts</code> leest
+            <code> public/audio/words/</code> één keer bij het starten, dus nieuwe mp3's
+            worden pas daarna in een leesronde gebruikt. En check de clips een keer op haar
+            échte iPad: tien <code>&lt;audio&gt;</code>-elementen per ronde is een openstaand
+            punt in <code>docs/code-review-backlog.md</code> dat pas met echte opnames scherp
+            wordt.
+          </p>
+          <p className="review-actions">
+            <button className="btn-primary" onClick={loadReport}>Rapport laden</button>
+            <button className="btn-primary" onClick={() => { setStage('setup'); setReport(null) }}>
+              Nieuwe take
+            </button>
+          </p>
+        </div>
       )}
 
-      <div className="studio-grid">
-        {items.map((id, idx) => (
-          <button
-            key={id}
-            className={`studio-cell${id === currentItem ? ' studio-cell-active' : ''}`}
-            onClick={() => setCurrentIdx(idx)}
-          >
-            <span className="studio-cell-id">{id}</span>
-            <span className="studio-cell-status">
-              {statuses[id] === 'recorded' && '✅'}
-              {statuses[id] === 'new' && '🆕'}
-              {(statuses[id] ?? 'missing') === 'missing' && '⬜'}
-            </span>
-          </button>
-        ))}
-      </div>
+      {report && (
+        <TakeReview
+          report={report}
+          onRetake={(pick) => { setRetakeIds(pick); setReport(null); setStage('setup') }}
+        />
+      )}
+
+      {stage === 'setup' && (
+        <>
+          <div className="studio-modes">
+            {([
+              ['klanken', `Klanken (${allSounds.length})`],
+              ['woorden-startset', `Woorden, startset (${Math.min(STARTER_SET_SIZE, pathWords.length)})`],
+              ['woorden', `Woorden, alle (${pathWords.length})`],
+            ] as [SetChoice, string][]).map(([value, label]) => (
+              <button
+                key={value}
+                className={`btn-primary${choice === value ? '' : ' studio-mode-off'}`}
+                onClick={() => { setChoice(value); setRetakeIds(null) }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <p>
+            <label className="studio-starter">
+              <input type="checkbox" checked={missingOnly} onChange={(e) => setMissingOnly(e.target.checked)} />
+              {' '}alleen ontbrekende ({fullSet.length - doneCount} van {fullSet.length})
+            </label>
+          </p>
+
+          {retakeIds && (
+            <p className="studio-retake">
+              Opnieuw opnemen: <b>{retakeIds.join(' · ')}</b>{' '}
+              <button className="studio-link" onClick={() => setRetakeIds(null)}>(hele set toch)</button>
+            </p>
+          )}
+
+          <p>
+            <label className="studio-starter">
+              Tempo: <b>{(paceMs / 1000).toFixed(1)}s</b> per woord{' '}
+              <input
+                type="range"
+                min={PACE_RANGE.min}
+                max={PACE_RANGE.max}
+                step={100}
+                value={paceMs}
+                onChange={(e) => setPaceMs(Number(e.target.value))}
+              />
+            </label>
+          </p>
+
+          <p>
+            <label className="studio-starter">
+              Microfoon:{' '}
+              <select value={deviceId ?? ''} onChange={(e) => setDeviceId(e.target.value || null)}>
+                <option value="">standaard</option>
+                {devices.map((d) => (
+                  <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId.slice(0, 8)}</option>
+                ))}
+              </select>
+            </label>
+          </p>
+
+          <div className="studio-meter" aria-label="microfoonniveau">
+            <i
+              className={hot ? 'studio-meter-hot' : undefined}
+              style={{ width: `${Math.max(0, Math.min(100, (((level ?? -60) + 60) / 60) * 100))}%` }}
+            />
+            <b>{level === null || level === -Infinity ? '—' : `${level.toFixed(0)} dBFS`}</b>
+          </div>
+
+          <p className="review-actions">
+            <button className="btn-primary" disabled={testing} onClick={testThreeSeconds}>
+              {testing ? '● opnemen…' : 'Test 3 seconden'}
+            </button>
+            {testClip && <audio controls src={testClip} />}
+          </p>
+
+          <p>
+            {!dirHandle ? (
+              <button className="btn-primary" onClick={pickFolder}>Kies map (recordings/)</button>
+            ) : (
+              <b>Map gekozen ✓ — takes komen in recordings/, niet in app/public/</b>
+            )}
+          </p>
+
+          <p className="review-actions">
+            <button
+              className="btn-primary"
+              disabled={ids.length === 0}
+              style={{ opacity: ids.length ? 1 : 0.4 }}
+              onClick={() => { setError(null); setSavedAs(null); setStage('recording') }}
+            >
+              🔴 Start take ({ids.length} {kind})
+            </button>
+          </p>
+
+          <p className="studio-hint">
+            Lees elk woord één keer, rustig, zodra het verschijnt. Handen van het bureau —
+            klikken en toetsen komen mee de opname in. Gaat er één mis: <b>spatie</b>, en hij
+            komt achteraan terug.
+          </p>
+
+          <div className="studio-grid">
+            {fullSet.map((id) => (
+              <span key={id} className={`studio-cell${ids.includes(id) ? ' studio-cell-active' : ''}`}>
+                <span className="studio-cell-id">{id}</span>
+                <span className="studio-cell-status">{recorded[id] ? '✅' : '⬜'}</span>
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
