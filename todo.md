@@ -24,6 +24,7 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 - [x] Lettertype-toggle (dyslexievriendelijke spatiëring), NL UI
 - [x] Frida-redesign geïmplementeerd (art/design_handoff_leerpad): warm licht thema, coin-pad, statbalk, bottom nav, Frida-mascotte + favicons/manifest
 - [x] Probeermenu `/proberen` (niet gelinkt in de navigatie): elke spelmodus direct spelen zonder het pad te doorlopen, plus `?test=true` ontgrendelt alle lessen op het echte pad-scherm zelf
+- [x] Onboarding bij het eerste bezoek (`/welkom`, zie [docs/onboarding-welkom.md](docs/onboarding-welkom.md)): welkomscherm met Frida, naam kiezen (mag ook niet), avatar maken, confetti — daarna redirect `/` nooit meer; naam + vlag in de bestaande zustand-stores, hydratie-gate in `App.tsx` zodat een terugkerende speler geen flits van het welkomscherm ziet
 - [ ] Klanken inspreken (Fase-1-klanken minimaal) en mp3's committen — **opnieuw**, via de nieuwe teleprompter + `split-take.mjs`; de 45 die er nu staan zijn met de oude klik-per-clip-studio gemaakt en klinken clacky
 - [ ] End-to-end test in browser: les afronden, herladen, voortgang blijft staan
 - [ ] Testen op haar eigen tablet/device
