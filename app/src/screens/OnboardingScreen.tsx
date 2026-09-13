@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import confetti from 'canvas-confetti'
 import { AvatarView } from '../components/AvatarView'
 import { AvatarPickers } from '../components/AvatarPickers'
@@ -35,13 +35,14 @@ function prefersReducedMotion(): boolean {
  * only on the closing beat. Leaving halfway therefore leaves her exactly where she was.
  */
 export function OnboardingScreen() {
-  const navigate = useNavigate()
   const storedName = useProgress((s) => s.settings.playerName)
   const setPlayerName = useProgress((s) => s.setPlayerName)
   const completeOnboarding = useProgress((s) => s.completeOnboarding)
   const avatarConfig = useAvatar((s) => s.config)
 
   const [step, setStep] = useState<Step>('welkom')
+  // Set when the closing beat has played out; the redirect is rendered, not called.
+  const [finished, setFinished] = useState(false)
   // Seeded from the store so re-opening the intro from Profiel shows the name she already
   // has instead of an empty field she would have to retype.
   const [draftName, setDraftName] = useState(storedName)
@@ -58,17 +59,27 @@ export function OnboardingScreen() {
     return () => document.documentElement.removeAttribute('data-welkom')
   }, [])
 
-  // The closing beat. completeOnboarding() fires as soon as this step is reached rather than
-  // after the delay: if she closes the tab during the confetti she is still onboarded, which
-  // is the answer that does not make her sit through the whole flow again.
+  /*
+   * The closing beat. completeOnboarding() fires as soon as this step is reached rather than
+   * after the delay: if she closes the tab during the confetti she is still onboarded, which
+   * is the answer that does not make her sit through the whole flow again.
+   *
+   * The timer only flips a piece of local state; the redirect itself is the <Navigate> below.
+   * Calling navigate() from inside the timeout left the ipad/iphone WebKit runs stuck on this
+   * screen with the URL already changed to #/ — the declarative form is the one every other
+   * redirect in the app uses and the one the gate's own tests already prove works there.
+   * Keeping useNavigate's return value out of the dependency list is the other half of that:
+   * its identity tracks the current location, so an effect that depends on it can be torn
+   * down and restarted by the very navigation it is waiting to perform.
+   */
   useEffect(() => {
     if (step !== 'klaar') return
     completeOnboarding()
     const reduced = prefersReducedMotion()
     if (!reduced) confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } })
-    const timer = setTimeout(() => navigate('/'), reduced ? KLAAR_REDUCED_MS : KLAAR_MS)
+    const timer = setTimeout(() => setFinished(true), reduced ? KLAAR_REDUCED_MS : KLAAR_MS)
     return () => clearTimeout(timer)
-  }, [step, completeOnboarding, navigate])
+  }, [step, completeOnboarding])
 
   function goToAvatar(withName: string) {
     setPlayerName(withName)
@@ -76,6 +87,9 @@ export function OnboardingScreen() {
   }
 
   if (step === 'klaar') {
+    // `replace`, so the phone's back gesture after finishing leaves the app rather than
+    // dropping her back into the intro she has just been through.
+    if (finished) return <Navigate to="/" replace />
     return (
       <div className="welkom welkom-klaar">
         <FridaSays expression="head-celebrating" size={120} bubble="large">
