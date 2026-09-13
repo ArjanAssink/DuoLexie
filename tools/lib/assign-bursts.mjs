@@ -55,14 +55,21 @@ function overlapMs(aFrom, aTo, bFrom, bTo) {
  * the recorder resumed on. (The studio closes a pause at the moment the first prompt after
  * the resume countdown appears, so the resume beeps are inside the pause too.)
  *
+ * `seams` are moments the take was cut at — the instant a pause began, once the cue sheet has
+ * been put on the take's clock and the paused milliseconds have collapsed to a point. A window
+ * must not reach across one: on the far side of that point is audio from after the resume,
+ * starting with the resume countdown's beeps, which would otherwise sit squarely in the tail
+ * padding of the last word before the Esc.
+ *
  * @param {Cue[]} cues
- * @param {{ leadMs?: number, tailMs?: number, pauses?: Pause[] }} [options]
- * @returns {{ windows: Window[], skipped: { id: string, reason: 'paused' }[], noCue: string[] }}
+ * @param {{ leadMs?: number, tailMs?: number, pauses?: Pause[], seams?: number[] }} [options]
+ * @returns {{ windows: Window[], skipped: { id: string, reason: 'paused' }[], noCue: string[], blocked: { from: number, to: number }[] }}
  */
 export function cueWindows(cues, options = {}) {
   const leadMs = options.leadMs ?? DEFAULT_LEAD_MS
   const tailMs = options.tailMs ?? DEFAULT_TAIL_MS
   const pauses = options.pauses ?? []
+  const seams = options.seams ?? []
 
   /** @type {Window[]} */
   const windows = []
@@ -70,6 +77,13 @@ export function cueWindows(cues, options = {}) {
   const skipped = []
   /** @type {string[]} */
   const noCue = []
+
+  const chosen = new Set(effectiveCues(cues).map(({ cue }) => cue).filter(Boolean))
+  // Prompts whose audio exists but is not wanted: the take he rejected with Space, and any
+  // earlier one an id happens to have. They are not windows, but they still have to *hold on
+  // to* their burst — a rejected word read quickly reaches 400ms into the previous word's
+  // tail padding, and would otherwise be cut and shipped under the previous word's name.
+  const blocked = cues.filter((cue) => !chosen.has(cue)).map((cue) => ({ from: cue.shownAt, to: cue.hiddenAt }))
 
   for (const { id, cue } of effectiveCues(cues)) {
     if (!cue) {
@@ -84,9 +98,16 @@ export function cueWindows(cues, options = {}) {
       skipped.push({ id, reason: 'paused' })
       continue
     }
-    windows.push({ id, from: cue.shownAt - leadMs, to: cue.hiddenAt + tailMs, cue })
+    const before = seams.filter((t) => t <= cue.shownAt)
+    const after = seams.filter((t) => t >= cue.hiddenAt)
+    windows.push({
+      id,
+      from: Math.max(cue.shownAt - leadMs, ...before),
+      to: Math.min(cue.hiddenAt + tailMs, ...after),
+      cue,
+    })
   }
-  return { windows, skipped, noCue }
+  return { windows, skipped, noCue, blocked }
 }
 
 /**
@@ -112,20 +133,21 @@ export function cueWindows(cues, options = {}) {
  *
  * @param {Burst[]} bursts sorted by startMs; already filtered for minimum length
  * @param {Cue[]} cues
- * @param {{ leadMs?: number, tailMs?: number, pauses?: Pause[] }} [options]
+ * @param {{ leadMs?: number, tailMs?: number, pauses?: Pause[], seams?: number[] }} [options]
  * @returns {{
  *   assignments: { id: string, status: 'ok'|'missing'|'multiple'|'boundary', burst: Burst | null, window: Window | null, candidates: Burst[], flags: string[] }[],
  *   skipped: { id: string, reason: 'paused' }[],
  * }}
  */
 export function assignBursts(bursts, cues, options = {}) {
-  const { windows, skipped, noCue } = cueWindows(cues, options)
+  const { windows, skipped, noCue, blocked } = cueWindows(cues, options)
 
   /** window index → bursts whose midpoint elected it */
   const owned = windows.map(() => /** @type {Burst[]} */ ([]))
   const boundary = windows.map(() => false)
 
   for (const burst of bursts) {
+    if (blocked.some((b) => burst.startMs >= b.from && burst.endMs <= b.to)) continue
     const hits = []
     for (let i = 0; i < windows.length; i++) {
       if (overlapMs(burst.startMs, burst.endMs, windows[i].from, windows[i].to) > 0) hits.push(i)

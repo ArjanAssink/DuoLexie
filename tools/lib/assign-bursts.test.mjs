@@ -198,6 +198,36 @@ test('cueWindows pads the prompt on both sides', () => {
   ])
 })
 
+test('a window does not reach across a seam into audio from after the resume', () => {
+  const cues = cuesFor(['kat', 'tas'])
+  // Esc the moment tas is hidden: in the take, the resume countdown's first beep starts right
+  // there, 400ms inside tas's tail padding
+  const seams = [cues[1].hiddenAt]
+  const beep = { startMs: cues[1].hiddenAt + 20, endMs: cues[1].hiddenAt + 140 }
+
+  const wide = byId(assignBursts([burstIn(0, 400, 450), beep], cues))
+  assert.equal(wide.tas.status, 'ok', 'without the seam the beep is the only thing tas has')
+
+  const got = byId(assignBursts([burstIn(0, 400, 450), beep], cues, { seams }))
+  assert.equal(got.tas.status, 'missing')
+  assert.equal(byId(assignBursts([burstIn(0, 400, 450), burstIn(1, 400, 450), beep], cues, { seams })).tas.status, 'ok')
+})
+
+test('a word he rejected with Space keeps its own burst instead of leaking into the one before', () => {
+  // The retaken prompt is not a window, but a word read 300ms after it appeared sits inside
+  // the *previous* window's 400ms of tail padding. Without the rejected prompt holding on to
+  // it, the take he threw away is what gets cut and shipped as "kat".
+  const cues = [...cuesFor(['kat', 'tas']), { id: 'tas', shownAt: LEAD_IN + 2 * PACE, hiddenAt: LEAD_IN + 3 * PACE }]
+  cues[1].retake = true
+
+  const got = byId(assignBursts([burstIn(0, 400, 450), burstIn(1, 300, 300), burstIn(2, 400, 520)], cues))
+
+  assert.equal(got.kat.status, 'ok')
+  assert.equal(got.kat.burst.endMs - got.kat.burst.startMs, 450)
+  assert.equal(got.tas.status, 'ok')
+  assert.equal(got.tas.burst.endMs - got.tas.burst.startMs, 520)
+})
+
 test('no cue sheet, matching counts: bursts map to ids in order', () => {
   const bursts = [
     { startMs: 500, endMs: 900 },
