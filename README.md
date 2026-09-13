@@ -1,5 +1,9 @@
 # DuoLexie 🦊
 
+Speels leren lezen, klank voor klank — met Frida als gids.
+
+<img src="art/avatar/frida-happy.svg" alt="Frida, de DuoLexie-mascotte" width="160" />
+
 Duolingo-achtige lees-oefenapp voor kinderen met dyslexie, gebouwd rond de 45 Nederlandse klanken uit de RID-behandeling. Speels oefenen met flitskaarten (snelheid!) en luisterspellen (klank → teken), met edelstenen, records en een weekdoel.
 
 **Belangrijk:** deze app is een aanvulling op de RID-thuisoefeningen, geen vervanging.
@@ -47,3 +51,7 @@ De app gebruikt zelf opgenomen klankclips (val terug op browser-TTS zolang die o
 
 Zie het plan: klankspellen → woorden → zinnen, accounts met profielen (fase 3),
 ouderdashboard, stickerboek. Spraakherkenning is een later experiment.
+
+## Licentie
+
+MIT — zie [LICENSE](LICENSE).
