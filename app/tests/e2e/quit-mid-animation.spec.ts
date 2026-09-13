@@ -92,6 +92,10 @@ async function freezeTimers(page: Page) {
 
 
 test('Flitsen: quitting during the last card flight credits nothing', async ({ page }) => {
+  // A Flitsen round is a fixed twenty cards (FLITS_DECK_SIZE), each with its own 420ms
+  // flight to sit through, so clearing the deck to reach the case under test outlasts the
+  // 30s default on its own — before WebKit's per-click round-trips on a loaded runner.
+  test.setTimeout(120_000)
   await page.clock.install()
   await page.goto(FLITSEN)
   await expect(page.locator('.kk-arena')).toBeVisible()
@@ -129,6 +133,7 @@ test('Flitsen: quitting during the last card flight credits nothing', async ({ p
 })
 
 test('Flitsen: finishing normally still credits exactly once', async ({ page }) => {
+  test.setTimeout(120_000) // a full twenty-card deck, flight animation included
   await page.goto(FLITSEN)
   await expect(page.locator('.kk-arena')).toBeVisible()
 
