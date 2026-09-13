@@ -40,6 +40,27 @@ function remapLegacySessionIds(sessions: SessionResult[] | undefined): SessionRe
 
 export type { LessonCompletion }
 
+/**
+ * Longest name we store, and the `maxLength` the name inputs use. Twenty characters is
+ * comfortably more than a first name and still short enough that "Hoi, {naam}!" cannot
+ * wrap out of Frida's bubble on a 390px phone.
+ */
+export const MAX_PLAYER_NAME = 20
+
+/**
+ * The single definition of what a stored name looks like: no leading or trailing space, no
+ * runs of whitespace inside, at most MAX_PLAYER_NAME characters. Both name fields (the
+ * welkom-flow's step 2 and Profiel -> Over DuoLexie) and the live bubble go through this,
+ * so a stray keystroke cannot show up as "Hoi,  Lotte !" in one place and not the other.
+ *
+ * The trailing trim happens *after* the cap on purpose: cutting a 21-character name at 20
+ * can land on a space, and putting that space back into the greeting is exactly the bug
+ * this function exists to prevent.
+ */
+export function normalizePlayerName(raw: string): string {
+  return raw.trim().replace(/\s+/g, ' ').slice(0, MAX_PLAYER_NAME).trimEnd()
+}
+
 interface ProgressState extends Aggregates {
   /**
    * Append-only session log — docs/backend-readiness.md A2. gems/xp/soundStats/wordStats/
@@ -57,11 +78,29 @@ interface ProgressState extends Aggregates {
      * §4.4).
      */
     selfSwipes: number
+    /**
+     * Her first name, or '' when she has none — the welkom-flow makes it optional and
+     * "Liever geen naam" is a first-class answer, so every reader has to cope with ''.
+     * Always normalized (normalizePlayerName).
+     */
+    playerName: string
+    /**
+     * ISO instant she finished the welkom-flow, or null if she never has. This is the
+     * onboarding gate: PathScreen sends her to /welkom while it is null
+     * (docs/onboarding-welkom.md ss3). Not a boolean, because "when" is the more useful
+     * thing to have once profiles move to the server (plan.md Phase 3) and it costs
+     * nothing to record now.
+     */
+    onboardedAt: string | null
   }
 
   toggleFont: () => void
   /** One more swipe she made herself; the teaching layers switch off at SWIPES_TO_LEARN. */
   noteSelfSwipe: () => void
+  /** Stores her name, normalized; '' clears it. */
+  setPlayerName: (name: string) => void
+  /** Marks the welkom-flow done. Idempotent: a second call keeps the first timestamp. */
+  completeOnboarding: () => void
   /** Deducts gems for a shop purchase; returns false (no-op) if the balance is insufficient. */
   spendGems: (amount: number) => boolean
   completeLesson: (args: {
@@ -78,7 +117,7 @@ export const useProgress = create<ProgressState>()(
     (set, get) => ({
       ...emptyAggregates(),
       sessions: [],
-      settings: { font: 'standaard', selfSwipes: 0 },
+      settings: { font: 'standaard', selfSwipes: 0, playerName: '', onboardedAt: null },
 
       // Both of these spread the existing settings rather than rebuilding the object: with
       // more than one key in here, writing a fresh literal silently resets the other.
@@ -92,6 +131,19 @@ export const useProgress = create<ProgressState>()(
 
       noteSelfSwipe: () =>
         set((s) => ({ settings: { ...s.settings, selfSwipes: s.settings.selfSwipes + 1 } })),
+
+      setPlayerName: (name) =>
+        set((s) => ({ settings: { ...s.settings, playerName: normalizePlayerName(name) } })),
+
+      // Idempotent by design: Profiel can send her back through the intro any number of
+      // times (docs/onboarding-welkom.md ss2.5), and each finish must not rewrite when she
+      // first arrived.
+      completeOnboarding: () =>
+        set((s) =>
+          s.settings.onboardedAt
+            ? s
+            : { settings: { ...s.settings, onboardedAt: new Date().toISOString() } },
+        ),
 
       spendGems: (amount) => {
         const s = get()
