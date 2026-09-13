@@ -1,5 +1,20 @@
 name: Azure Static Web Apps CI/CD
 
+# A merge to main is a push to main, so that trigger was never the problem — but on
+# 2026-09-13 GitHub dropped the push event for merge commit 4e3e543 during an API outage
+# (repeated 502s; the merge itself took four attempts). The run was never created, main
+# looked healthy, and production silently stayed on the previous bundle. It only shipped
+# because an unrelated PR merged behind it half an hour later.
+#
+# No trigger configuration can make GitHub deliver an event it dropped. What the two
+# additions below give is a way to notice and a way to recover:
+#   workflow_dispatch — re-run the deploy for any ref, from the Actions tab or
+#                       `gh workflow run "Azure Static Web Apps CI/CD" --ref main`
+#   schedule          — a daily run of main, so a dropped event self-heals within a day
+#                       instead of waiting for whatever happens to be merged next. The
+#                       upload is idempotent, and on a public repo the minutes are free,
+#                       so the standing cost is one no-op run a day in exchange for
+#                       production never drifting from main unnoticed.
 on:
   push:
     branches:
@@ -8,10 +23,18 @@ on:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    # 05:17 UTC — off the top of the hour, where scheduled jobs queue up worldwide
+    - cron: '17 5 * * *'
 
 jobs:
   test:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    # Every trigger except the pull_request "closed" event, which exists only to tear the
+    # preview environment down. Deliberately written as an exclusion rather than a list of
+    # allowed events: an allow-list is how adding `workflow_dispatch` above would have
+    # skipped both jobs and quietly done nothing at all.
+    if: github.event_name != 'pull_request' || github.event.action != 'closed'
     runs-on: ubuntu-latest
     name: Tests (unit, tools, e2e on desktop/ipad/iphone)
     steps:
@@ -52,7 +75,13 @@ jobs:
 
   build_and_deploy_job:
     needs: test
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    # As above, plus a guard the old condition got for free from `push` being restricted to
+    # main: anything that is not a pull request deploys to *production*, not to a preview
+    # environment. Without the second clause, dispatching this workflow from a feature
+    # branch would put that branch on the live site.
+    if: >-
+      (github.event_name != 'pull_request' || github.event.action != 'closed')
+      && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
