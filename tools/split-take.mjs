@@ -29,7 +29,7 @@ import {
 } from './lib/audio.mjs'
 import { assignBursts, assignInOrder } from './lib/assign-bursts.mjs'
 import { toAudioClock, chooseBeepRun } from './lib/take-clock.mjs'
-import { verifyClips, whisperUnavailableMessage } from './lib/verify.mjs'
+import { verifyClips } from './lib/verify.mjs'
 
 const REPO = resolve(fileURLToPath(new URL('..', import.meta.url)))
 

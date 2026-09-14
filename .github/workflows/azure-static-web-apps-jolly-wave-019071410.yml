@@ -51,12 +51,22 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: npm ci
+      # Cheap and first: a second, and it is the only thing enforcing react/rules-of-hooks.
+      # The script covers tools/ and api/ as well as app/, so this is the whole repo.
+      - name: Lint
+        working-directory: app
+        run: npm run lint
       # Load-bearing, and new with this change. Neither `npm test` (vitest, esbuild) nor the
       # e2e suite (which runs against the *dev* server) typechecks anything, so until now the
       # only thing in CI compiling this project was Azure's Oryx build inside the deploy job.
       # Taking that job off pull requests without this would have let a type error sail
       # through a green PR and break the deploy on main — trading a noisy failure for a
       # silent one. Both packages, because Oryx built both.
+      #
+      # `tsc -b` also covers app/tests now (tsconfig.test.json). Nothing used to typecheck
+      # the Playwright specs at all: they are compiled by Playwright's own loader at run
+      # time, so a type error there showed up — if at all — as a failure eight minutes into
+      # the e2e job, on whichever branch happened to execute that line.
       - name: Build app
         working-directory: app
         run: npm run build
