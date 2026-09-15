@@ -8,6 +8,10 @@ Duolingo-achtige lees-oefenapp voor kinderen met dyslexie, gebouwd rond de 45 Ne
 
 **Belangrijk:** deze app is een aanvulling op de RID-thuisoefeningen, geen vervanging.
 
+Wie de app voor het eerst opent krijgt een korte kennismaking op `/#/welkom` — Frida stelt
+zich voor, je kiest een naam (of niet) en maakt je avatar; daarna kom je altijd meteen op het
+leerpad uit. Zie [docs/onboarding-welkom.md](docs/onboarding-welkom.md).
+
 ## Structuur
 
 ```
