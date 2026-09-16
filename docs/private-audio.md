@@ -12,9 +12,37 @@ It is written to be implemented by a fresh session that has not seen the convers
 it. Everything needed is here or in the files it names. Where it says *must*, that is an
 acceptance criterion; where it says *suggested*, use judgement.
 
-**Status:** planned, not built. **The history purge in §9 has been done** (2026-09-16): no
-audio remains anywhere in the repository's history, and the rule that keeps it that way is
-in `AGENTS.md` / `CLAUDE.md`.
+**Status:** planned, not built. Ships **after** `docs/recording-studio-v3.md` Tier 1+2 — see
+§0. The history purge in §9 is **also still to do**, and is scheduled between the two.
+
+---
+
+## 0. Where this sits in the queue
+
+Three things touch the same files and must happen in this order. Doing them in parallel
+would mean merge conflicts in `split-take.mjs`, the Vite dev plugin, `words.ts`,
+`weetjes.ts`, `vite.config.ts` and the studio's clip URLs — and would build a
+manifest mechanism twice.
+
+1. **`docs/recording-studio-v3.md` Tier 1+2** — judging clips, metering, the `/__studio/`
+   dev middleware. Self-contained, needs no Azure. Recording can start the day it merges:
+   `app/public/audio/` is gitignored since `4d97bbf`, so clips sit there locally and can be
+   neither committed nor deployed.
+2. **The history purge** (§9), once that PR has merged and before any new branch is cut.
+3. **This spec**, on a branch cut from post-purge `main`.
+
+Studio v3 leaves two seams for this change, so step 3 is a swap and not a rewrite:
+
+- **`app/src/audio/recorded.ts`** — the single module answering *does this id have a clip*
+  (`hasRecording(kind, id)`, `recordedIds(kind)`). v3 backs it with a dev-server virtual
+  module; §5.1 here replaces its innards with the API manifest. `words.ts`, `weetjes.ts` and
+  the studio import from it and are not touched again.
+- **`clipSrc(kind, id)`** in `audio/clips.ts` — the one place a clip URL is constructed.
+  The v3 verdict grid, `TakeReview` and every game go through it; §5.1 changes it to hand
+  back a prefetched object URL.
+
+If studio v3 has **not** merged when this is implemented, create both seams here as part of
+this change; do not reach around them.
 
 ---
 
@@ -270,27 +298,37 @@ settings).
 
 ---
 
-## 9. The history purge (done 2026-09-16; recorded here so nobody has to wonder)
+## 9. The history purge (still to do — Arjan runs it, between steps 1 and 3 of §0)
 
-What was in history: 45 klank clips under `app/public/audio/sounds/` (recorded with the old
-click-per-clip studio) and a committed `app/dist/` build that contained the same 45. Both
-paths were removed from **every commit on every branch** with `git filter-repo
---invert-paths --path app/public/audio/sounds --path app/dist`, and all branches were
-force-pushed. Kept: `app/tests/e2e/fixtures/silent.mp3` (a generated silent file) and
-`docs/media/**` (screen recordings of the UI).
+What is in history: 45 klank clips under `app/public/audio/sounds/` (recorded with the old
+click-per-clip studio) and a committed `app/dist/` build containing the same 45. A third
+copy sat on the orphan branch `claude/onboarding-welkom-shots` — 19,716 files of
+`node_modules`/`dist` pushed to share PR screenshots, with no merge base with `main`. That
+branch is deleted rather than rewritten; deleting it is both the cheaper and the more
+complete fix, and it must happen **before** `filter-repo` runs, or the rewrite chews through
+all 19k files and force-pushes the junk back.
 
-Consequences, for anyone with a clone from before that date:
+The rewrite itself removes both paths from **every commit on every branch** with
+`git filter-repo --invert-paths --path app/public/audio/sounds --path app/dist`, followed by
+a force-push of all branches. Kept: `app/tests/e2e/fixtures/silent.mp3` (generated silence)
+and `docs/media/**` (screen recordings of the UI, no voice).
+
+**Timing is not negotiable:** it runs when no agent has an open branch, i.e. after the
+studio v3 PR has merged and before the branch for this spec is cut. A branch cut before the
+rewrite and merged after it puts the blobs back.
+
+Afterwards, GitHub still holds unreachable objects and `refs/pull/*/head`; Arjan files a
+request at https://support.github.com/request (*Remove cached views / sensitive data*)
+naming the pre-purge `main` SHA. Anything cloned before the purge is out there regardless —
+this reduces the blast radius, it does not undo the past.
+
+Consequences, for anyone with a clone from before the rewrite:
 
 - **Re-clone** (or `git fetch && git reset --hard origin/<branch>` in every worktree). Your
   old commits have new SHAs; the content is identical.
 - **Never merge a branch cut before the purge into the new `main`** — that would bring the
   old commits, and the blobs, straight back. Cherry-pick its commits onto the new base
   instead. The CI guard in §7 is there to catch exactly this.
-- GitHub keeps unreachable objects and PR refs (`refs/pull/*/head`) for a while; a support
-  request to purge cached views of the old commits was filed by Arjan at
-  https://support.github.com/request (category *Remove cached views / sensitive data*), with
-  the old `main` SHA `a1046afc7fcd6e49fe14e4305d75afa3ea6ce49b` as reference. Anything
-  cloned before the purge is, of course, out there regardless.
 
 ---
 
