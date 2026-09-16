@@ -285,6 +285,12 @@ export type EffectKind =
   | 'pop'
   /** one gem on the reward screen's count-up; `step` walks it up a major triad */
   | 'tick'
+  /** the reward screen's streak band sweeping in under Frida — a noise sweep, no pitch */
+  | 'whoosh'
+  /** the reward screen's stat card landing — a short, blunt pluck */
+  | 'cardPop'
+  /** the stat card's label upgrading a tier; `step` raises it a whole tone per tier */
+  | 'tierUp'
 
 /** Short celebratory blip using WebAudio (no asset needed) */
 let audioCtx: AudioContext | null = null
@@ -304,7 +310,8 @@ export function resumeAudio(): void {
 }
 
 /**
- * @param step for `tick` only — which gem in the count-up this is, so the pitch climbs
+ * @param step for `tick`, which gem in the count-up this is, and for `tierUp`, which tier
+ *   was just reached — both use it to climb rather than repeat
  */
 export function playEffect(kind: EffectKind, step = 0): void {
   try {
@@ -383,6 +390,75 @@ export function playEffect(kind: EffectKind, step = 0): void {
       osc.connect(gain).connect(ctx.destination)
       osc.start(now)
       osc.stop(now + 0.14)
+      return
+    }
+
+    if (kind === 'whoosh') {
+      // Band-passed noise with the centre frequency gliding up: the same recipe as `swish`,
+      // four times as long and sweeping much further, so it reads as a band sweeping across
+      // the screen rather than a card leaving a deck. Quieter than `ding` — it sits under
+      // Frida's entrance, it is not the entrance.
+      const now = ctx.currentTime
+      const length = Math.floor(ctx.sampleRate * 0.35)
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+      const src = ctx.createBufferSource()
+      src.buffer = buffer
+      const band = ctx.createBiquadFilter()
+      band.type = 'bandpass'
+      band.frequency.setValueAtTime(400, now)
+      band.frequency.exponentialRampToValueAtTime(2400, now + 0.35)
+      band.Q.value = 1.2
+      const gain = ctx.createGain()
+      // fades out rather than in: the sweep is loudest as it arrives, then leaves
+      gain.gain.setValueAtTime(0.11, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+      src.connect(band).connect(gain).connect(ctx.destination)
+      src.start(now)
+      return
+    }
+
+    if (kind === 'cardPop') {
+      // Like `pop` but a fifth higher and shorter — the stat card is a smaller, harder
+      // object landing than a reading window closing, and the two play close enough together
+      // in a round that they should not be the same sound.
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(660, now)
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.06)
+      gain.gain.setValueAtTime(0.13, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.14)
+      return
+    }
+
+    if (kind === 'tierUp') {
+      // Two partials a fifth apart, struck like `ding` but half as long, so a run of three
+      // during one bar fill stays a run of chimes rather than a chord. `step` raises the
+      // whole thing a whole tone per tier (2^(2/12)), which is what makes a perfect round's
+      // Geoefend -> Goed -> Super -> Perfect! audibly climb.
+      const now = ctx.currentTime
+      const shift = Math.pow(2, (Math.max(0, step) * 2) / 12)
+      for (const [freq, level] of [
+        [1318.5, 0.13],
+        [1975.5, 0.05],
+      ]) {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq * shift * 0.94, now)
+        osc.frequency.exponentialRampToValueAtTime(freq * shift, now + 0.03)
+        gain.gain.setValueAtTime(level, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + 0.27)
+      }
       return
     }
 

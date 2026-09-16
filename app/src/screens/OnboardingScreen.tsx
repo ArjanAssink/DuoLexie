@@ -8,6 +8,7 @@ import { WipNote } from '../components/WipNote'
 import { FlitsIcon, GemIcon, FlameIcon } from '../components/Icons'
 import { useAvatar } from '../state/avatar'
 import { MAX_PLAYER_NAME, normalizePlayerName, useProgress } from '../state/progress'
+import { prefersReducedMotion } from '../motion'
 
 /** The three steps she walks through, plus the closing beat that is not a step. */
 type Step = 'welkom' | 'naam' | 'avatar' | 'klaar'
@@ -18,10 +19,6 @@ const STEPS: Step[] = ['welkom', 'naam', 'avatar']
 const KLAAR_MS = 900
 /** Without animation there is nothing to wait for — just long enough not to feel like a jump cut. */
 const KLAAR_REDUCED_MS = 400
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-}
 
 /**
  * The first visit: who Frida is, what her name is, what her avatar looks like.

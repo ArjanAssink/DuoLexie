@@ -5,6 +5,7 @@ import { AvatarScreen } from './screens/AvatarScreen'
 import { ShopScreen } from './screens/ShopScreen'
 import { WeetjesboekScreen } from './screens/WeetjesboekScreen'
 import { TestMenuScreen } from './screens/TestMenuScreen'
+import { RewardPreviewScreen } from './screens/RewardPreviewScreen'
 import { OnboardingScreen } from './screens/OnboardingScreen'
 import { RecordingStudio } from './dev/RecordingStudio'
 import { useProgress } from './state/progress'
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/winkel" element={<ShopScreen />} />
           <Route path="/weetjes" element={<WeetjesboekScreen />} />
           <Route path="/proberen" element={<TestMenuScreen />} />
+          <Route path="/beloning" element={<RewardPreviewScreen />} />
           {import.meta.env.DEV && <Route path="/opnemen" element={<RecordingStudio />} />}
         </Routes>
       )}

@@ -1314,42 +1314,303 @@ button:disabled { cursor: default; }
 .shop-item.unaffordable { opacity: 0.5; }
 
 /* ---------- reward ---------- */
+/*
+ * The celebration after a round (docs/reward-celebration.md). Every visual here is driven
+ * from one attribute — `data-beat` on the root — which is what makes "tap to skip" a single
+ * attribute change instead of a dozen separately unwound animations, and what keeps the
+ * whole choreography readable in one place. JS advances the attribute and the bar's
+ * progress; it sets no other style.
+ *
+ * Two rules the whole block obeys:
+ *   - nothing animates width/height/top/left. The bar fill is `scaleX` on an inner element,
+ *     the hero is `scale` + `translateY`, everything else is opacity.
+ *   - the *final* state is the default, and earlier beats are written as what they take
+ *     away. So the state that reduced motion mounts in, and the state a tap jumps to, needs
+ *     no rules of its own and cannot drift from the one the sequence ends on.
+ */
 .reward-screen {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* `safe` keeps the top of a long screen reachable once it scrolls; browsers that don't
+     know the keyword drop the second declaration and keep plain centring. */
   justify-content: center;
+  justify-content: safe center;
   flex: 1;
-  gap: 18px;
+  gap: 16px;
   text-align: center;
-  padding: 0 16px;
+  padding: 12px 16px;
+  /* The gate: a 2.2x Frida and a band 160% of the width both overhang the screen, and
+     neither may ever reach a scrollbar — at 375px that would be a page that slides sideways
+     under her thumb. */
+  overflow: hidden;
+
+  --tier-color: var(--orange);
+  --tier-fill: #FDEBD5;
+  --tier-border: var(--orange);
+  /* How far Frida and the headline are thrown down into the middle of the screen for the
+     hero, in px from their final places. The layout never reflows — everything is laid out
+     in its final position from the first frame and the hero is transform only — so these
+     two numbers are the entire difference between the hero and the end state. */
+  --hero-lift: 134px;
+  --title-drop: 273px;
 }
-.reward-screen .frida { width: 180px; animation: bounce 1.2s infinite; }
-/* the top-of-file reduced-motion block (.reward-screen { animation: none })
-   doesn't cascade to this descendant's own animation, and it's the only
-   `infinite` one in the app — without its own override, placed after this
-   rule so equal-specificity source order favours it, this bounces forever
-   regardless of the setting (impeccable detect flagged the bounce easing
-   itself; reduced-motion coverage was the real bug underneath it) */
-@media (prefers-reduced-motion: reduce) {
-  .reward-screen .frida { animation: none; }
+/* Once the strip is up, a round with a lot of nog-even chips may be taller than the screen.
+   It scrolls from here on; the hero, which is the thing that overhangs, is long over. */
+.reward-screen[data-beat="strip"],
+.reward-screen[data-beat="done"] { overflow-y: auto; }
+
+/* everything except the streak sits above it */
+.reward-screen > :not(.reward-streak) { position: relative; z-index: 1; }
+
+.reward-screen[data-tier="geoefend"] {
+  --tier-color: var(--orange); --tier-fill: #FDEBD5; --tier-border: var(--orange);
 }
-.reward-screen h1 { font-size: 34px; margin: 0; color: var(--orange); }
-.reward-tally {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
+.reward-screen[data-tier="goed"] {
+  --tier-color: var(--teal); --tier-fill: var(--teal-pill); --tier-border: var(--teal);
 }
-.tally {
+.reward-screen[data-tier="super"] {
+  --tier-color: var(--teal-shadow); --tier-fill: var(--teal-pill); --tier-border: var(--gold);
+}
+.reward-screen[data-tier="perfect"] {
+  --tier-color: var(--gold-shadow); --tier-fill: #FFF1B8; --tier-border: var(--gold);
+}
+
+/* ----- the streak band ----- */
+/* Two skewed bands sweeping across behind Frida. They are 160% of the width and hang off
+   both edges so the -8deg skew never leaves a triangular gap at a corner; the root's
+   overflow is what stops that width from being scrollable. */
+.reward-streak {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.streak-band {
+  position: absolute;
+  left: -30%;
+  width: 160%;
+  display: block;
+  transform: skewY(-8deg);
+}
+.streak-band-teal { top: 24%; height: 104px; background: var(--teal-pill); }
+.streak-band-gold { top: 41%; height: 68px; background: rgba(247, 197, 49, 0.32); }
+
+@keyframes streakIn {
+  from { opacity: 0; transform: skewY(-8deg) translateX(-130%); }
+  to { opacity: 1; transform: skewY(-8deg) translateX(0); }
+}
+@keyframes streakOut {
+  from { opacity: 1; transform: skewY(-8deg) translateX(0); }
+  to { opacity: 0; transform: skewY(-8deg) translateX(130%); }
+}
+.reward-screen[data-beat="hero"] .streak-band {
+  animation: streakIn 620ms var(--hero-at) cubic-bezier(.22,.9,.35,1) both;
+}
+.reward-screen[data-beat="hero"] .streak-band-gold { animation-delay: calc(var(--hero-at) + 90ms); }
+.reward-screen[data-beat="settle"] .streak-band {
+  animation: streakOut 460ms cubic-bezier(.5,0,.75,0) both;
+}
+.reward-screen[data-beat="settle"] .streak-band-gold { animation-delay: 70ms; }
+/* the band belongs to the hero; from the card beat on there is nothing to sweep */
+.reward-screen:is([data-beat="card"], [data-beat="strip"], [data-beat="done"]) .reward-streak {
+  display: none;
+}
+
+/* ----- Frida ----- */
+/* Three layers, because two animations on one element do not compose — the later one simply
+   wins the whole `transform`. The box holds the layout, the scaler does the hero's growth,
+   and the image itself does the wobble and the idle float. */
+.reward-hero {
+  width: 180px;
+  height: 180px;
+  flex: 0 0 auto;
+}
+.frida-scale { width: 180px; height: 180px; }
+.reward-screen .frida { width: 180px; display: block; }
+
+@keyframes heroIn {
+  0% { opacity: 0; transform: translateY(var(--hero-lift)) scale(0.4); }
+  55% { opacity: 1; transform: translateY(var(--hero-lift)) scale(2.42); }
+  100% { opacity: 1; transform: translateY(var(--hero-lift)) scale(2.2); }
+}
+@keyframes heroWobble {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-3deg); }
+  75% { transform: rotate(3deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes settleFrida {
+  from { transform: translateY(var(--hero-lift)) scale(2.2); }
+  to { transform: none; }
+}
+.reward-screen[data-beat="hero"] .frida-scale {
+  animation: heroIn 780ms var(--hero-at) cubic-bezier(.2,1.1,.4,1) both;
+}
+.reward-screen[data-beat="hero"] .frida {
+  animation: heroWobble 620ms calc(var(--hero-at) + 500ms) ease-in-out 2 both;
+}
+.reward-screen[data-beat="settle"] .frida-scale {
+  animation: settleFrida var(--settle-ms) cubic-bezier(.22,.9,.35,1) both;
+}
+/* The quiet room (§5): under 50% she still gets the whole ceremony, at the same length and
+   in the same places — it just arrives rather than bursts. No overshoot, no wobble, and (in
+   the markup) no streak and no confetti. Confetti over a two-out-of-ten round reads as being
+   laughed at; a hero that simply grows in reads as being met. */
+@keyframes heroInQuiet {
+  from { opacity: 0; transform: translateY(var(--hero-lift)) scale(0.85); }
+  to { opacity: 1; transform: translateY(var(--hero-lift)) scale(2.2); }
+}
+.reward-screen[data-quiet="true"][data-beat="hero"] .frida-scale {
+  animation: heroInQuiet 780ms var(--hero-at) cubic-bezier(.22,.9,.35,1) both;
+}
+.reward-screen[data-quiet="true"][data-beat="hero"] .frida { animation: none; }
+/* The only infinite animation in the app besides the welkom-flow's, which is why it has
+   always needed its own reduced-motion override rather than relying on the one at the top
+   of this file — that one cannot cascade into a descendant's own animation. */
+.reward-screen[data-beat="done"] .frida { animation: fridaFloat 3s ease-in-out infinite; }
+
+/* ----- sparkles ----- */
+/* Four of them, twinkling around her while the sequence runs and gone by the time it ends:
+   `fridaFloat` has to be the only thing still moving in the final state, or "tap to skip
+   leaves nothing mid-animation" stops being checkable. */
+.reward-sparkle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  background: var(--gold);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+.reward-sparkle-1 { top: -14px; left: -26px; }
+.reward-sparkle-2 { top: 18px; right: -30px; width: 13px; height: 13px; }
+.reward-sparkle-3 { bottom: 24px; left: -34px; width: 14px; height: 14px; }
+.reward-sparkle-4 { bottom: -8px; right: -18px; }
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.reward-screen:is([data-beat="hero"], [data-beat="settle"], [data-beat="card"]) .reward-sparkle {
+  animation: sparkle 1500ms calc(var(--hero-at) + 260ms) ease-in-out infinite;
+}
+.reward-screen .reward-sparkle-2 { animation-delay: 620ms; }
+.reward-screen .reward-sparkle-3 { animation-delay: 980ms; }
+.reward-screen .reward-sparkle-4 { animation-delay: 1340ms; }
+
+/* ----- headline ----- */
+.reward-title { display: flex; flex-direction: column; gap: 6px; }
+.reward-screen h1 {
+  font-family: var(--font-display);
+  font-size: 34px;
+  margin: 0;
+  color: var(--orange);
+  line-height: 1.1;
+}
+.reward-subline { margin: 0; font-size: 17px; font-weight: 700; color: var(--muted); }
+
+/* 52px during the hero is scale(1.53) of the final 34px, so the size change is a transform
+   like everything else rather than a font-size animation. */
+@keyframes heroTitleIn {
+  from { opacity: 0; transform: translateY(calc(var(--title-drop) + 26px)) scale(1.25); }
+  to { opacity: 1; transform: translateY(var(--title-drop)) scale(1.53); }
+}
+@keyframes settleTitle {
+  from { transform: translateY(var(--title-drop)) scale(1.53); }
+  to { transform: none; }
+}
+.reward-screen[data-beat="hero"] .reward-title {
+  animation: heroTitleIn 520ms calc(var(--hero-at) + 200ms) cubic-bezier(.22,.9,.35,1) both;
+}
+.reward-screen[data-beat="hero"] h1 { color: var(--gold-shadow); }
+.reward-screen[data-beat="settle"] .reward-title {
+  animation: settleTitle var(--settle-ms) cubic-bezier(.22,.9,.35,1) both;
+}
+/* the subline is the settle's own arrival, so it has nothing to say during the hero */
+.reward-screen[data-beat="hero"] :is(.reward-subline, .record-banner) { opacity: 0; }
+.reward-screen[data-beat="settle"] :is(.reward-subline, .record-banner) {
+  animation: stripIn 420ms 180ms ease-out both;
+}
+
+/* ----- the stat card ----- */
+.reward-card {
+  width: 100%;
+  min-width: 260px;
+  max-width: 340px;
+  background: #fff;
+  border: 2px solid var(--tier-border);
+  border-radius: 18px;
+  padding-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.3s ease-out;
+}
+.reward-card-label {
+  background: var(--tier-fill);
+  padding: 7px 14px;
+  transition: background-color 0.3s ease-out;
+}
+.reward-card-tier {
+  display: inline-block;
+  font-size: 11px;
   font-weight: 900;
-  font-size: 17px;
-  padding: 7px 15px;
-  border-radius: 999px;
-  border: 2px solid;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tier-color);
+  transition: color 0.3s ease-out;
+  animation: tierBump 320ms cubic-bezier(.34,1.56,.64,1) both;
 }
-.tally-goed { color: var(--teal-shadow); border-color: var(--teal-pill-border); background: var(--teal-pill); }
-.tally-nog { color: var(--orange-shadow); border-color: var(--orange); background: #FDEBD5; }
+/* The label is keyed on the tier in React, so each upgrade is a new element and replays
+   this — the bump is the beat that makes "Goed -> Super" land as an event. */
+@keyframes tierBump {
+  from { transform: scale(1.25); }
+  to { transform: scale(1); }
+}
+
+.reward-bar {
+  height: 18px;
+  margin: 14px 16px 10px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+/* The one thing on this screen whose size changes, and it does it with scaleX on an inner
+   element rather than width, so it never triggers layout. The value itself is set inline
+   from the same eased progress the number beside it is rounded from. */
+.reward-bar-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tier-color);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: background-color 0.3s ease-out;
+}
+.reward-pct {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--tier-color);
+  transition: color 0.3s ease-out;
+  /* the digits change every frame; tabular figures stop the card twitching as they do */
+  font-variant-numeric: tabular-nums;
+}
+.reward-tally { margin-top: 6px; font-size: 14px; font-weight: 700; color: var(--muted); }
+
+@keyframes rewardCardIn {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.reward-screen:is([data-beat="hero"], [data-beat="settle"]) .reward-card { opacity: 0; }
+.reward-screen[data-beat="card"] .reward-card {
+  animation: rewardCardIn 420ms cubic-bezier(.34,1.56,.64,1) both;
+}
+
+/* ----- the reward strip, the chips, and Verder ----- */
+.reward-strip { display: flex; gap: 22px; align-items: baseline; }
+.reward-screen .reward-line { font-size: 22px; font-weight: 900; }
+.reward-score { font-size: 17px; font-weight: 800; color: var(--muted); }
 .reward-chips {
   display: flex;
   gap: 8px;
@@ -1370,17 +1631,123 @@ button:disabled { cursor: default; }
   cursor: pointer;
 }
 .word-chip:active { transform: translateY(2px); }
-.reward-screen .reward-line { font-size: 22px; font-weight: 900; }
+
+@keyframes stripIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reward-screen:is([data-beat="hero"], [data-beat="settle"], [data-beat="card"])
+  :is(.reward-strip, .reward-score, .reward-chips) { opacity: 0; }
+.reward-screen[data-beat="strip"] :is(.reward-strip, .reward-score, .reward-chips) {
+  animation: stripIn 380ms ease-out both;
+}
+.reward-screen[data-beat="strip"] .reward-score { animation-delay: 80ms; }
+.reward-screen[data-beat="strip"] .reward-chips { animation-delay: 160ms; }
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reward-verder { min-width: 200px; }
+/* In the DOM and wired up from the first frame, only not hit-testable — which is exactly
+   what makes an impatient tap land on the screen's skip instead of dying on a dead button
+   (docs/reward-celebration.md §2). */
+.reward-screen:not([data-beat="done"]) .reward-verder { visibility: hidden; }
+.reward-screen[data-beat="done"] .reward-verder {
+  animation: riseIn 340ms cubic-bezier(.22,.9,.35,1) both;
+}
+
 .record-banner {
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: 34px;
   font-weight: 800;
   color: var(--gold-shadow);
   animation: pulse 0.8s infinite;
 }
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-14px); }
+
+/* announced once, at the end — a screen reader should not read out a count-up frame by frame */
+.reward-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * An iPhone SE is 667pt tall and the whole celebration has to fit on it without scrolling,
+ * chips and all (§3) — a Verder she has to scroll to find is a dead end at the one moment
+ * the screen is asking her to carry on. Measured at 375x667 with four chips the comfortable
+ * rhythm above runs 47px over, so short screens get a tighter one.
+ *
+ * Frida comes down to 150px here, which is the part that was not in the plan. The first
+ * version kept her at 180 and took the 47px out of gaps, padding and type — and it fit, with
+ * 15px to spare on Chromium and 4px *under* on CI's WebKit profiles, whose text metrics run
+ * about 11px taller over a screen this long. A layout that fits by four pixels on one engine
+ * does not fit; it is waiting for a longer word. Thirty px off the hero buys the margin that
+ * makes it true on both, and a 150px Frida on a 667px screen is still plainly the hero.
+ */
+@media (max-height: 700px) {
+  .reward-screen { gap: 10px; padding: 8px 16px; }
+  .reward-hero, .frida-scale { width: 150px; height: 150px; }
+  .reward-screen .frida { width: 150px; }
+  .reward-title { gap: 4px; }
+  .reward-card { padding-bottom: 10px; }
+  .reward-bar { margin: 8px 16px 6px; }
+  .reward-pct { font-size: 34px; }
+  .word-chip { font-size: 16px; padding: 6px 11px; }
+}
+
+/*
+ * Tap-to-skip, as a hard guarantee rather than an inventory.
+ *
+ * `skip()` sets data-beat="done", which already removes every beat-scoped animation above.
+ * What it cannot remove on its own are the animations the *final* beat starts — Verder's
+ * riseIn, the tier label's bump, the screen's own enter fade — and the gate is that a tap
+ * leaves nothing mid-animation, not that it leaves three known things mid-animation. So:
+ * everything off, then the one thing that is meant to keep going back on. `!important`
+ * because the beat-scoped rules above are deliberately more specific than a `*` selector,
+ * and a blanket rule is the point here — a new keyframe added later is covered by it
+ * without anyone having to remember to.
+ */
+.reward-screen[data-skipped="true"],
+.reward-screen[data-skipped="true"] * { animation: none !important; }
+.reward-screen[data-skipped="true"] .frida {
+  animation: fridaFloat 3s ease-in-out infinite !important;
+}
+/* Transitions count too, and a skip is exactly when they fire: the tier jumps from whatever
+   the bar had reached straight to the final one, so five colours all start crossfading at
+   once. Named rather than blanketed — `transition` is also what gives Verder its press,
+   and that button is about to be used. */
+.reward-screen[data-skipped="true"]
+  :is(.reward-card, .reward-card-label, .reward-card-tier, .reward-bar-fill, .reward-pct) {
+  transition: none;
+}
+
+/*
+ * Reduced motion. The JS side mounts the screen straight in `done` with the numbers final
+ * (screens/useCelebration.ts), and this is the belt to that braces: a browser that reports
+ * the preference to CSS but where the matchMedia check somehow fails still gets a screen on
+ * which nothing moves. Every keyframe this block introduces is listed.
+ */
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * `!important`, and not out of laziness. Every animation above is scoped by a beat
+   * (`.reward-screen[data-beat="done"] .frida`, and so on), which outweighs any plain
+   * descendant selector this block could write — the first version of it was outranked and
+   * left Frida floating and Verder rising for someone who had asked for neither. A
+   * preference is also the one place where "no exceptions" is the correct reading, so the
+   * blunt instrument is the right one: it outranks the skip rules above as well.
+   */
+  .reward-screen,
+  .reward-screen * { animation: none !important; }
+  .reward-screen :is(.reward-card, .reward-card-label, .reward-card-tier, .reward-bar-fill,
+    .reward-pct) { transition: none !important; }
+  /* a band sweeping across is the one thing here with no still version worth showing */
+  .reward-streak { display: none; }
 }
 
 /* ---------- recording studio ---------- */

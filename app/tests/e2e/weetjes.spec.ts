@@ -25,6 +25,19 @@ import {
 const NODE = '/#/les/fase1-a-e-o-u-i-weetje'
 
 /**
+ * How long the gem count-up may take to reach its total.
+ *
+ * 10s was enough while the reward screen started counting the moment it mounted. It no longer
+ * does: the celebration (docs/reward-celebration.md §2) holds the gems back until its strip
+ * beat, ~2.4s in, and that was enough to push CI's ipad profile over — the count was still
+ * showing +3 when the clock ran out. 20s is the figure hardop-lezen.spec.ts already settled
+ * on for the same poll and the same reason: the 90ms interval driving it does not run at 90ms
+ * on a two-core WebKit runner, and what this asserts is the total it lands on, never the pace.
+ */
+const GEMS_MS = 20_000
+
+
+/**
  * The deal order in shared/curriculum/weetjes.json, reviewed cards only — the node hands out
  * the lowest-order cards she has not collected, so seeding her collection is how a test
  * chooses the card type it is about (§5).
@@ -197,7 +210,7 @@ test('a wrong answer costs nothing: no failure sound, the card is still kept, sa
   await verder(page)
 
   await expect(page.locator('.reward-screen')).toBeVisible()
-  await expect(page.locator('.reward-line').first()).toContainText('+8', { timeout: 10_000 })
+  await expect(page.locator('.reward-line').first()).toContainText('+8', { timeout: GEMS_MS })
   expect(errors, `console/page errors: ${errors.join('\n')}`).toEqual([])
 })
 
@@ -240,7 +253,7 @@ test('the reward screen for a Weetje node has nothing to grade', async ({ page }
   // No percentage, no tally, no "x van y goed" — there is nothing here to be wrong about.
   await expect(page.locator('.reward-tally')).toHaveCount(0)
   await expect(page.locator('.reward-chips')).toHaveCount(0)
-  await expect(page.locator('.reward-line').first()).toContainText('+8', { timeout: 10_000 })
+  await expect(page.locator('.reward-line').first()).toContainText('+8', { timeout: GEMS_MS })
 })
 
 test('the Weetjesboek shows what she has, face-down what she has not, and reads one back', async ({

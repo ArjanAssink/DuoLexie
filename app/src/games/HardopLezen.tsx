@@ -11,6 +11,7 @@ import { playWord, playEffect, haptic, resumeAudio, stopSpeech } from '../audio/
 import { Frida, type FridaExpression } from '../components/Frida'
 import { Bliksemsprint } from '../components/Bliksemsprint'
 import { resolveSwipe, SWIPE_DISTANCE_PX, type SwipeSample } from './swipe'
+import { prefersReducedMotion } from '../motion'
 
 interface Props {
   lesson: Lesson
@@ -92,10 +93,6 @@ function wait(ms: number): Promise<void> {
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n))
-}
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
 /** A small chevron, pointing at the pile the card belongs on. */

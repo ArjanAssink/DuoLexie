@@ -91,6 +91,26 @@ test('shots: weetjesboek open card', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/weetjesboek-open-375.png` })
 })
 
+/**
+ * The celebration after a round (docs/reward-celebration.md §10). Driven from the
+ * probeermenu's preview rather than by playing a round, for the same reason its tests are.
+ */
+const REWARD_OUT = '../docs/media/reward-celebration'
+
+for (const width of WIDTHS) {
+  test(`shots: beloning done at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 375 ? 667 : 900 })
+    await page.goto('/#/beloning?goed=6&totaal=10')
+    await page.waitForFunction(
+      () => document.querySelector('.reward-screen')?.getAttribute('data-beat') === 'done',
+      undefined,
+      { timeout: 15_000 },
+    )
+    await page.waitForTimeout(2200) // let the gem count-up finish
+    await page.screenshot({ path: `${REWARD_OUT}/done-${width}.png` })
+  })
+}
+
 test('shots: weetjesboek empty', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 })
   await skipOnboarding(page)
