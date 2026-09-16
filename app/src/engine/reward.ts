@@ -17,6 +17,17 @@ const READING_FINISH_GEMS = 5
 const READING_PERFECT_BONUS = 3
 
 /**
+ * A Weetje node pays the same every time, however she answered (docs/weetjes.md §2).
+ *
+ * Flat on purpose: the round has nothing to grade. Paying more for a right guess would turn
+ * "kinderen met dyslexie zijn minder slim" into a question with a score attached, which is
+ * the one thing this game must never be — the reveal is the reward, and she gets it either
+ * way.
+ */
+export const WEETJE_GEMS = 8
+export const WEETJE_XP = 10
+
+/**
  * docs/backend-readiness.md A4 — the one place the reward formula lives. It used to be
  * written independently in GameScreen (to decide what to display) and progress.ts (to
  * decide what to credit); they agreed only by coincidence — change the bonus in one file
@@ -30,6 +41,10 @@ export function computeReward(
   score?: number,
   wordResults?: WordResult[],
 ): Reward {
+  if (lesson.kind === 'weetje') {
+    return { gems: WEETJE_GEMS, xp: WEETJE_XP, perfect: false, newRecord: false }
+  }
+
   // A word round is scored per *word*, not per klank. `answers` carries one record per
   // klank, so a round of long words would otherwise be worth more than the same round of
   // short ones, and "perfect" would hinge on letter count rather than on how she read.

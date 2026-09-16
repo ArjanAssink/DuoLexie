@@ -28,9 +28,15 @@ export interface WordCurriculum {
   words: Word[]
 }
 
-export type GameType = 'flitsen' | 'tijdrit' | 'welke-klank' | 'woordbouwer' | 'hardop-lezen'
+export type GameType =
+  | 'flitsen'
+  | 'tijdrit'
+  | 'welke-klank'
+  | 'woordbouwer'
+  | 'hardop-lezen'
+  | 'weetjes'
 
-export type LessonKind = 'les' | 'tijdrit-uitdaging' | 'herhaling' | 'eindbaas'
+export type LessonKind = 'les' | 'tijdrit-uitdaging' | 'herhaling' | 'eindbaas' | 'weetje'
 
 export interface Lesson {
   id: string
@@ -151,4 +157,58 @@ export interface ShopItem {
   slot: AccessorySlot
   name: string
   price: number
+}
+
+/** Which shelf of the Weetjesboek a card belongs on — docs/weetjes.md §3. */
+export type WeetjeCategory = 'samen' | 'brein' | 'mensen' | 'rechten' | 'trucs' | 'taal'
+
+/**
+ * The one thing she *does* with a card, which is the whole point of the beat:
+ * - `waar-niet-waar` — swipe a statement up (waar) or down (niet waar)
+ * - `kies` — a question and three answers
+ * - `wie` — a `kies` whose three answers are names, and whose clue is the fact
+ */
+export type WeetjeType = 'waar-niet-waar' | 'kies' | 'wie'
+
+/** How well the claim is backed — what decides whether a card may ever be `reviewed`. */
+export type WeetjeEvidence = 'sterk' | 'redelijk' | 'ervaring'
+
+/**
+ * One dyslexia fact, in three beats: Luister (`fact`), Doe (`statement` or
+ * `question` + `options`), Bewaar (`reveal`). docs/weetjes.md §3.
+ *
+ * `*asterisks*` in the copy mark the one bold key word per sentence (§6); nothing else in
+ * the text is markup. The per-type fields are null on the types that don't use them rather
+ * than absent, so a hand-edited card that forgets one fails the unit test instead of
+ * silently rendering an empty beat.
+ */
+export interface Weetje {
+  id: string
+  category: WeetjeCategory
+  type: WeetjeType
+  /** Deal order across the whole path — unique, lowest first (§5) */
+  order: number
+  fact: string
+  /** waar-niet-waar only */
+  statement: string | null
+  /** waar-niet-waar only: is the statement true? */
+  answer: boolean | null
+  /** kies / wie only */
+  question: string | null
+  /** kies / wie only: exactly three */
+  options: string[] | null
+  /** kies / wie only: index into `options` */
+  correct: number | null
+  reveal: string
+  /** an emoji standing in for a picture — never a photo of a real person (§13) */
+  tile: string
+  evidence: WeetjeEvidence
+  /** a page a parent could open; empty only on a placeholder that has no copy yet */
+  source: string
+  /** Arjan has read the fact *and* the source. Only reviewed cards are ever dealt (§3). */
+  reviewed: boolean
+}
+
+export interface WeetjeCurriculum {
+  weetjes: Weetje[]
 }
