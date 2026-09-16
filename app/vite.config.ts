@@ -15,15 +15,24 @@ import { readdirSync } from 'node:fs'
  * Caveat: it is a snapshot taken when Vite starts, so a clip recorded during a dev session
  * needs a dev-server restart to be noticed. Production builds always read it fresh.
  */
-function recordedWords(): string[] {
+function mp3Ids(dir: string): string[] {
   try {
-    return readdirSync(fileURLToPath(new URL('./public/audio/words', import.meta.url)))
+    return readdirSync(fileURLToPath(new URL(dir, import.meta.url)))
       .filter((f) => f.endsWith('.mp3'))
       .map((f) => f.replace(/\.mp3$/, ''))
   } catch {
     return [] // the directory may not exist yet
   }
 }
+
+const recordedWords = () => mp3Ids('./public/audio/words')
+
+/**
+ * Weetjes clip ids that have a recording — `<card id>-fact`, `-doe` or `-reveal`
+ * (docs/weetjes.md §7). Only the recording studio reads this: unlike words, playback probes
+ * the URL regardless, so a clip that lands mid-session plays without a dev-server restart.
+ */
+const recordedWeetjes = () => mp3Ids('./public/audio/weetjes')
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -43,5 +52,6 @@ export default defineConfig({
     // onto cached media resources more stubbornly than Cache-Control implies
     __AUDIO_VERSION__: JSON.stringify(String(Date.now())),
     __RECORDED_WORDS__: JSON.stringify(recordedWords()),
+    __RECORDED_WEETJES__: JSON.stringify(recordedWeetjes()),
   },
 })

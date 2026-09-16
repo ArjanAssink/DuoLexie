@@ -24,10 +24,10 @@ const TTS_TEXT: Record<string, string> = {
  * leave the card permanently ungradeable — the same shape of bug as the rejected `play()`
  * that playWithFallback's CLIP_TIMEOUT_MS guards against, and it needs the same backstop.
  */
-const SPEECH_TIMEOUT_MS = 6000
+export const SPEECH_TIMEOUT_MS = 6000
 
 /** Runs one utterance to completion, and always resolves — see SPEECH_TIMEOUT_MS. */
-function utter(text: string, rate: number): Promise<void> {
+export function utter(text: string, rate: number): Promise<void> {
   return new Promise((resolve) => {
     let settled = false
     function finish() {
@@ -166,6 +166,110 @@ export async function playWord(wordId: string, text: string): Promise<void> {
   const clip = await loadWordClip(wordId)
   if (clip) return playWithFallback(clip, () => speakWord(text))
   return speakWord(text)
+}
+
+/** A shade under natural speed — the pace docs/weetjes.md §7 asks these sentences to be read at. */
+const WEETJE_SPEECH_RATE = 0.9
+
+const weetjeClipCache = new Map<string, HTMLAudioElement | null>()
+
+/**
+ * The Weetjes clip that is playing right now, so `stopNarration` can silence it.
+ *
+ * Words never needed this: a reading round awaits one word at a time and nothing else may
+ * start while it does. A Weetje card narrates on its own, from an effect, and she can tap
+ * 🔊 or leave the screen in the middle of it — so there has to be something to stop, and
+ * exactly one thing may ever be speaking (docs/weetjes.md §7).
+ */
+let currentWeetjeClip: HTMLAudioElement | null = null
+
+async function loadWeetjeClip(clipId: string): Promise<HTMLAudioElement | null> {
+  const cached = weetjeClipCache.get(clipId)
+  if (cached) return cached
+  const audio = new Audio(`/audio/weetjes/${clipId}.mp3?v=${__AUDIO_VERSION__}`)
+  const result = await new Promise<HTMLAudioElement | null>((resolve) => {
+    audio.oncanplaythrough = () => resolve(audio)
+    audio.onerror = () => resolve(null)
+    audio.load()
+  })
+  if (result) weetjeClipCache.set(clipId, result)
+  return result
+}
+
+/**
+ * Bumped by `stopNarration`, so a multi-line narration already in flight gives up instead of
+ * reading the next line over whatever started after it. Without it, tapping 🔊 halfway
+ * through "Wat betekent dys? … moeilijk …" would leave the old line queue running and two
+ * voices would finish the sentence together.
+ */
+let narrationGeneration = 0
+
+/** Speaks lines in order, `gapMs` apart, and stops dead if `stopNarration` is called. */
+async function speakLines(lines: string[], gapMs: number): Promise<void> {
+  const mine = narrationGeneration
+  for (let i = 0; i < lines.length; i++) {
+    if (narrationGeneration !== mine) return
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, gapMs))
+      if (narrationGeneration !== mine) return
+    }
+    await utter(lines[i], WEETJE_SPEECH_RATE)
+  }
+}
+
+/**
+ * One beat of a Weetje card, read aloud: Arjan's recording if there is one, browser speech
+ * at rate 0.9 otherwise (docs/weetjes.md §7). Same fallback strategy as `playWord`, and the
+ * same guarantee — it always resolves, so a beat can safely wait on it.
+ *
+ * `lines` is what the beat says: one sentence for `fact` and `reveal`, and for `doe` on a
+ * kies card the question followed by its three options, which the fallback reads `gapMs`
+ * apart so they land as three separate choices rather than one long sentence. A recording
+ * covers the whole beat in one clip and brings its own pauses, so the gap is a speech-only
+ * concern.
+ *
+ * The clip is probed rather than looked up in `__RECORDED_WEETJES__`: the manifest is a
+ * snapshot taken when Vite started, and this is the path the e2e suite drives (patching
+ * `speechSynthesis` does not take effect under Playwright's WebKit — see
+ * tests/e2e/fixtures/narration.ts).
+ *
+ * @param clipId `<card id>-fact` | `-doe` | `-reveal`
+ */
+export async function playWeetje(clipId: string, lines: string[], gapMs = 0): Promise<void> {
+  const clip = await loadWeetjeClip(clipId)
+  if (!clip) return speakLines(lines, gapMs)
+  currentWeetjeClip = clip
+  try {
+    return await playWithFallback(clip, () => speakLines(lines, gapMs))
+  } finally {
+    if (currentWeetjeClip === clip) currentWeetjeClip = null
+  }
+}
+
+/**
+ * Stops whatever is being read aloud, synchronously: the clip, the queued lines *and*
+ * speech synthesis.
+ *
+ * `stopSpeech()` alone is not enough here, because a recorded clip is an <audio> element
+ * that speechSynthesis has never heard of — quitting mid-sentence would leave Arjan's voice
+ * still playing over the path screen she has just returned to.
+ */
+export function stopNarration(): void {
+  narrationGeneration += 1
+  const clip = currentWeetjeClip
+  currentWeetjeClip = null
+  try {
+    if (clip) {
+      clip.pause()
+      // A paused element never fires `ended`, and playWithFallback is waiting on exactly
+      // that — without this the caller stays parked for the full CLIP_TIMEOUT_MS after she
+      // has already left the screen.
+      clip.dispatchEvent(new Event('ended'))
+    }
+  } catch {
+    // an element that was never really playing; nothing to stop
+  }
+  stopSpeech()
 }
 
 export type EffectKind =

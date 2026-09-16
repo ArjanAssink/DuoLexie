@@ -8,6 +8,7 @@ import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
 import { Tijdrit } from '../games/Tijdrit'
 import { HardopLezen } from '../games/HardopLezen'
+import { Weetjes } from '../games/Weetjes'
 import { haptic, playEffect } from '../audio/audio'
 import { RewardScreen, type DisplayReward } from './RewardScreen'
 
@@ -57,6 +58,7 @@ const GAMES: Record<GameType, ComponentType<GameProps>> = {
   flitsen: Flitsen,
   tijdrit: Tijdrit,
   'hardop-lezen': HardopLezen,
+  weetjes: Weetjes,
   'welke-klank': NotImplementedGame,
   woordbouwer: NotImplementedGame,
 }
@@ -91,7 +93,7 @@ export function GameScreen() {
       score: result.score,
       wordResults: result.wordResults,
     })
-    setReward({ ...reward, score: result.score, wordResults: result.wordResults })
+    setReward({ ...reward, kind: lesson.kind, score: result.score, wordResults: result.wordResults })
     playEffect('fanfare')
     haptic(reward.newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
     // a reading round's burst is sized to how much of it she got right, so ten out of ten

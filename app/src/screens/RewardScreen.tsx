@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { WordResult } from '@shared/src/types'
+import type { LessonKind, WordResult } from '@shared/src/types'
 import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
 import { playEffect, playWord } from '../audio/audio'
@@ -8,6 +8,11 @@ import { useProgress } from '../state/progress'
 
 /** What completeLesson computed, plus the bits only the display needs. */
 export interface DisplayReward extends Reward {
+  /**
+   * The lesson's kind, because one of them is celebrated differently: a `weetje` round has
+   * nothing to grade, so it shows no score at all (docs/weetjes.md §2).
+   */
+  kind?: LessonKind
   /** klanken per minuut, for Tijdrit */
   score?: number
   /** Hardop lezen only — one entry per word she graded */
@@ -44,8 +49,19 @@ function headline(
  * up, with the words that went on "nog even" listed so she and a parent can see what to
  * practise. Tapping one plays it again.
  */
+/** The Weetjes headline and the line under it (docs/weetjes.md §2) — copy is fixed. */
+const WEETJE_HEADLINE = 'Nu weet je dit ook!'
+const WEETJE_SUBLINE = 'Vertel het vanavond aan iemand thuis.'
+
 export function RewardScreen({ reward, onDone }: Props) {
   const playerName = useProgress((s) => s.settings.playerName)
+  /**
+   * A Weetje round is never scored (engine/reward.ts pays a flat rate), so there is nothing
+   * honest to put on a stat card — and putting one there anyway would turn "kinderen met
+   * dyslexie zijn minder slim" into a question she can get wrong. docs/weetjes.md §2 is the
+   * exception to docs/reward-celebration.md §4's "always render the card".
+   */
+  const isWeetje = reward.kind === 'weetje'
   const graded = reward.wordResults?.length ?? 0
   const correct = reward.wordResults?.filter((r) => r.correct).length ?? 0
   const missed = reward.wordResults?.filter((r) => !r.correct) ?? []
@@ -69,14 +85,17 @@ export function RewardScreen({ reward, onDone }: Props) {
   return (
     <div className="reward-screen">
       <Frida
-        expression={reward.perfect || correct >= 8 ? 'head-celebrating' : 'happy'}
+        expression={
+          isWeetje || reward.perfect || correct >= 8 ? 'head-celebrating' : 'happy'
+        }
         className="frida"
         alt="Frida is blij"
       />
       {reward.newRecord && <div className="record-banner">NIEUW RECORD!</div>}
-      <h1>{headline(reward, correct, graded, playerName)}</h1>
+      <h1>{isWeetje ? WEETJE_HEADLINE : headline(reward, correct, graded, playerName)}</h1>
+      {isWeetje && <p className="reward-subline">{WEETJE_SUBLINE}</p>}
 
-      {graded > 0 && (
+      {!isWeetje && graded > 0 && (
         <>
           <div className="reward-tally">
             <span className="tally tally-goed">{correct} goed</span>

@@ -1915,3 +1915,310 @@ html[data-welkom] .app { height: 100dvh; min-height: 100dvh; }
   .welkom .frida-says-art,
   .welkom .coach-bubble { animation: none; }
 }
+
+/* ---------- weetjes (luister -> doe -> bewaar) ---------- */
+/* docs/weetjes.md §6 — the typography here is an acceptance criterion, not a preference:
+   the sentence is what she is being asked to take in, so it is 22px or more, left-aligned,
+   and given 1.6 line-height. The .app.font-dyslexie spacing sits on top of all of it. */
+
+.weetje-stage {
+  gap: 14px;
+  justify-content: center;
+  /* the stage is the whole viewport minus the header on an iPhone; the card shrinks into
+     what is left rather than pushing Verder off the bottom (§10.11) */
+  min-height: 0;
+}
+
+.weetje-book {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 8px;
+  border-radius: 14px;
+  background: #FFF6DC;
+}
+.weetje-book-count {
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--gold-icon);
+  font-variant-numeric: tabular-nums;
+}
+.weetje-book.bumped { animation: weetjeBookBump 260ms ease-out; }
+@keyframes weetjeBookBump {
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.weetje-card {
+  position: relative;
+  width: min(86vw, 400px);
+  background: #fff;
+  border-radius: 24px;
+  padding: 18px 18px 74px;
+  box-shadow: 0 8px 0 var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  touch-action: none;
+  will-change: transform;
+}
+.weetje-card.swipeable { cursor: grab; }
+.weetje-card.swipeable:active { cursor: grabbing; }
+
+.weetje-tile {
+  font-size: clamp(34px, 9vw, 44px);
+  line-height: 1;
+}
+
+.weetje-text {
+  margin: 0;
+  /* §6: never centred for more than one line, never justified */
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: clamp(22px, 5.4vw, 26px);
+  line-height: 1.6;
+  font-weight: 600;
+  color: var(--text);
+}
+.weetje-text strong { font-weight: 900; color: var(--teal-shadow); }
+.weetje-reveal strong.weetje-praise { color: var(--orange-shadow); }
+/* the fact stays visible behind the reveal in the Weetjesboek, one step quieter */
+.weetjesboek-open .weetje-fact { font-size: clamp(19px, 4.6vw, 22px); opacity: 0.75; }
+
+/* One control, one size, one place — bottom centre of the card on every single beat (§6). */
+.weetje-speak {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--teal);
+  box-shadow: 0 4px 0 var(--teal-shadow);
+  color: #fff;
+  font-size: 26px;
+  display: grid;
+  place-items: center;
+}
+.weetje-speak:active { transform: translateX(-50%) translateY(3px); box-shadow: 0 1px 0 var(--teal-shadow); }
+.weetje-speak.speaking { animation: weetjeSpeakPulse 900ms ease-in-out infinite; }
+@keyframes weetjeSpeakPulse {
+  0%, 100% { box-shadow: 0 4px 0 var(--teal-shadow), 0 0 0 0 var(--teal-ring); }
+  50% { box-shadow: 0 4px 0 var(--teal-shadow), 0 0 0 10px rgba(191, 228, 224, 0.5); }
+}
+
+/* Waar above, Niet waar below — the two directions the card can go, in the places the
+   Goed!/Nog even pockets occupy in Hardop lezen (§9). */
+.weetje-label {
+  min-height: 56px;
+  width: min(86vw, 400px);
+  border-radius: 18px;
+  font-weight: 900;
+  font-size: clamp(18px, 4.8vw, 20px);
+  color: #fff;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.weetje-label-waar { background: var(--teal); box-shadow: 0 5px 0 var(--teal-shadow); }
+.weetje-label-niet { background: var(--orange); box-shadow: 0 5px 0 var(--orange-shadow); }
+.weetje-label.targeted { transform: scale(1.06); }
+
+/* The taught tap: the card travels the way her finger would have, then commits (§2). */
+.weetje-card.demo-up { animation: weetjeDemoUp 700ms cubic-bezier(.3,.9,.4,1) both; }
+.weetje-card.demo-down { animation: weetjeDemoDown 700ms cubic-bezier(.3,.9,.4,1) both; }
+@keyframes weetjeDemoUp {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-8px) scale(1.02); }
+  100% { transform: translateY(-110px) scale(1.05); }
+}
+@keyframes weetjeDemoDown {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(8px) scale(0.99); }
+  100% { transform: translateY(110px) scale(0.95); }
+}
+
+/* Into the book, top right: shrink and go, 450ms, transform only (§9). */
+.weetje-card.flying { animation: weetjeFly 450ms cubic-bezier(.4,0,.7,.9) both; }
+@keyframes weetjeFly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(28vw, -42vh) scale(0.15); opacity: 0.1; }
+}
+
+.weetje-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(86vw, 400px);
+}
+.weetje-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* §2: three, stacked, full width, never under 56px — a nine-year-old's thumb on a phone */
+  min-height: 56px;
+  padding: 10px 16px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--hairline);
+  font-size: clamp(19px, 4.8vw, 22px);
+  font-weight: 800;
+  color: var(--text);
+  text-align: left;
+}
+.weetje-option:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--hairline); }
+.weetje-option.chosen { background: var(--teal-pill); box-shadow: 0 4px 0 var(--teal-pill-border); }
+.weetje-option:disabled { opacity: 0.75; }
+/* No photographs of real people, ever (§13) — one big initial in a coloured circle instead. */
+.weetje-initial {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  color: #fff;
+}
+.weetje-initial.initial-0 { background: var(--teal); }
+.weetje-initial.initial-1 { background: var(--orange); }
+.weetje-initial.initial-2 { background: var(--gem-blue); }
+
+.weetje-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(86vw, 400px);
+}
+.weetje-frida { width: 54px; flex: 0 0 auto; }
+.weetje-kept {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--gold-icon);
+  min-height: 1em;
+}
+.weetje-verder { padding: 14px 22px; font-size: 18px; }
+
+/* ---------- weetjesboek ---------- */
+.weetjesboek-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 0 16px 30px;
+  animation: screenEnter 0.3s cubic-bezier(.22,.9,.35,1) both;
+}
+.weetjesboek-count { font-weight: 900; color: var(--gold-icon); }
+.weetjesboek-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 0;
+  text-align: center;
+  font-size: 18px;
+}
+.weetjesboek-frida { width: 120px; }
+.weetjesboek-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+.weetjesboek-card {
+  min-height: 96px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  text-align: center;
+}
+.weetjesboek-tile { font-size: 30px; line-height: 1; }
+.weetjesboek-snippet { font-size: 13px; font-weight: 800; color: var(--text); }
+/* Face down, not absent: the empty half of the book is the collecting motive (§8). */
+.weetjesboek-card.facedown {
+  background: var(--locked);
+  box-shadow: 0 4px 0 var(--locked-shadow);
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+}
+.weetjesboek-open {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(66, 40, 26, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+}
+.weetjesboek-nav { display: flex; align-items: center; gap: 14px; }
+.weetjesboek-step {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--hairline);
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--text);
+}
+.weetjesboek-step:disabled { opacity: 0.4; }
+.weetjesboek-missing { color: #fff; font-weight: 800; }
+.weetjesboek-cta { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+.about-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.about-toggle input { width: 22px; height: 22px; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* §9: no flight, no bump, no pulsing speaker — and nothing that runs forever. The swipe
+     still decides the card; only the things that move for their own sake go. */
+  .weetje-card.demo-up,
+  .weetje-card.demo-down,
+  .weetje-card.flying,
+  .weetje-book.bumped,
+  .weetje-speak.speaking,
+  .weetjesboek-screen {
+    animation: none;
+  }
+}
+
+/* A Weetjes cue is a sentence, not a word: the teleprompter has to fit one on screen and
+   still be readable from a metre away (docs/weetjes.md §7). */
+.tp-word.tp-sentence {
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.4;
+  max-width: 18ch;
+  text-align: center;
+}
+.studio-cell.studio-cell-wide { grid-column: span 2; }
+
+/* The Weetje node is gold whatever its state: it is a breather after the unit's hardest
+   thing, not another thing to unlock (docs/weetjes.md §5). Locked keeps the beige coin —
+   a gold coin she cannot press yet would read as a bug rather than as a promise. */
+.coin-item[data-kind='weetje'].active .coin {
+  background: var(--gold);
+  box-shadow: 0 7px 0 var(--gold-shadow);
+}
+.coin-item[data-kind='weetje'].active .coin:active {
+  box-shadow: 0 3px 0 var(--gold-shadow);
+}
+.coin-item[data-kind='weetje'].active .coin-label { color: var(--gold-shadow); }
