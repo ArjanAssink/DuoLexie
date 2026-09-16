@@ -83,7 +83,10 @@ function addFloor(samples, amplitude) {
  * `reactionMs` after its prompt appears; `pauseAfter` inserts an Esc pause (and its resume
  * countdown) after that many words, the way the studio would write it.
  */
-function makeTake(dir, { kind = 'woorden', words, pauseAfter = null, pauseMs = 9000, retakeIndex = null, retakeWord = null }) {
+function makeTake(dir, {
+  kind = 'woorden', words, pauseAfter = null, pauseMs = 9000, retakeIndex = null, retakeWord = null,
+  basename = 'take', amplitude = 0.35, retakeOf = null,
+}) {
   const cues = []
   const pauses = []
   /** what the recording actually contains, in take time */
@@ -104,7 +107,7 @@ function makeTake(dir, { kind = 'woorden', words, pauseAfter = null, pauseMs = 9
 
   for (const [i, word] of queue.entries()) {
     cues.push({ id: word.id, shownAt: wallMs, hiddenAt: wallMs + PACE_MS, ...(word.retake ? { retake: true } : {}) })
-    events.push({ atMs: takeMs + word.reactionMs, durationMs: word.durationMs, hz: word.hz, amplitude: 0.35 })
+    events.push({ atMs: takeMs + word.reactionMs, durationMs: word.durationMs, hz: word.hz, amplitude })
     takeMs += PACE_MS
     wallMs += PACE_MS
     if (pauseAfter !== null && i === pauseAfter - 1) {
@@ -121,21 +124,22 @@ function makeTake(dir, { kind = 'woorden', words, pauseAfter = null, pauseMs = 9
   addFloor(samples, 0.0015)
   for (const e of events) addTone(samples, e.atMs, e.durationMs, e.hz, e.amplitude)
 
-  const wav = join(dir, 'take.wav')
-  const webm = join(dir, 'take.webm')
+  const wav = join(dir, `${basename}.wav`)
+  const webm = join(dir, `${basename}.webm`)
   writeWav(wav, samples)
   execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', wav, '-c:a', 'libopus', '-b:a', '192k', '-ac', '1', webm])
-  writeFileSync(join(dir, 'take.json'), JSON.stringify({
+  writeFileSync(join(dir, `${basename}.json`), JSON.stringify({
     version: 1,
     kind,
     startedAt: new Date('2026-09-14T19:02:11Z').toISOString(),
     paceMs: PACE_MS,
     leadInMs: LEAD_IN_MS,
     beeps: { spacingMs: 1000, durationMs: BEEP_MS, lastEndAt: LEAD_IN_MS + BEEP_MS },
+    ...(retakeOf ? { retakeOf } : {}),
     cues,
     pauses,
   }, null, 2))
-  return { webm, queue }
+  return { webm, queue, report: join(dir, `${basename}.report.json`) }
 }
 
 function runSplit(args) {
@@ -283,6 +287,113 @@ test('no cue sheet and the wrong number of ids refuses to write anything', skip,
     assert.equal(r.status, 1)
     assert.match(r.stderr, /Nothing was written/)
     assert.throws(() => readdirSync(out))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+/**
+ * §2.6 of docs/recording-studio-v3.md, and the reason it exists.
+ *
+ * The v2 spec's §1.4 fixed "loudnorm cannot measure 300ms of audio" for individual clips by
+ * normalising the whole take instead. A retake take brings the same problem back one level
+ * up: three words measured on their own land wherever those three words happen to average,
+ * not where the twenty they have to sit among are. So a retake is not measured — it is moved
+ * by the number its parent was moved by.
+ *
+ * The fixture makes the difference visible: the retake is recorded 6dB quieter than the take
+ * it replaces. Measured on its own it would come back to the same -16 LUFS and the gap would
+ * vanish; given its parent's gain it stays 6dB quieter, which is the honest outcome and the
+ * one a listener would notice and re-record.
+ */
+test('a retake is lifted by its parent take\'s gain, not by its own measurement', skip, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'split-gain-'))
+  try {
+    const parent = makeTake(dir, { words: WORDS, basename: 'parent', amplitude: 0.35 })
+    assert.equal(runSplit([parent.webm, '--out', join(dir, 'out')]).status, 0)
+    const parentReport = JSON.parse(readFileSync(parent.report, 'utf8'))
+    assert.equal(parentReport.audio.gainSource, 'measured')
+    assert.equal(typeof parentReport.audio.appliedGainDb, 'number')
+
+    // the same three words, read again into a quieter microphone position
+    const quiet = WORDS.slice(0, 3)
+    const retake = makeTake(dir, { words: quiet, basename: 'retake', amplitude: 0.175, retakeOf: 'parent' })
+    const r = runSplit([retake.webm, '--out', join(dir, 'out')])
+
+    assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`)
+    const report = JSON.parse(readFileSync(retake.report, 'utf8'))
+    assert.deepEqual(report.warnings, [])
+    assert.equal(report.audio.gainSource, 'reused')
+    assert.equal(report.audio.gainFrom, 'parent')
+    assert.equal(report.audio.retakeOf, 'parent')
+    assert.equal(report.audio.appliedGainDb, parentReport.audio.appliedGainDb)
+
+    // and the 6dB it was recorded down by is still 6dB after the lift, rather than measured
+    // away — which is the whole point
+    const parentPeak = parentReport.clips.find((c) => c.id === quiet[0].id).peakDbfs
+    const retakePeak = report.clips.find((c) => c.id === quiet[0].id).peakDbfs
+    assert.ok(
+      retakePeak < parentPeak - 4,
+      `expected the quieter retake to stay quieter: parent ${parentPeak}, retake ${retakePeak}`,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a retake whose parent report is gone measures itself, and says so', skip, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'split-gain-'))
+  try {
+    const retake = makeTake(dir, { words: WORDS.slice(0, 3), basename: 'retake', retakeOf: 'parent' })
+
+    const r = runSplit([retake.webm, '--out', join(dir, 'out')])
+
+    // a warning is a non-zero exit, because this is exactly the case where the clips that
+    // were just written may not match the ones they replace and only an ear can tell
+    assert.equal(r.status, 1)
+    const report = JSON.parse(readFileSync(retake.report, 'utf8'))
+    assert.equal(report.audio.gainSource, 'measured')
+    assert.equal(report.audio.gainFrom, null)
+    assert.match(report.warnings.join(' '), /re-records parent, whose report is gone/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a short first take with nothing before it measures itself without complaining', skip, () => {
+  // Under 30s and no parent: there is no level to match, measuring is the only thing
+  // available, and warning about it would make the first session of a set exit non-zero for
+  // doing the only possible thing.
+  const dir = mkdtempSync(join(tmpdir(), 'split-gain-'))
+  try {
+    const only = makeTake(dir, { words: WORDS.slice(0, 3), basename: 'only' })
+
+    const r = runSplit([only.webm, '--out', join(dir, 'out')])
+
+    assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`)
+    const report = JSON.parse(readFileSync(only.report, 'utf8'))
+    assert.deepEqual(report.warnings, [])
+    assert.equal(report.audio.gainSource, 'measured')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a short take with no parent named falls back to the newest report of its kind', skip, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'split-gain-'))
+  try {
+    const parent = makeTake(dir, { words: WORDS, basename: 'parent' })
+    assert.equal(runSplit([parent.webm, '--out', join(dir, 'out')]).status, 0)
+    const parentReport = JSON.parse(readFileSync(parent.report, 'utf8'))
+
+    // straight from the setup screen, no "Deze opnieuw opnemen" and so no retakeOf
+    const later = makeTake(dir, { words: WORDS.slice(0, 3), basename: 'later', amplitude: 0.175 })
+    assert.equal(runSplit([later.webm, '--out', join(dir, 'out')]).status, 0)
+
+    const report = JSON.parse(readFileSync(later.report, 'utf8'))
+    assert.equal(report.audio.gainSource, 'reused')
+    assert.equal(report.audio.gainFrom, 'parent')
+    assert.equal(report.audio.appliedGainDb, parentReport.audio.appliedGainDb)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

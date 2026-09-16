@@ -57,10 +57,47 @@ export function durationMs(file) {
   return seconds * 1000
 }
 
+/**
+ * Everything below a speaking voice, taken off before anything else looks at the take
+ * (docs/recording-studio-v3.md §2.5).
+ *
+ * Desk thumps, the chair, footfalls in the house, a fan's body resonance and the 50Hz mains
+ * fundamental all live under 70Hz, where speech has nothing at all — a male fundamental
+ * starts around 85Hz and Arjan's is higher. Taking it off first means the noise floor the
+ * silence threshold is derived from is the floor of the *audible* take, not of a rumble
+ * nobody can hear, and `loudnorm` is not spending headroom on it either.
+ *
+ * Measured response of this exact filter, 48kHz, sine in / sine out (see audio.test.mjs):
+ *
+ *     20Hz -21.8dB   30Hz -14.8dB   40Hz -10.1dB   50Hz -6.8dB
+ *     70Hz  -3.0dB  100Hz  -0.9dB  150Hz  -0.2dB  300Hz  -0.0dB
+ *
+ * Deliberately gentle. ffmpeg's `highpass` caps at two poles, and cascading it to reach 20dB
+ * at 50Hz would cost ~3dB at 100Hz, which is a voice's own fundamental — the one thing this
+ * must not touch.
+ */
+export const DECODE_FILTER = 'highpass=f=70:poles=2'
+
 /** Opus (or anything else) → the 48kHz mono WAV everything downstream works on. */
 export function decodeToWav(input, output) {
-  ffmpeg(['-y', '-v', 'error', '-i', input, '-ac', '1', '-ar', String(SAMPLE_RATE), '-c:a', 'pcm_s16le', output])
+  ffmpeg([
+    '-y', '-v', 'error', '-i', input, '-af', DECODE_FILTER,
+    '-ac', '1', '-ar', String(SAMPLE_RATE), '-c:a', 'pcm_s16le', output,
+  ])
   return output
+}
+
+/**
+ * Mean level of a file in dBFS — RMS over the whole thing, from `volumedetect`.
+ *
+ * Only used to compare one rendering of a signal against another (the high-pass test, and
+ * anything that wants to know what a gain change actually did). For "how loud is this take
+ * to a listener" the answer is `measureLoudness`, which is gated and weighted; this is not.
+ */
+export function meanDbfs(file) {
+  const { stderr } = ffmpeg(['-v', 'info', '-i', file, '-af', 'volumedetect', '-f', 'null', '-'])
+  const m = stderr.match(/mean_volume:\s*(-?\d+(?:\.\d+)?)\s*dB/)
+  return m ? parseFloat(m[1]) : null
 }
 
 /**
@@ -105,6 +142,28 @@ export function applyLoudnorm(wav, output, measured, { i = -16, tp = -1.5, lra =
   ].join(':')
   // loudnorm resamples to 192kHz internally; -ar puts it back before it is written
   ffmpeg(['-y', '-v', 'error', '-i', wav, '-af', filter, '-ac', '1', '-ar', String(SAMPLE_RATE), '-c:a', 'pcm_s16le', output])
+  return output
+}
+
+/**
+ * Lift the whole take by a gain someone else already worked out — what a retake gets instead
+ * of its own measurement (docs/recording-studio-v3.md §2.6).
+ *
+ * Three words measured alone do not land where the same three words land inside the twenty
+ * they have to sit among: that is the "loudnorm on short material" problem the v2 spec's §1.4
+ * fixed for individual clips, arriving again one level up. So a retake is not measured at
+ * all; it is moved by exactly the number the take it replaces was moved by, which is the only
+ * way the replacement can match what is already on disk.
+ *
+ * No limiter afterwards. A limiter would change how the words sound relative to each other,
+ * which is the thing being preserved; if the gain pushes the peak too high the caller says so
+ * in the report and the take can be redone.
+ */
+export function applyGainDb(wav, output, gainDb) {
+  ffmpeg([
+    '-y', '-v', 'error', '-i', wav, '-af', `volume=${gainDb.toFixed(2)}dB`,
+    '-ac', '1', '-ar', String(SAMPLE_RATE), '-c:a', 'pcm_s16le', output,
+  ])
   return output
 }
 
