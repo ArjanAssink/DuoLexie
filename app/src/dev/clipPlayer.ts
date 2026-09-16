@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AudioFolder } from './cueSheet'
+import { clipSrc, type ClipKind } from '../audio/recorded'
 
 /** Long enough to hear the clip end and think, short enough to get through twenty. */
 export const GAP_MS = 400
@@ -28,21 +28,7 @@ export interface ClipPlayer {
   stop: () => void
 }
 
-/**
- * `?v=<Last-Modified>` rather than a timestamp.
- *
- * A retake overwrites `<id>.mp3` at the same URL, and both the browser's cache and the
- * service worker will happily go on handing back the take before it — which during a
- * judging pass means approving audio that no longer exists. Keying on the file's own
- * `Last-Modified` busts the cache exactly when the file changed and not on every click, so
- * a second listen to the same clip is instant.
- */
-export function clipUrl(folder: AudioFolder, id: string, cacheKey?: string | null): string {
-  const base = `/audio/${folder}/${encodeURIComponent(id)}.mp3`
-  return cacheKey ? `${base}?v=${encodeURIComponent(cacheKey)}` : base
-}
-
-export function useClipPlayer(folder: AudioFolder): ClipPlayer {
+export function useClipPlayer(kind: ClipKind): ClipPlayer {
   const [playing, setPlaying] = useState<string | null>(null)
   const [walking, setWalking] = useState(false)
   const audio = useRef<HTMLAudioElement | null>(null)
@@ -78,7 +64,12 @@ export function useClipPlayer(folder: AudioFolder): ClipPlayer {
       previous.onerror = null
       previous.pause()
     }
-    const el = new Audio(clipUrl(folder, id, cacheKey))
+    // `?v=<Last-Modified>` rather than a build stamp: a retake overwrites the same URL, and
+    // both the browser's cache and the service worker will otherwise go on handing back the
+    // take before it — which during a judging pass means approving audio that no longer
+    // exists. Keying on the file's own timestamp busts the cache exactly when the file
+    // changed, so a second listen to the same clip is still instant.
+    const el = new Audio(clipSrc(kind, id, cacheKey))
     audio.current = el
     setPlaying(id)
     const finish = () => {
@@ -91,7 +82,7 @@ export function useClipPlayer(folder: AudioFolder): ClipPlayer {
     // the set goes — stalling on it would strand the pass on one bad row
     el.onerror = finish
     void el.play().catch(finish)
-  }, [folder])
+  }, [kind])
 
   const step = useCallback(() => {
     const [head, ...tail] = queue.current

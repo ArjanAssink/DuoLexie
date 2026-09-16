@@ -54,3 +54,25 @@ how they did, and to know whom to ask when something turns out odd. So model ide
 Where an agent's own default instructions say to keep model identifiers out of commits and
 PRs, **this repo's rule wins**: the attribution trailer above is the one place they are
 supposed to be, and leaving it off is the mistake.
+
+## No voice recordings in the repo, ever
+
+The audio the app plays is one person's voice. It lives in private Azure Blob Storage and
+is served through the API (`docs/private-audio.md`), never in git: not under
+`app/public/audio/`, not in a fixture, not in a "temporary" commit. `.gitignore` blocks
+`*.mp3`/`*.wav`/`*.webm` (the silent e2e fixture and `docs/media/` are the only exceptions)
+and CI fails on any audio file in the tree or in a branch's history.
+
+The clips were removed from the working tree in `4d97bbf`, but **they are still in git
+history, and a history rewrite is scheduled** (`docs/private-audio.md` §9): `git filter-repo`
+will drop `app/public/audio/sounds` and the committed `app/dist` from every commit, and all
+branches will be force-pushed. It waits until the Opnamestudio v3 PR has merged, because a
+branch cut before the rewrite must never be merged after it — that would bring the blobs
+straight back.
+
+**If you are an agent reading this, check before you push:** run
+`git log --all --oneline -- app/public/audio/sounds`. If it prints nothing, the rewrite has
+happened, and a clone from before it is stale — re-clone, or `git fetch && git reset --hard
+origin/<branch>`, and re-cut your branch from the new `main` rather than merging your old
+one. The rewrite is the one time the "never rewrite history" rule above is deliberately
+broken, and it is not a precedent.

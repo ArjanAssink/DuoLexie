@@ -7,7 +7,17 @@ dist/
 .env.*
 test-results/
 playwright-report/
-app/public/audio/raw-webm/
+# the voice recordings never go in the repo — docs/private-audio.md. Local clips may sit
+# here for dev; nothing under it is committed or deployed
+app/public/audio/
+recordings/clips/
+*.mp3
+*.wav
+*.webm
+*.m4a
+*.ogg
+!app/tests/e2e/fixtures/silent.mp3
+!docs/media/**
 
 # raw takes from the recording studio — megabytes each, and not what ships; the app only
 # ever gets the mp3s split out of them

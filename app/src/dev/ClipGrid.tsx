@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AudioFolder } from './cueSheet'
+import { folderFor, type ClipKind } from '../audio/recorded'
 import { useClipPlayer } from './clipPlayer'
 import {
   MISSING, STATE_ICON, STATE_TITLE, clipState, countStates,
@@ -10,7 +10,7 @@ interface Props {
   ids: string[]
   /** what the next take will record, for the ring that says "this one is queued" */
   activeIds: string[]
-  folder: AudioFolder
+  kind: ClipKind
   /** Weetjes cues are sentences; the id goes underneath in small type (§2.8) */
   labels?: Record<string, string>
   probes: Record<string, ClipProbe>
@@ -34,8 +34,9 @@ interface Props {
  * "alleen ontbrekende" filter and the *Start take* count pick the word up by themselves and
  * the next take re-records it with nothing else to remember.
  */
-export function ClipGrid({ ids, activeIds, folder, labels, probes, store, onVerdict }: Props) {
-  const player = useClipPlayer(folder)
+export function ClipGrid({ ids, activeIds, kind, labels, probes, store, onVerdict }: Props) {
+  const folder = folderFor(kind)
+  const player = useClipPlayer(kind)
   const [focus, setFocus] = useState(0)
   // the ref, not the state, is what `move` reads: moving focus is a DOM side effect, and
   // doing it from inside a setState updater makes it depend on when React chooses to run

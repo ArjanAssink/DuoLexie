@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { allSounds } from '../curriculum'
 import { wordsInRecordingOrder } from '../data/path'
 import { dealableWeetjes, narrationLines, type WeetjePart } from '../weetjes'
+import { clipSrc } from '../audio/recorded'
 import {
   DEFAULT_PACE_MS, PACE_RANGE, folderFor, takeBasename, type AudioFolder, type TakeKind,
 } from './cueSheet'
@@ -155,13 +156,14 @@ export function RecordingStudio() {
   const pathWords = useMemo(() => wordsInRecordingOrder(), [])
   const weetjes = useMemo(() => weetjeCues(), [])
 
-  const sets = useMemo((): Record<SetChoice, { ids: string[]; folder: AudioFolder }> => {
+  const sets = useMemo((): Record<SetChoice, { ids: string[]; kind: TakeKind; folder: AudioFolder }> => {
     const words = pathWords.map((w) => w.id)
+    const set = (ids: string[], setKind: TakeKind) => ({ ids, kind: setKind, folder: folderFor(setKind) })
     return {
-      klanken: { ids: allSounds, folder: 'sounds' },
-      'woorden-startset': { ids: words.slice(0, STARTER_SET_SIZE), folder: 'words' },
-      woorden: { ids: words, folder: 'words' },
-      weetjes: { ids: weetjes.ids, folder: 'weetjes' },
+      klanken: set(allSounds, 'klanken'),
+      'woorden-startset': set(words.slice(0, STARTER_SET_SIZE), 'woorden'),
+      woorden: set(words, 'woorden'),
+      weetjes: set(weetjes.ids, 'weetjes'),
     }
   }, [pathWords, weetjes])
 
@@ -191,14 +193,14 @@ export function RecordingStudio() {
    * retake lands, the timestamp changes and the old opinion is dropped (§2.1).
    */
   const refreshProbes = useCallback(async () => {
-    const wanted: { folder: AudioFolder; id: string }[] = []
+    const wanted: { kind: TakeKind; folder: AudioFolder; id: string }[] = []
     const seen = new Set<string>()
     for (const set of Object.values(sets)) {
       for (const id of set.ids) {
         const key = `${set.folder}/${id}`
         if (seen.has(key)) continue
         seen.add(key)
-        wanted.push({ folder: set.folder, id })
+        wanted.push({ kind: set.kind, folder: set.folder, id })
       }
     }
 
@@ -206,9 +208,11 @@ export function RecordingStudio() {
     let cursor = 0
     const worker = async () => {
       for (let i = cursor++; i < wanted.length; i = cursor++) {
-        const { folder: f, id } = wanted[i]
+        const { kind: probeKind, folder: f, id } = wanted[i]
         try {
-          const res = await fetch(`/audio/${f}/${encodeURIComponent(id)}.mp3`, { method: 'HEAD' })
+          // through clipSrc like every other clip URL: when docs/private-audio.md moves the
+          // clips behind /api/audio/{kind}/{id}, the probe has to move with them
+          const res = await fetch(clipSrc(probeKind, id), { method: 'HEAD' })
           // the dev server answers a missing public file with the SPA's index.html, so the
           // status alone says nothing — the content type is what distinguishes them
           const isAudio = res.ok && (res.headers.get('content-type') ?? '').startsWith('audio')
@@ -659,7 +663,7 @@ export function RecordingStudio() {
           <ClipGrid
             ids={fullSet}
             activeIds={ids}
-            folder={folder}
+            kind={kind}
             labels={kind === 'weetjes' ? weetjes.labels : undefined}
             probes={folderProbes}
             store={store}

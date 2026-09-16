@@ -1,8 +1,13 @@
 /**
  * Sound playback with graceful fallback:
- * 1. Family-recorded clip at /audio/sounds/{id}.mp3 (the real experience)
+ * 1. Family-recorded clip, addressed through `clipSrc` (the real experience)
  * 2. Browser speech synthesis (nl-NL) as placeholder until clips are recorded
+ *
+ * Clip URLs are built by `recorded.ts` rather than spelled out here, so that
+ * docs/private-audio.md — which moves every clip out of `public/` and behind the API — is a
+ * change to one function instead of to every player in the app.
  */
+import { clipSrc } from './recorded'
 
 const clipCache = new Map<string, HTMLAudioElement | null>()
 
@@ -72,7 +77,7 @@ function speak(soundId: string): Promise<void> {
 async function loadClip(soundId: string): Promise<HTMLAudioElement | null> {
   const cached = clipCache.get(soundId)
   if (cached) return cached
-  const audio = new Audio(`/audio/sounds/${soundId}.mp3?v=${__AUDIO_VERSION__}`)
+  const audio = new Audio(clipSrc('klanken', soundId, __AUDIO_VERSION__))
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
@@ -151,7 +156,7 @@ function speakWord(text: string): Promise<void> {
 async function loadWordClip(wordId: string): Promise<HTMLAudioElement | null> {
   const cached = wordClipCache.get(wordId)
   if (cached) return cached
-  const audio = new Audio(`/audio/words/${wordId}.mp3?v=${__AUDIO_VERSION__}`)
+  const audio = new Audio(clipSrc('woorden', wordId, __AUDIO_VERSION__))
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
@@ -186,7 +191,7 @@ let currentWeetjeClip: HTMLAudioElement | null = null
 async function loadWeetjeClip(clipId: string): Promise<HTMLAudioElement | null> {
   const cached = weetjeClipCache.get(clipId)
   if (cached) return cached
-  const audio = new Audio(`/audio/weetjes/${clipId}.mp3?v=${__AUDIO_VERSION__}`)
+  const audio = new Audio(clipSrc('weetjes', clipId, __AUDIO_VERSION__))
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)

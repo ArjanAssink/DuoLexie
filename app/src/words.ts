@@ -1,6 +1,6 @@
 import wordsJson from '@shared/curriculum/words.json'
 import type { Word, WordCurriculum } from '@shared/src/types'
-import { recordedWords } from 'virtual:recorded-audio'
+import { hasRecording, recordedCount as countRecorded } from './audio/recorded'
 
 export const words: Word[] = (wordsJson as WordCurriculum).words
 
@@ -22,8 +22,8 @@ export function wordsForPool(pool: string[]): Word[] {
  * Word ids that have a real recorded clip. Everything else falls back to browser speech
  * synthesis in `playWord`.
  *
- * The Set comes from `virtual:recorded-audio`, which the studio plugin generates by reading
- * `public/audio/words/` — and, in dev, refills in place the moment a clip is written there
+ * The answer comes from `audio/recorded.ts`, the one module that knows what is recorded — and,
+ * in dev, learns about a clip the moment it is written
  * (docs/recording-studio-v3.md §3.2). It used to be a build-time constant, which meant a word
  * recorded during a session was ignored until the dev server was restarted: the last step of
  * the recording loop was "and now restart Vite", which is exactly the kind of step that
@@ -31,10 +31,10 @@ export function wordsForPool(pool: string[]): Word[] {
  * again, read when the bundle is made.
  */
 export function hasWordRecording(id: string): boolean {
-  return recordedWords.has(id)
+  return hasRecording('woorden', id)
 }
 
 /** How many of the given words are recorded — for the studio's progress line. */
 export function recordedCount(ids: string[]): number {
-  return ids.filter((id) => recordedWords.has(id)).length
+  return countRecorded('woorden', ids)
 }

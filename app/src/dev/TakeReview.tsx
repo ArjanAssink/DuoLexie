@@ -68,7 +68,7 @@ interface Props {
  */
 export function TakeReview({ report, labels, store, probes, onVerdict, onRetake }: Props) {
   const folder = folderFor(report.kind)
-  const player = useClipPlayer(folder)
+  const player = useClipPlayer(report.kind)
   const rows = useMemo(
     () => [...report.clips].sort((a, b) => SEVERITY.indexOf(a.status) - SEVERITY.indexOf(b.status)),
     [report.clips],

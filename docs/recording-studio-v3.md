@@ -18,6 +18,28 @@ has heard real output.
 a second PR once Arjan has heard real output. Deviations are marked *(as built)* where they
 occur.
 
+### Sequencing, and the two seams this change must leave
+
+This ships **first**; then the history purge; then `docs/private-audio.md`, which moves every
+clip out of the repository into private storage behind the API. See `docs/private-audio.md`
+§0 for why the three cannot overlap.
+
+Two consequences for this change:
+
+- **The splitter keeps writing to `app/public/audio/<folder>/`.** That folder is gitignored
+  since `4d97bbf`, so clips live there locally and can be neither committed nor deployed;
+  private-audio moves the output to `recordings/clips/`. **Never commit an mp3** — CI will
+  refuse it once the guard lands, and the whole point is that the voice stays out of git.
+- **Leave two seams**, so the next change is a swap rather than a rewrite:
+  - **`app/src/audio/recorded.ts`** — the single module answering *does this id have a clip*
+    (`hasRecording(kind, id)`, `recordedIds(kind)`), backed here by the §3.2 virtual module.
+    `words.ts`, `weetjes.ts` and the studio import from it instead of reading
+    `__RECORDED_WORDS__` / `__RECORDED_WEETJES__` directly, so those defines have exactly one
+    consumer left.
+  - **`clipSrc(kind, id)`** — the one place a clip URL is built. The §2.1 verdict grid,
+    `TakeReview` and the games all go through it; nothing constructs
+    `/audio/${folder}/${id}.mp3` inline.
+
 ---
 
 ## 1. What is already right and must stay

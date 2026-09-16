@@ -12,33 +12,25 @@
  * not; `pauses` is what lets the splitter put the two clocks back together.
  */
 
+import type { ClipKind } from '../audio/recorded'
+
 /**
  * Which set a take reads. `weetjes` cues are whole sentences rather than single words
  * (docs/weetjes.md §7, docs/recording-pipeline-v2.md) — the id is `<card>-fact|doe|reveal`
  * and the teleprompter shows the sentence behind it, not the id.
  */
-export type TakeKind = 'klanken' | 'woorden' | 'weetjes'
-
-/** The three directories under `app/public/audio/` a take can write into. */
-export type AudioFolder = 'sounds' | 'words' | 'weetjes'
-
-const FOLDERS: Record<TakeKind, AudioFolder> = {
-  klanken: 'sounds',
-  woorden: 'words',
-  weetjes: 'weetjes',
-}
-
 /**
- * Where a kind's clips live — the single answer, used by the studio, the grid and the report.
+ * A take records one kind of clip, and the kinds are the app's kinds.
  *
- * It was three answers, and one of them was wrong: `TakeReview` read `kind === 'klanken' ?
- * 'sounds' : 'words'`, so every Weetjes report played its clips from `/audio/words/`, found
- * nothing, and silently reported that every row was silent (§2.8). A ternary that has to be
- * updated in three files each time a fourth kind appears is not a thing to keep.
+ * Defined in `audio/recorded.ts` and re-exported here, not declared twice: that module is the
+ * seam docs/recording-studio-v3.md asks this change to leave for `docs/private-audio.md`,
+ * which moves every clip out of `public/` and behind the API. A second copy of "which folder
+ * does this kind live in" is exactly what made a Weetjes report play from `/audio/words/`
+ * and hear nothing (§2.8).
  */
-export function folderFor(kind: TakeKind): AudioFolder {
-  return FOLDERS[kind]
-}
+export type { AudioFolder } from '../audio/recorded'
+export { folderFor } from '../audio/recorded'
+export type TakeKind = ClipKind
 
 export interface Cue {
   id: string
