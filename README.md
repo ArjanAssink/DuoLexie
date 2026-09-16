@@ -32,8 +32,30 @@ npm run dev
 
 ## Audio opnemen
 
-De app gebruikt zelf opgenomen klanken en woorden (browser-TTS is de terugval zolang een clip
-ontbreekt). Opnemen gaat in **één doorlopende take** die daarna automatisch geknipt wordt —
+### De stemopnames zitten niet in deze repo
+
+De klanken, woorden en weetjes die de app voorleest zijn ingesproken door één persoon.
+Een openbare map met netjes gelabelde `kat.mp3`, `bos.mp3`, … is precies de dataset waarmee
+je een stem kloont, en alles wat ooit in git heeft gestaan blijft daar. Daarom staan de
+opnames **niet** in deze repository en niet op de openbare site, maar in een privé
+opslagbak, en levert de app ze alleen uit via de API met een kortlopend token en een
+snelheidslimiet. Zie [docs/private-audio.md](docs/private-audio.md) — ook voor wat dit
+*niet* beschermt. (Op 16 september 2026 is de git-geschiedenis herschreven om de eerste 45
+klank-opnames eruit te halen; een clone van vóór die datum moet opnieuw gecloned worden.)
+
+**Zonder opnames werkt de app volledig**: elke klank en elk woord valt terug op de
+voorleesstem van de browser. Wil je je eigen stem gebruiken, dan neem je die op met de
+studio hieronder en zet je hem in je eigen opslag (`AUDIO_STORAGE_CONNECTION`), of — als
+je het kloonrisico voor jezelf accepteert — in een **privé** fork. Zet ze nooit in een
+openbare repo; `.gitignore` en de CI van deze repo weigeren dat ook.
+
+**Licentie:** de code is MIT (zie [LICENSE](LICENSE)). De stemopnames vallen daar niet
+onder: alle rechten voorbehouden, ze mogen niet worden gekopieerd, gepubliceerd of gebruikt
+om een stem te trainen of te synthetiseren.
+
+### Zelf opnemen
+
+Opnemen gaat in **één doorlopende take** die daarna automatisch geknipt wordt —
 niet meer klik-per-clip. Dat is geen gemak maar geluidskwaliteit: elke klik zat in de opname,
 en een clip van 300ms is te kort om apart te normaliseren. Zie
 [docs/recording-pipeline-v2.md](docs/recording-pipeline-v2.md) voor het waarom.
@@ -49,12 +71,15 @@ en een clip van 300ms is te kort om apart te normaliseren. Zie
    - **backspace** — de vorige ging mis (je merkte het een tel te laat)
    - **Esc** — pauze; nog een keer Esc hervat met een nieuwe aftelling
 4. Knip de take: `node tools/split-take.mjs recordings/<take>.webm` (vereist ffmpeg). Dat
-   schrijft één mp3 per woord in `app/public/audio/` plus een rapport.
+   schrijft één mp3 per woord plus een rapport. Tot [docs/private-audio.md](docs/private-audio.md)
+   gebouwd is landen die nog in `app/public/audio/` — die map is gitignored, dus lokaal spelen
+   werkt en er kan niets per ongeluk gecommit of gedeployed worden.
 5. Luister terug op `/#/opnemen` → **Rapport laden**: gemarkeerde clips staan bovenaan, "alles
    afluisteren" speelt de hele set achter elkaar. Vink aan wat opnieuw moet en druk op
    *Deze opnieuw opnemen* — dat start een take met alleen die woorden.
 6. **Herstart de dev-server** (`vite.config.ts` leest `public/audio/words/` één keer bij het
-   starten) en commit de mp3's. De `.webm`-takes zelf blijven in `recordings/`, gitignored.
+   starten). Commit de mp3's **niet** — zie hierboven; ze gaan naar de privé-opslag zodra
+   die er is. De `.webm`-takes zelf blijven in `recordings/`, gitignored.
 
 ## Deploy (Azure Static Web Apps, gratis tier)
 

@@ -54,3 +54,18 @@ how they did, and to know whom to ask when something turns out odd. So model ide
 Where an agent's own default instructions say to keep model identifiers out of commits and
 PRs, **this repo's rule wins**: the attribution trailer above is the one place they are
 supposed to be, and leaving it off is the mistake.
+
+## No voice recordings in the repo, ever
+
+The audio the app plays is one person's voice. It lives in private Azure Blob Storage and
+is served through the API (`docs/private-audio.md`), never in git: not under
+`app/public/audio/`, not in a fixture, not in a "temporary" commit. `.gitignore` blocks
+`*.mp3`/`*.wav`/`*.webm` (the silent e2e fixture and `docs/media/` are the only exceptions)
+and CI fails on any audio file in the tree or in a branch's history.
+
+On **2026-09-16 the history was rewritten** with `git filter-repo` to remove the 45 klank
+clips (and a committed `app/dist/`) from every branch, and all branches were force-pushed.
+If your clone or worktree predates that: re-clone, or `git fetch && git reset --hard
+origin/<branch>`. **Never merge a branch cut before the purge** into the new `main` — it
+would bring the old blobs back; cherry-pick its commits instead. This is the one time the
+"never rewrite history" rule above was deliberately broken, and it is not a precedent.
