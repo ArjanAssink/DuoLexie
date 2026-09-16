@@ -239,6 +239,11 @@ gem ticks that were already running.
   headline per tier, `total === 0`. *(as built: `app/src/screens/rewardTimeline.test.ts`,
   not `tests/unit/` — `vitest.config.ts` includes `src/**/*.test.ts` only, and every other
   unit test in the app sits beside the file it tests.)*
+- `app/src/screens/RewardPreviewScreen.tsx` — **new** *(as built)*: the screen on its own at
+  `/#/beloning?goed=…&totaal=…`, linked from the probeermenu, one button per tier plus a
+  Tijdrit record. Real `computeReward`, real word ids, real `DisplayReward`; it never calls
+  `completeLesson`, so it credits nothing — there is a test pinning that, because this is a
+  route in the shipped app rather than a test-only door.
 - `app/src/screens/useCelebration.ts` — **new** hook: owns the timers, exposes
   `{ beat, progress, skip }`. `progress` is the eased 0–1 fill progress driven by rAF during
   the card beat. `skip()` sets `beat = 'done'` and `progress = 1` and clears everything.
@@ -294,10 +299,20 @@ the **Verder** button text.
 ## 9. Tests
 
 `tests/e2e/reward-celebration.spec.ts` (new; desktop Chromium locally, all three profiles
-on CI). Drive a round to the reward screen the way `hardop-lezen.spec.ts` does (Proefronde
-with `installLearnedSwipe` + `installNarration`; a helper `finishRound(page, correctCount)`
-that plays `correctCount` cards to Goed and the rest to Nog even is worth extracting into
-`fixtures/`):
+on CI).
+
+*(as built)* The tests open the screen directly, from `/#/beloning?goed=7&totaal=10` — a new
+entry in the probeermenu (`screens/RewardPreviewScreen.tsx`, §8). Driving a real round to
+reach it, as first planned and first built, costs ~20s on a desktop and ~1 minute on CI's
+WebKit profiles; eight of them across three profiles roughly doubled the CI job for coverage
+of a screen that does not care how she got there. The preview builds the same `wordResults`
+and `answers` a real round produces and hands them to the real `computeReward`, so nothing is
+faked but the route in.
+
+Two tests still play a real round, because their subject is the seam rather than the screen:
+the Verder case below, and (already existing, untouched) `hardop-lezen.spec.ts`'s assertions
+that the tally, the chips and the gem total match what she actually did. `finishRound(page,
+correctCount)` is extracted into `fixtures/round.ts` as suggested, and is what they use.
 
 1. **Beats advance in order** — `data-beat` goes `hero → settle → card → strip → done`
    (poll; don't assert timing tighter than ±500 ms, CI's ipad profile runs slow).
@@ -437,10 +452,13 @@ Verification:
     Playwright's WebKit needs (`libicu74`, `libxml2`, `libflite1`) and installing them needs
     root. Desktop Chromium was run in full and is green; the ipad and iphone profiles are
     covered by CI only.
-19. **The ten cases in §9 are covered by seven tests**, not ten. Every one of them pays for a
-    full ten-card round to reach the screen, so they carry as much as they honestly can each
-    — the skip case and the Verder case share a round, and §9.10's iPhone SE test also does
-    the horizontal-overflow poll §10 asks for. §9.9 needed no new test: it is
+19. **The tests open the screen directly rather than playing a round to it** (§9, marked in
+    place). Built the planned way first, and CI came back at 20m03s against an ~8-9 minute
+    baseline — eight ten-card rounds across three profiles. `/#/beloning` took the whole
+    e2e suite from 60s to 40s locally while *adding* cases the round-driven version could not
+    afford: the 80/79 tier boundary on the real screen, the Tijdrit `NIEUW RECORD!` banner
+    (which a reading round cannot produce, since Hardop lezen is untimed by design), and a
+    test that opening the preview credits nothing. §9.9 needed no new test at all: it is
     `quit-mid-animation.spec.ts`, which passes unchanged.
 20. **The three new synths were checked by spy count only, not by ear.** There is no audio
     device here. `whoosh` deliberately does not show up in an oscillator count at all — it is

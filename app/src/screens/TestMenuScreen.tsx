@@ -13,6 +13,19 @@ const GAME_LABELS: Record<GameType, string> = {
 }
 
 /**
+ * The celebration after a round, without a round (screens/RewardPreviewScreen.tsx). Every
+ * tier, so it can be looked at by eye — and the entry the e2e tests use, which is what took
+ * the reward-screen suite from eight ten-card rounds down to one.
+ */
+const REWARD_PREVIEWS: [string, string][] = [
+  ['Beloning — 10/10, Perfect!', 'goed=10&totaal=10'],
+  ['Beloning — 8/10, Super', 'goed=8&totaal=10'],
+  ['Beloning — 7/10, Goed', 'goed=7&totaal=10'],
+  ['Beloning — 0/10, Geoefend', 'goed=0&totaal=10'],
+  ['Beloning — Tijdrit met NIEUW RECORD', 'spel=klank&goed=9&totaal=10&score=48&record=1'],
+]
+
+/**
  * Not linked from anywhere in the app's own navigation — reachable only by typing
  * /#/proberen directly. Lets you jump straight into any implemented game mode without
  * playing through the lesson tree first. `?test=true` (see the link below) does the
@@ -55,6 +68,19 @@ export function TestMenuScreen() {
             </button>
           )
         })}
+      </section>
+
+      <section className="avatar-picker">
+        <h2>Beloningsscherm</h2>
+        {REWARD_PREVIEWS.map(([label, query]) => (
+          <button
+            key={query}
+            className="btn-primary test-menu-btn"
+            onClick={() => navigate(`/beloning?${query}`)}
+          >
+            {label}
+          </button>
+        ))}
       </section>
 
       <section className="avatar-picker">
