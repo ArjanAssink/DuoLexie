@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { allSounds } from '../curriculum'
 import { wordsInRecordingOrder } from '../data/path'
+import { dealableWeetjes, narrationLines, type WeetjePart } from '../weetjes'
 import { DEFAULT_PACE_MS, PACE_RANGE, takeBasename, type TakeKind } from './cueSheet'
 import { micConstraints, openTakeGraph, peakDbfs, supportedRecorderOptions } from './takeAudio'
 import { Teleprompter, type Take } from './Teleprompter'
@@ -9,13 +10,39 @@ import { TakeReview, type SplitReport } from './TakeReview'
 /** Words worth recording first — the shortest ones (docs/hardop-lezen-rework.md §8). */
 const STARTER_SET_SIZE = 20
 
-type SetChoice = 'klanken' | 'woorden-startset' | 'woorden'
+type SetChoice = 'klanken' | 'woorden-startset' | 'woorden' | 'weetjes'
 type Stage = 'setup' | 'recording' | 'saved'
 
 const SET_KIND: Record<SetChoice, TakeKind> = {
   klanken: 'klanken',
   'woorden-startset': 'woorden',
   woorden: 'woorden',
+  weetjes: 'weetjes',
+}
+
+/** The three parts of a card, each its own cue and its own mp3 (docs/weetjes.md §7). */
+const WEETJE_PARTS: WeetjePart[] = ['fact', 'doe', 'reveal']
+
+/**
+ * The Weetjes set: every reviewed card, three cues each, in path order.
+ *
+ * Three cues rather than one per card, because the three are played at three different
+ * moments and one of them (`doe`) is a question with its options — there is no point in the
+ * take at which reading a whole card straight through would give clips that can be used
+ * apart. Unreviewed cards are left out: they are not dealt, so recording them would be a
+ * take spent on copy that may still change (§3).
+ */
+function weetjeCues(): { ids: string[]; labels: Record<string, string> } {
+  const ids: string[] = []
+  const labels: Record<string, string> = {}
+  for (const card of dealableWeetjes) {
+    for (const part of WEETJE_PARTS) {
+      const id = `${card.id}-${part}`
+      ids.push(id)
+      labels[id] = narrationLines(card, part).join(' … ')
+    }
+  }
+  return { ids, labels }
 }
 
 /**
@@ -51,14 +78,16 @@ export function RecordingStudio() {
   const [testing, setTesting] = useState(false)
 
   const kind = SET_KIND[choice]
-  const folder = kind === 'klanken' ? 'sounds' : 'words'
+  const folder = kind === 'klanken' ? 'sounds' : kind === 'weetjes' ? 'weetjes' : 'words'
   const pathWords = useMemo(() => wordsInRecordingOrder(), [])
+  const weetjes = useMemo(() => weetjeCues(), [])
 
   const fullSet = useMemo(() => {
     if (choice === 'klanken') return allSounds
+    if (choice === 'weetjes') return weetjes.ids
     const ids = pathWords.map((w) => w.id)
     return choice === 'woorden-startset' ? ids.slice(0, STARTER_SET_SIZE) : ids
-  }, [choice, pathWords])
+  }, [choice, pathWords, weetjes])
 
   /** What the next take will actually prompt: the set, narrowed by the gaps-only switch. */
   const ids = useMemo(() => {
@@ -218,6 +247,7 @@ export function RecordingStudio() {
       <div className="studio">
         <Teleprompter
           ids={ids}
+          labels={kind === 'weetjes' ? weetjes.labels : undefined}
           kind={kind}
           paceMs={paceMs}
           deviceId={deviceId}
@@ -275,6 +305,7 @@ export function RecordingStudio() {
               ['klanken', `Klanken (${allSounds.length})`],
               ['woorden-startset', `Woorden, startset (${Math.min(STARTER_SET_SIZE, pathWords.length)})`],
               ['woorden', `Woorden, alle (${pathWords.length})`],
+              ['weetjes', `Weetjes (${weetjes.ids.length} cues)`],
             ] as [SetChoice, string][]).map(([value, label]) => (
               <button
                 key={value}
@@ -361,14 +392,27 @@ export function RecordingStudio() {
           </p>
 
           <p className="studio-hint">
-            Lees elk woord één keer, rustig, zodra het verschijnt. Handen van het bureau —
+            {kind === 'weetjes' ? (
+              <>
+                Lees elke zin één keer, rustig, zodra hij verschijnt. Bij een vraag: eerst de
+                vraag, dan de drie antwoorden, met een adempauze ertussen.{' '}
+              </>
+            ) : (
+              <>Lees elk woord één keer, rustig, zodra het verschijnt. </>
+            )}
+            Handen van het bureau —
             klikken en toetsen komen mee de opname in. Gaat er één mis: <b>spatie</b>, en hij
             komt achteraan terug.
           </p>
 
           <div className="studio-grid">
             {fullSet.map((id) => (
-              <span key={id} className={`studio-cell${ids.includes(id) ? ' studio-cell-active' : ''}`}>
+              <span
+                key={id}
+                className={`studio-cell${ids.includes(id) ? ' studio-cell-active' : ''}${
+                  kind === 'weetjes' ? ' studio-cell-wide' : ''
+                }`}
+              >
                 <span className="studio-cell-id">{id}</span>
                 <span className="studio-cell-status">{recorded[id] ? '✅' : '⬜'}</span>
               </span>

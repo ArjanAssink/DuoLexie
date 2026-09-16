@@ -4,7 +4,7 @@ import { expect, type Page } from '@playwright/test'
 const DB_NAME = 'duolexie'
 const STORE = 'kv'
 const KEY = 'duolexie-progress'
-const VERSION = 3
+const VERSION = 4
 
 /**
  * A blank page on the app's origin, served by route interception rather than by Vite.

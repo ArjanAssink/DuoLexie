@@ -93,6 +93,9 @@ export const FLITS_DECK_SIZE = 20
  */
 const MIN_WORDS_FOR_LEZEN = 9
 
+/** Cards one Weetje node hands her (docs/weetjes.md §1). */
+export const WEETJE_CARD_COUNT = 2
+
 /**
  * The sound pool a Lezen node reads from: what she has been taught, topped up with the next
  * unit's sounds when that isn't enough to fill a round (docs/hardop-lezen-rework.md §4).
@@ -186,6 +189,29 @@ function buildLessons(
       exerciseCount: LEZEN_ROUND_SIZE,
     })
   }
+
+  /*
+   * The Weetje node goes last, after Lezen (docs/weetjes.md §5).
+   *
+   * Deliberately after the hardest thing in the unit rather than before it: it is ninety
+   * seconds of being told she is one of many and that her brain is different, not worse,
+   * and that lands as a breather earned rather than as one more hurdle between her and the
+   * reading. Units with no Lezen node get it last anyway.
+   *
+   * Which cards it deals is not decided here — it is her collection at the moment she opens
+   * it (weetjes.ts `dealWeetjes`), so a node replayed months later is not the same two
+   * cards.
+   */
+  lessons.push({
+    id: `${unitId}-weetje`,
+    unitId,
+    kind: 'weetje',
+    title: 'Weetje',
+    gameType: 'weetjes',
+    newSounds: [],
+    soundPool: [],
+    exerciseCount: WEETJE_CARD_COUNT,
+  })
 
   return lessons
 }

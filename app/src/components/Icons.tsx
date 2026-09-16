@@ -109,6 +109,20 @@ export function PersonIcon({ size = 28 }: { size?: number }) {
 }
 
 /** Lesson-coin icon by lesson title, colored by state */
+/** The Weetje node: a lightbulb, the one node on the path that teaches nothing to spell. */
+export function BulbIcon({ size = 28, fill }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size}>
+      <path
+        d="M12,2.5 A6.5,6.5 0 0 1 18.5,9 C18.5,12 16.4,13.4 15.6,15.2 L8.4,15.2 C7.6,13.4 5.5,12 5.5,9 A6.5,6.5 0 0 1 12,2.5 Z"
+        fill={fill}
+      />
+      <rect x="8.7" y="16.7" width="6.6" height="2.3" rx="1.15" fill={fill} />
+      <rect x="9.9" y="20" width="4.2" height="2.1" rx="1.05" fill={fill} />
+    </svg>
+  )
+}
+
 export function LessonIcon({ title, fill, size }: { title: string; fill: string; size?: number }) {
   switch (title) {
     case 'Tijdrit':
@@ -119,6 +133,8 @@ export function LessonIcon({ title, fill, size }: { title: string; fill: string;
       return <TrophyIcon fill={fill} size={size ?? 28} />
     case 'Lezen':
       return <BookIcon fill={fill} size={size ?? 28} />
+    case 'Weetje':
+      return <BulbIcon fill={fill} size={size ?? 28} />
     default:
       return <StarIcon fill={fill} size={size ?? 30} />
   }

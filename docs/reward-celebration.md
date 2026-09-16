@@ -122,6 +122,15 @@ for klank games `total = answers.length` (per klank, as `computeReward` already 
 `total === 0` (should not happen; defensive) renders the card at 0 with the *Geoefend* tier
 and no crash.
 
+**Exception, already shipped: `kind: 'weetje'` renders no card at all.** A Weetjes round is
+never scored — `computeReward` pays a flat `WEETJE_GEMS` off `lesson.kind` alone — so there
+is nothing honest to fill a percentage with, and a card at 0 would turn "kinderen met
+dyslexie zijn minder slim" into a question she can get wrong, which is the one thing that
+game must not be. `RewardScreen` takes the lesson's `kind` on its `DisplayReward` and, for
+`weetje`, swaps the headline for **"Nu weet je dit ook!"**, adds the subline **"Vertel het
+vanavond aan iemand thuis."**, and shows only the gem/XP strip. See docs/weetjes.md §2; when
+this celebration is built, keep that branch.
+
 | Tier | Percentage | Label | Colour |
 |---|---|---|---|
 | geoefend | 0–49 | **Geoefend** | `--orange` / `#FDEBD5` fill |
