@@ -51,6 +51,21 @@ export interface ClipProbe {
 
 export const MISSING: ClipProbe = { present: false, lastModified: null }
 
+/** The four-state alphabet §2.1 gives, in the order it gives them: worst first. */
+export const STATE_ICON: Record<ClipState, string> = {
+  ontbreekt: '⬜',
+  onbeoordeeld: '🎧',
+  goed: '✅',
+  afgekeurd: '❌',
+}
+
+export const STATE_TITLE: Record<ClipState, string> = {
+  ontbreekt: 'nog niet opgenomen',
+  onbeoordeeld: 'opgenomen, nog niet beluisterd',
+  goed: 'goedgekeurd',
+  afgekeurd: 'afgekeurd — de volgende take neemt hem opnieuw op',
+}
+
 export function verdictKey(folder: AudioFolder, id: string): string {
   return `${folder}/${id}`
 }
@@ -67,8 +82,13 @@ export function verdictKey(folder: AudioFolder, id: string): string {
  * a wrong answer that hides itself.
  */
 export function clipState(store: VerdictStore, folder: AudioFolder, id: string, probe: ClipProbe): ClipState {
-  if (!probe.present) return 'ontbreekt'
   const entry = store[verdictKey(folder, id)]
+  // A rejected clip keeps its ❌ after the file has gone, because with the dev middleware
+  // rejecting *moves* the mp3 to recordings/afgekeurd/. Operationally ❌ and ⬜ mean the same
+  // thing — record this — but they are not the same fact, and "I listened to this and threw
+  // it away" is worth being able to see. A `goed` verdict about a file that has vanished is
+  // meaningless and goes.
+  if (!probe.present) return entry?.verdict === 'afgekeurd' ? 'afgekeurd' : 'ontbreekt'
   if (!entry) return 'onbeoordeeld'
   if (probe.lastModified !== null && entry.lastModified !== probe.lastModified) return 'onbeoordeeld'
   return entry.verdict

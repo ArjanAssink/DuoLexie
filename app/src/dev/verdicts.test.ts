@@ -30,9 +30,16 @@ describe('folderFor', () => {
 })
 
 describe('clipState', () => {
-  it('is ontbreekt when there is no file, whatever was once said about it', () => {
+  it('is ontbreekt when there is no file, and forgets a "goed" about one that vanished', () => {
     expect(clipState({}, 'words', 'kat', MISSING)).toBe('ontbreekt')
     expect(clipState(judged('goed'), 'words', 'kat', MISSING)).toBe('ontbreekt')
+  })
+
+  it('keeps ❌ after the file is gone, because rejecting moves it to afgekeurd/', () => {
+    // ❌ and ⬜ both mean "record this", but they are not the same fact: one of them says
+    // somebody listened to it and threw it away
+    expect(clipState(judged('afgekeurd'), 'words', 'kat', MISSING)).toBe('afgekeurd')
+    expect(countsAsMissing(clipState(judged('afgekeurd'), 'words', 'kat', MISSING))).toBe(true)
   })
 
   it('is onbeoordeeld for a clip nobody has listened to yet', () => {
