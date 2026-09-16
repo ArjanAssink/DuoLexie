@@ -65,14 +65,26 @@ export async function finishRound(page: Page, correct: number): Promise<string[]
  * between two round-trips. A MutationObserver installed before the app boots sees each one
  * as it happens, so the assertion is about the *order* the screen really went through
  * rather than about what the test managed to catch.
+ *
+ * **Why it reads `oldValue` and not just the current attribute.** An observer callback is a
+ * microtask that runs once per checkpoint, however many mutations landed in it — and on CI's
+ * ipad profile two beat timers really do fire back to back, late and batched, often enough
+ * that the first version of this dropped `settle` (and once `strip`) on three runs out of
+ * three. Reading the live attribute in the callback only ever sees where the screen has got
+ * to, so a beat that came and went inside one checkpoint leaves no trace. Every record
+ * carries its own `oldValue`, so walking the records and then appending the current value
+ * reconstructs the chain exactly, however they were batched.
  */
 export async function recordBeats(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const w = window as unknown as { __beats: string[] }
     w.__beats = []
-    const note = () => {
-      const beat = document.querySelector('.reward-screen')?.getAttribute('data-beat')
+    const push = (beat: string | null | undefined) => {
       if (beat && w.__beats[w.__beats.length - 1] !== beat) w.__beats.push(beat)
+    }
+    const note = (records: MutationRecord[]) => {
+      for (const r of records) if (r.type === 'attributes') push(r.oldValue)
+      push(document.querySelector('.reward-screen')?.getAttribute('data-beat'))
     }
     // `document`, not `document.documentElement`: an init script runs before the document
     // has an <html> element, and observing null throws — silently, since nothing awaits an
@@ -82,6 +94,7 @@ export async function recordBeats(page: Page): Promise<void> {
       childList: true,
       attributes: true,
       attributeFilter: ['data-beat'],
+      attributeOldValue: true,
     })
   })
 }

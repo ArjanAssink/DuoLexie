@@ -1681,13 +1681,22 @@ button:disabled { cursor: default; }
  * An iPhone SE is 667pt tall and the whole celebration has to fit on it without scrolling,
  * chips and all (§3) — a Verder she has to scroll to find is a dead end at the one moment
  * the screen is asking her to carry on. Measured at 375x667 with four chips the comfortable
- * rhythm above runs 47px over, so short screens get a tighter one: smaller gaps, less
- * padding, a smaller number and smaller chips. Frida stays 180px — she is the thing worth
- * the space, and the rest adds up to more than enough without touching her.
+ * rhythm above runs 47px over, so short screens get a tighter one.
+ *
+ * Frida comes down to 150px here, which is the part that was not in the plan. The first
+ * version kept her at 180 and took the 47px out of gaps, padding and type — and it fit, with
+ * 15px to spare on Chromium and 4px *under* on CI's WebKit profiles, whose text metrics run
+ * about 11px taller over a screen this long. A layout that fits by four pixels on one engine
+ * does not fit; it is waiting for a longer word. Thirty px off the hero buys the margin that
+ * makes it true on both, and a 150px Frida on a 667px screen is still plainly the hero.
  */
 @media (max-height: 700px) {
   .reward-screen { gap: 10px; padding: 8px 16px; }
-  .reward-bar { margin: 10px 16px 8px; }
+  .reward-hero, .frida-scale { width: 150px; height: 150px; }
+  .reward-screen .frida { width: 150px; }
+  .reward-title { gap: 4px; }
+  .reward-card { padding-bottom: 10px; }
+  .reward-bar { margin: 8px 16px 6px; }
   .reward-pct { font-size: 34px; }
   .word-chip { font-size: 16px; padding: 6px 11px; }
 }

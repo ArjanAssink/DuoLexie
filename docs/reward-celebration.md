@@ -414,10 +414,15 @@ Layout:
     beat.** §2's clipping gate and §3's "with more chips the screen may scroll" cannot both
     hold of the same rule. The thing that needs clipping is the 2.2× hero, and it is long
     over by the time the chips are on screen.
-15. **A `@media (max-height: 700px)` block tightens the rhythm.** Measured at 375×667 with
-    four chips, the comfortable spacing ran 47px over and pushed Verder off the screen. Short
-    screens get `gap: 10px`, less padding, a 34px number and smaller chips; Frida stays
-    180px, because she is the thing worth the space.
+15. **A `@media (max-height: 700px)` block tightens the rhythm, Frida included.** Measured at
+    375×667 with four chips, the comfortable spacing ran 47px over and pushed Verder off the
+    screen. Short screens get `gap: 10px`, less padding, a 34px number, smaller chips — and a
+    **150px Frida rather than 180px**, which is the part that is not in §3. The first attempt
+    kept her at 180 and took the whole 47px out of spacing and type. It fit on Chromium with
+    15px to spare, and CI came back 11px *over* on both WebKit profiles, whose text metrics
+    run taller over a screen this long. A layout that fits by four pixels on one engine is
+    not a layout that fits. Thirty px off the hero buys ~60px of slack and makes it true on
+    both engines; a 150px Frida on a 667px screen is still plainly the hero.
 
 Elsewhere in the app:
 
