@@ -487,13 +487,18 @@ Verification:
     preview's own URL parsing), and only WebKit's different polling cadence missed the
     transient and caught the bug. Every final-state assertion now goes through a `settled()`
     gate that waits for `data-beat="done"` first.
-    *The beats are only assertable on a fake clock.* On CI's ipad profile the DOM went
-    `hero → card → done`: React coalesces two state updates into one commit when the main
-    thread is busy enough that the render for `settle` has not flushed before `card` is set,
-    so the beat never reaches the DOM at all. Nothing is broken by that — a beat nobody had
-    time to paint is a beat nobody saw — but it makes "every beat appeared" a claim about the
-    runner. The test drives `page.clock` one beat at a time instead, the same tool and the
-    same reason as `quit-mid-animation.spec.ts`.
+    *The beats are only assertable on a fake clock, and the clock has no baseline worth
+    assuming.* On CI's ipad profile the DOM went `hero → card → done`: React coalesces two
+    state updates into one commit when the main thread is busy enough that the render for
+    `settle` has not flushed before `card` is set, so the beat never reaches the DOM at all.
+    Nothing is broken by that — a beat nobody had time to paint is a beat nobody saw — but it
+    makes "every beat appeared" a claim about the runner, so the test drives `page.clock`, the
+    same tool and reason as `quit-mid-animation.spec.ts`. The first version of that jumped one
+    beat's width at a time from an assumed starting point and went flaky on both WebKit
+    profiles, reading `card` where it wanted `strip`: where the clock stood when the screen
+    mounted was not where it assumed. It now walks in 200ms steps past the end of the
+    sequence and asserts the recorded order, which forces a flush between beats (they are
+    ≥600ms apart, so no step can merge two) without assuming any baseline at all.
 21. **The three new synths were checked by spy count only, not by ear.** There is no audio
     device here. `whoosh` deliberately does not show up in an oscillator count at all — it is
     noise through a buffer source — so what the count proves is `cardPop` and the `tierUp`

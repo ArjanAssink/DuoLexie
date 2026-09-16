@@ -80,6 +80,26 @@ function label(page: Page) {
   return page.locator('.reward-card-tier')
 }
 
+/**
+ * Walk a paused clock through the whole sequence in small steps.
+ *
+ * Small steps, rather than one jump per beat, for two independent reasons. Each `runFor` is
+ * its own task with a round-trip after it, so React has to flush between them — which is the
+ * point of using a clock here at all (see the beats test). And stepping past the end rather
+ * than landing on each boundary makes the walk independent of *where* the clock was when the
+ * screen mounted: the first version jumped by exactly one beat's width from an assumed
+ * baseline, and on CI's ipad and iphone profiles the baseline was not where it assumed, so it
+ * read "card" where it wanted "strip" and "hero" where it wanted "settle". Both passed on
+ * retry, which is the worst way for a test to be wrong.
+ *
+ * The beats are at least 600ms apart, so a 200ms step can never merge two of them.
+ */
+async function walkTheClock(page: Page) {
+  for (let elapsed = 0; elapsed < BEATS.doneAt + 1000; elapsed += 200) {
+    await page.clock.runFor(200)
+  }
+}
+
 /** The bar's actual rendered scaleX, read off the computed matrix rather than the inline style. */
 function barScaleX(page: Page): Promise<number> {
   return page.locator('.reward-bar-fill').evaluate((el) => {
@@ -111,17 +131,10 @@ test('the beats advance hero → settle → card → strip → done', async ({ p
   const beat = () => page.locator('.reward-screen').getAttribute('data-beat')
   expect(await beat(), 'the hero is on screen from the first frame').toBe('hero')
 
-  // step just past each boundary in turn; the halfway points are deliberately not tight
-  await page.clock.runFor(BEATS.settleAt + 50)
-  expect(await beat()).toBe('settle')
-  await page.clock.runFor(BEATS.cardAt - BEATS.settleAt)
-  expect(await beat()).toBe('card')
-  await page.clock.runFor(BEATS.stripAt - BEATS.cardAt)
-  expect(await beat()).toBe('strip')
-  await page.clock.runFor(BEATS.doneAt - BEATS.stripAt)
-  expect(await beat()).toBe('done')
+  await walkTheClock(page)
 
-  expect(await beatsSeen(page), 'and nothing ran backwards or repeated').toEqual([
+  expect(await beat()).toBe('done')
+  expect(await beatsSeen(page), 'in order, none skipped, none repeated').toEqual([
     'hero',
     'settle',
     'card',
@@ -346,13 +359,13 @@ test('a Weetje round is celebrated with no card, and no card beat either', async
   await expect(page.locator('.reward-screen')).toBeVisible({ timeout: SEQUENCE_MS })
 
   const beat = () => page.locator('.reward-screen').getAttribute('data-beat')
-  await page.clock.runFor(BEATS.settleAt + 50)
-  expect(await beat()).toBe('settle')
-  await page.clock.runFor(BEATS.cardAt - BEATS.settleAt)
-  expect(await beat(), 'straight to the strip — there is no card to pop in').toBe('strip')
-  await page.clock.runFor(BEATS.doneAt - BEATS.stripAt)
+  await walkTheClock(page)
+
   expect(await beat()).toBe('done')
-  expect(await beatsSeen(page)).toEqual(['hero', 'settle', 'strip', 'done'])
+  expect(
+    await beatsSeen(page),
+    'settle goes straight to the strip — there is no card to pop in',
+  ).toEqual(['hero', 'settle', 'strip', 'done'])
 
   // and the copy weetjes.spec.ts pins, on the new screen
   await expect(page.locator('.reward-screen h1')).toHaveText('Nu weet je dit ook!')
