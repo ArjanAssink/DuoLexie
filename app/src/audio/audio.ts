@@ -24,7 +24,7 @@ const TTS_TEXT: Record<string, string> = {
  * leave the card permanently ungradeable — the same shape of bug as the rejected `play()`
  * that playWithFallback's CLIP_TIMEOUT_MS guards against, and it needs the same backstop.
  */
-export const SPEECH_TIMEOUT_MS = 6000
+const SPEECH_TIMEOUT_MS = 6000
 
 /** Runs one utterance to completion, and always resolves — see SPEECH_TIMEOUT_MS. */
 export function utter(text: string, rate: number): Promise<void> {
