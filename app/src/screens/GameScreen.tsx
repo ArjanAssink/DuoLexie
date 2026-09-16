@@ -7,6 +7,7 @@ import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
 import { Tijdrit } from '../games/Tijdrit'
 import { HardopLezen } from '../games/HardopLezen'
+import { Weetjes } from '../games/Weetjes'
 import { haptic, playEffect } from '../audio/audio'
 import { RewardScreen, type DisplayReward } from './RewardScreen'
 
@@ -56,6 +57,7 @@ const GAMES: Record<GameType, ComponentType<GameProps>> = {
   flitsen: Flitsen,
   tijdrit: Tijdrit,
   'hardop-lezen': HardopLezen,
+  weetjes: Weetjes,
   'welke-klank': NotImplementedGame,
   woordbouwer: NotImplementedGame,
 }
@@ -92,6 +94,8 @@ export function GameScreen() {
     })
     setReward({
       ...reward,
+      // a Weetje round is celebrated differently, because it has nothing to grade
+      kind: lesson.kind,
       score: result.score,
       wordResults: result.wordResults,
       // the stat card's denominator for every game that is not scored per word

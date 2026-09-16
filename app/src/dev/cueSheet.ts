@@ -12,7 +12,12 @@
  * not; `pauses` is what lets the splitter put the two clocks back together.
  */
 
-export type TakeKind = 'klanken' | 'woorden'
+/**
+ * Which set a take reads. `weetjes` cues are whole sentences rather than single words
+ * (docs/weetjes.md §7, docs/recording-pipeline-v2.md) — the id is `<card>-fact|doe|reveal`
+ * and the teleprompter shows the sentence behind it, not the id.
+ */
+export type TakeKind = 'klanken' | 'woorden' | 'weetjes'
 
 export interface Cue {
   id: string
@@ -69,8 +74,16 @@ export const ZERO_HZ = 1320
  */
 export const GO_GAP_MS = 800
 
-export const PACE_RANGE = { min: 1500, max: 5000 }
-export const DEFAULT_PACE_MS: Record<TakeKind, number> = { woorden: 2500, klanken: 2000 }
+/**
+ * The slider's range. The ceiling is a Weetjes cue, not a word: a `doe` cue reads a question
+ * and its three options, which is eight seconds at a pace a nine-year-old can follow.
+ */
+export const PACE_RANGE = { min: 1500, max: 9000 }
+export const DEFAULT_PACE_MS: Record<TakeKind, number> = {
+  woorden: 2500,
+  klanken: 2000,
+  weetjes: 7000,
+}
 
 /** `woorden-2026-09-14-1902` — sorts chronologically, and says what it is at a glance. */
 export function takeBasename(kind: TakeKind, at: Date): string {

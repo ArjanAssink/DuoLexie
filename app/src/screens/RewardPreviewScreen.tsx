@@ -38,8 +38,11 @@ export function RewardPreviewScreen() {
   // ten cards cannot (79%, say) is exactly what a preview is for.
   const totaal = clampInt(params.get('totaal'), 10, 0, 200)
   const goed = clampInt(params.get('goed'), totaal, 0, totaal)
-  // `klank` scores per klank the way Tijdrit and Flitsen do; the default is a reading round
-  const klank = params.get('spel') === 'klank'
+  // `klank` scores per klank the way Tijdrit and Flitsen do; `weetje` is not scored at all
+  // (docs/weetjes.md §2); the default is a reading round.
+  const spel = params.get('spel')
+  const weetje = spel === 'weetje'
+  const klank = spel === 'klank'
   const score = params.has('score') ? clampInt(params.get('score'), 0, 0, 999) : undefined
   const record = params.get('record') === '1'
 
@@ -68,7 +71,15 @@ export function RewardPreviewScreen() {
     wordResults,
   )
 
-  const display: DisplayReward = { ...reward, score, wordResults, answers }
+  const display: DisplayReward = {
+    ...(weetje
+      ? computeReward({ ...PROEFRONDE_LESSON, kind: 'weetje' }, [], Number.MAX_SAFE_INTEGER)
+      : reward),
+    kind: weetje ? 'weetje' : PROEFRONDE_LESSON.kind,
+    score: weetje ? undefined : score,
+    wordResults: weetje ? undefined : wordResults,
+    answers: weetje ? [] : answers,
+  }
 
   return <RewardScreen reward={display} onDone={() => navigate('/proberen')} />
 }

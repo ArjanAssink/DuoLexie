@@ -2,12 +2,20 @@ import { useNavigate } from 'react-router-dom'
 import type { GameType } from '@shared/src/types'
 import { allLessons, PROEFRONDE_LESSON } from '../data/path'
 
-const GAME_ORDER: GameType[] = ['flitsen', 'tijdrit', 'hardop-lezen', 'welke-klank', 'woordbouwer']
+const GAME_ORDER: GameType[] = [
+  'flitsen',
+  'tijdrit',
+  'hardop-lezen',
+  'weetjes',
+  'welke-klank',
+  'woordbouwer',
+]
 
 const GAME_LABELS: Record<GameType, string> = {
   flitsen: 'Flitsen — kaarten omdraaien (CardFlash-port)',
   tijdrit: 'Tijdrit — 60s Goed/Nog even, klanken per minuut',
   'hardop-lezen': 'Hardop lezen — woord lezen, swipe goed/fout',
+  weetjes: 'Weetjes — dyslexie-feitjes: luister, doe, bewaar',
   'welke-klank': 'Welke klank? — nog niet gebouwd',
   woordbouwer: 'Woordbouwer — nog niet gebouwd',
 }
@@ -23,6 +31,7 @@ const REWARD_PREVIEWS: [string, string][] = [
   ['Beloning — 7/10, Goed', 'goed=7&totaal=10'],
   ['Beloning — 0/10, Geoefend', 'goed=0&totaal=10'],
   ['Beloning — Tijdrit met NIEUW RECORD', 'spel=klank&goed=9&totaal=10&score=48&record=1'],
+  ['Beloning — Weetje, niets te beoordelen', 'spel=weetje'],
 ]
 
 /**

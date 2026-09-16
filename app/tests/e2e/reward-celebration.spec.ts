@@ -329,6 +329,42 @@ test('the preview credits nothing — it is a screen, not a round', async ({ pag
   if (stored) expect(stored).toMatchObject({ gems: 0, xp: 0, sessions: 0 })
 })
 
+test('a Weetje round is celebrated with no card, and no card beat either', async ({ page }) => {
+  /*
+   * docs/weetjes.md §2 is the standing exception to §4's "always render the card": a Weetje
+   * round is never scored, so a card at 0% would turn "kinderen met dyslexie zijn minder
+   * slim" into a question she can get wrong. That branch shipped on main before this
+   * celebration did, and `weetjes.spec.ts` guards its copy end to end through the real game.
+   * What that spec cannot see — it only looks at the finished screen — is the *shape* of the
+   * sequence, which is the half this rewrite could quietly break: with no card there is no
+   * card beat, and the 1.3s window it would have taken is closed up rather than held open on
+   * an empty middle.
+   */
+  await page.clock.install()
+  await recordBeats(page)
+  await page.goto('/#/beloning?spel=weetje')
+  await expect(page.locator('.reward-screen')).toBeVisible({ timeout: SEQUENCE_MS })
+
+  const beat = () => page.locator('.reward-screen').getAttribute('data-beat')
+  await page.clock.runFor(BEATS.settleAt + 50)
+  expect(await beat()).toBe('settle')
+  await page.clock.runFor(BEATS.cardAt - BEATS.settleAt)
+  expect(await beat(), 'straight to the strip — there is no card to pop in').toBe('strip')
+  await page.clock.runFor(BEATS.doneAt - BEATS.stripAt)
+  expect(await beat()).toBe('done')
+  expect(await beatsSeen(page)).toEqual(['hero', 'settle', 'strip', 'done'])
+
+  // and the copy weetjes.spec.ts pins, on the new screen
+  await expect(page.locator('.reward-screen h1')).toHaveText('Nu weet je dit ook!')
+  await expect(page.locator('.reward-subline')).toHaveText(
+    'Vertel het vanavond aan iemand thuis.',
+  )
+  await expect(page.locator('.reward-card')).toHaveCount(0)
+  await expect(page.locator('.reward-tally')).toHaveCount(0)
+  await expect(page.locator('.reward-chips')).toHaveCount(0)
+  await expect(page.locator('.reward-line').first()).toContainText('+8')
+})
+
 test.describe('on an iPhone SE', () => {
   test.use({ viewport: { width: 375, height: 667 } })
 

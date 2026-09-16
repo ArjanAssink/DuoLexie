@@ -68,6 +68,14 @@ interface ProgressState extends Aggregates {
    * kept as real store fields so reads stay O(1) instead of replaying on every render.
    */
   sessions: SessionResult[]
+  /**
+   * Weetjes cards she has kept, in the order she collected them (docs/weetjes.md §5).
+   *
+   * Order is load-bearing, not incidental: it is both the Weetjesboek's ordering and the
+   * recency that decides which card a node re-deals once she has seen them all, so nothing
+   * separate has to be stored to know which one she met longest ago.
+   */
+  collectedWeetjes: string[]
   settings: {
     font: 'standaard' | 'dyslexie'
     /**
@@ -92,9 +100,18 @@ interface ProgressState extends Aggregates {
      * nothing to record now.
      */
     onboardedAt: string | null
+    /**
+     * Read the Weetjes cards aloud by themselves (docs/weetjes.md §7). On by default,
+     * because the whole game is built so she never has to read a word of it; off is for
+     * the classroom, a quiet room, or a child who would rather read it herself.
+     */
+    autoRead: boolean
   }
 
   toggleFont: () => void
+  toggleAutoRead: () => void
+  /** Adds a card to her Weetjesboek. Idempotent — a card she already has stays where it is. */
+  collectWeetje: (id: string) => void
   /** One more swipe she made herself; the teaching layers switch off at SWIPES_TO_LEARN. */
   noteSelfSwipe: () => void
   /** Stores her name, normalized; '' clears it. */
@@ -117,7 +134,14 @@ export const useProgress = create<ProgressState>()(
     (set, get) => ({
       ...emptyAggregates(),
       sessions: [],
-      settings: { font: 'standaard', selfSwipes: 0, playerName: '', onboardedAt: null },
+      collectedWeetjes: [],
+      settings: {
+        font: 'standaard',
+        selfSwipes: 0,
+        playerName: '',
+        onboardedAt: null,
+        autoRead: true,
+      },
 
       // Both of these spread the existing settings rather than rebuilding the object: with
       // more than one key in here, writing a fresh literal silently resets the other.
@@ -128,6 +152,19 @@ export const useProgress = create<ProgressState>()(
             font: s.settings.font === 'standaard' ? 'dyslexie' : 'standaard',
           },
         })),
+
+      toggleAutoRead: () =>
+        set((s) => ({ settings: { ...s.settings, autoRead: !s.settings.autoRead } })),
+
+      // Idempotent, and it keeps the *first* position: the order is her collection order and
+      // the recency the re-deal reads (§5), so re-collecting a card she already has must not
+      // move it to the front and make the oldest card look like the newest.
+      collectWeetje: (id) =>
+        set((s) =>
+          s.collectedWeetjes.includes(id)
+            ? s
+            : { collectedWeetjes: [...s.collectedWeetjes, id] },
+        ),
 
       noteSelfSwipe: () =>
         set((s) => ({ settings: { ...s.settings, selfSwipes: s.settings.selfSwipes + 1 } })),
@@ -182,7 +219,7 @@ export const useProgress = create<ProgressState>()(
     {
       name: 'duolexie-progress',
       storage: createJSONStorage(() => idbStateStorage),
-      version: 3,
+      version: 4,
       // Cascading, not else-if: an old-enough profile needs every fixup below it applied
       // in order, not just the one matching its exact stored version.
       migrate: (persisted, version) => {
@@ -201,6 +238,11 @@ export const useProgress = create<ProgressState>()(
             sessions: remapLegacySessionIds(p.sessions as SessionResult[] | undefined),
           }
         }
+        if (version < 4) {
+          // v0-v3 predate the Weetjesboek (docs/weetjes.md §5). An empty collection is the
+          // truthful starting point for an existing profile: she has not seen a card yet.
+          p = { ...p, collectedWeetjes: [] }
+        }
         return p
       },
       // zustand's default merge is shallow, so a nested object gained later would
@@ -214,6 +256,7 @@ export const useProgress = create<ProgressState>()(
           settings: { ...current.settings, ...p.settings },
           wordStats: p.wordStats ?? {},
           sessions: p.sessions ?? [],
+          collectedWeetjes: p.collectedWeetjes ?? [],
         }
       },
     },

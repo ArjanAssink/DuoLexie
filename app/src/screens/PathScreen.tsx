@@ -119,6 +119,10 @@ function UnitPath({ unit, activeLessonId, coinState, iconFill, navigate }: UnitP
               itemRefs.current[i] = el
             }}
             className={`coin-item ${state}`}
+            // The Weetje node is the one that is not about letters, and it is gold rather
+            // than teal or locked-beige so it reads as a different kind of stop on the path
+            // (docs/weetjes.md §5).
+            data-kind={lesson.kind}
             style={{
               marginLeft: COIN_OFFSETS[i % COIN_OFFSETS.length],
               animationDelay: `${i * 55}ms`,

@@ -9,7 +9,7 @@ import {
   tierFor,
   tierIndex,
   TIERS,
-} from './rewardTimeline'
+} from '../../src/screens/rewardTimeline'
 
 describe('tierFor', () => {
   it('puts the boundaries where the spec puts them', () => {

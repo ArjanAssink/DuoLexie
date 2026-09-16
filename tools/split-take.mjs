@@ -51,6 +51,19 @@ const PROFILES = {
     padEndMs: 150,
     verifiable: true,
   },
+  weetjes: {
+    outDir: 'app/public/audio/weetjes',
+    // A cue here is a whole sentence — sometimes a question and its three options — so the
+    // gaps *inside* one burst are longer than a word's, and the tail has to survive them.
+    minBurstMs: 200,
+    thresholdClamp: { min: -55, max: -30 },
+    padStartMs: 60,
+    padEndMs: 200,
+    // The cue sheet already says which sentence is which, and matching a transcript against
+    // a twenty-word Dutch sentence is a different problem from matching one word — the
+    // review screen is the check, as it is for klanken (§4.4).
+    verifiable: false,
+  },
   klanken: {
     outDir: 'app/public/audio/sounds',
     minBurstMs: 40,

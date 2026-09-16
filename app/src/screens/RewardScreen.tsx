@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import confetti from 'canvas-confetti'
-import type { AnswerRecord, WordResult } from '@shared/src/types'
+import type { AnswerRecord, LessonKind, WordResult } from '@shared/src/types'
 import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
 import { playEffect, playWord } from '../audio/audio'
@@ -20,6 +20,11 @@ import { useCelebration } from './useCelebration'
 
 /** What completeLesson computed, plus the bits only the display needs. */
 export interface DisplayReward extends Reward {
+  /**
+   * The lesson's kind, because one of them is celebrated differently: a `weetje` round has
+   * nothing to grade, so it shows no score at all (docs/weetjes.md §2).
+   */
+  kind?: LessonKind
   /** klanken per minuut, for Tijdrit */
   score?: number
   /** Hardop lezen only — one entry per word she graded */
@@ -45,6 +50,10 @@ const GEMS_PER_TICK_STEP = 4
 /** Gold, the same three the hero's headline is built from. canvas-confetti needs literals. */
 const CONFETTI_COLORS = ['#F7C531', '#D9A616', '#FFF1B8']
 
+/** The Weetjes headline and the line under it (docs/weetjes.md §2) — copy is fixed. */
+const WEETJE_HEADLINE = 'Nu weet je dit ook!'
+const WEETJE_SUBLINE = 'Vertel het vanavond aan iemand thuis.'
+
 /** Beats in which the reward strip and its gem count-up are on screen. */
 function stripIsUp(beat: Beat): boolean {
   return beat === 'strip' || beat === 'done'
@@ -63,6 +72,19 @@ function stripIsUp(beat: Beat): boolean {
 export function RewardScreen({ reward, onDone }: Props) {
   const playerName = useProgress((s) => s.settings.playerName)
 
+  /**
+   * A Weetje round is never scored — engine/reward.ts pays a flat rate off `lesson.kind`
+   * alone — so there is nothing honest to fill a stat card with, and putting one there anyway
+   * would turn "kinderen met dyslexie zijn minder slim" into a question she can get wrong,
+   * which is the one thing that game must never be. docs/weetjes.md §2 is the standing
+   * exception to docs/reward-celebration.md §4's "always render the card": it shipped before
+   * this celebration did, and survives it.
+   *
+   * What it costs the sequence is the card beat, which would otherwise be 1.3 seconds of
+   * nothing. `useCelebration`'s `skipCard` closes that gap rather than holding it open.
+   */
+  const isWeetje = reward.kind === 'weetje'
+
   const wordResults = reward.wordResults ?? []
   const reading = wordResults.length > 0
   const missed = wordResults.filter((r) => !r.correct)
@@ -76,7 +98,19 @@ export function RewardScreen({ reward, onDone }: Props) {
     : (reward.answers?.filter((a) => a.correct).length ?? 0)
   const pct = pctFor(correct, total)
 
-  const praise = praiseFor(pct, reward.perfect, reading, playerName)
+  const praise = isWeetje
+    ? { headline: WEETJE_HEADLINE, subline: WEETJE_SUBLINE }
+    : praiseFor(pct, reward.perfect, reading, playerName)
+
+  /**
+   * Below 50% the room is quieter (§5): no streak, no confetti, and a gentle pop-in rather
+   * than the burst. It has to be its own flag rather than something CSS reads off
+   * `data-tier`, because at the hero beat every round is still `geoefend` — the bar has not
+   * started filling yet, which is the entire point of the tier climbing while it does. A
+   * Weetje is never quiet: there is no percentage to fall below anything.
+   */
+  const quiet = !isWeetje && !showsStreak(pct)
+
 
   const [shownGems, setShownGems] = useState(0)
 
@@ -88,8 +122,13 @@ export function RewardScreen({ reward, onDone }: Props) {
   const handleBeat = useCallback(
     (beat: Beat) => {
       if (beat === 'hero') {
-        if (showsStreak(pct)) playEffect('whoosh')
-        const particleCount = confettiCount(pct, reward.newRecord, reading ? correct : undefined)
+        if (!quiet) playEffect('whoosh')
+        // A Weetje has no percentage to size the burst by, and is never a bad round — she
+        // learned the thing however she guessed — so it gets the default burst a klank game
+        // would get.
+        const particleCount = isWeetje
+          ? confettiCount(100, false, undefined)
+          : confettiCount(pct, reward.newRecord, reading ? correct : undefined)
         if (particleCount > 0) {
           confetti({
             particleCount,
@@ -102,13 +141,14 @@ export function RewardScreen({ reward, onDone }: Props) {
       }
       if (beat === 'card') playEffect('cardPop')
     },
-    [pct, correct, reading, reward.newRecord],
+    [pct, correct, reading, quiet, isWeetje, reward.newRecord],
   )
 
   const handleTierUp = useCallback((step: number) => playEffect('tierUp', step), [])
 
   const { beat, progress, skipped, skip } = useCelebration({
     pct,
+    skipCard: isWeetje,
     onBeat: handleBeat,
     onTierUp: handleTierUp,
   })
@@ -118,14 +158,6 @@ export function RewardScreen({ reward, onDone }: Props) {
   // happened to compute.
   const shownPct = Math.round(progress * pct)
   const tier = tierFor(shownPct)
-
-  /**
-   * Below 50% the room is quieter (§5): no streak, no confetti, and a gentle pop-in rather
-   * than the burst. It has to be its own flag rather than something CSS reads off
-   * `data-tier`, because at the hero beat every round is still `geoefend` — the bar has not
-   * started filling yet, which is the entire point of the tier climbing while it does.
-   */
-  const quiet = !showsStreak(pct)
 
   // Count the gems up one at a time rather than printing the total: the counting *is* the
   // reward moment, and it costs a second and a half. It starts with the strip and is
@@ -199,30 +231,36 @@ export function RewardScreen({ reward, onDone }: Props) {
         )}
       </div>
 
-      <div className="reward-card">
-        <div className="reward-card-label">
-          {/* keyed on the tier so each upgrade remounts the label and replays its bump */}
-          <span key={tier.id} className="reward-card-tier">
-            {tier.label}
-          </span>
+      {!isWeetje && (
+        <div className="reward-card">
+          <div className="reward-card-label">
+            {/* keyed on the tier so each upgrade remounts the label and replays its bump */}
+            <span key={tier.id} className="reward-card-tier">
+              {tier.label}
+            </span>
+          </div>
+          <div className="reward-bar">
+            <div
+              className="reward-bar-fill"
+              style={{ transform: `scaleX(${(progress * pct) / 100})` }}
+            />
+          </div>
+          <div className="reward-pct">{shownPct}%</div>
+          <div className="reward-tally">
+            {reading
+              ? `${correct} goed · ${missed.length} nog even`
+              : `${correct} van ${total} goed`}
+          </div>
         </div>
-        <div className="reward-bar">
-          <div
-            className="reward-bar-fill"
-            style={{ transform: `scaleX(${(progress * pct) / 100})` }}
-          />
-        </div>
-        <div className="reward-pct">{shownPct}%</div>
-        <div className="reward-tally">
-          {reading ? `${correct} goed · ${missed.length} nog even` : `${correct} van ${total} goed`}
-        </div>
-      </div>
+      )}
 
       {/* One announcement, at the end, rather than a screen reader following the count-up
           digit by digit. */}
-      <p className="reward-sr" aria-live="polite">
-        {progress >= 1 ? `${correct} van ${total} goed` : ''}
-      </p>
+      {!isWeetje && (
+        <p className="reward-sr" aria-live="polite">
+          {progress >= 1 ? `${correct} van ${total} goed` : ''}
+        </p>
+      )}
 
       <div className="reward-strip">
         {/* gems first: the existing e2e tests read the first .reward-line, and the gems are

@@ -5,6 +5,12 @@ import { BEATS, easeBar, tierFor, tierIndex, type Beat } from './rewardTimeline'
 interface Options {
   /** the percentage the bar fills to — the count-up and the tier chimes are read off it */
   pct: number
+  /**
+   * This round has no stat card (a Weetje — docs/weetjes.md §2 — has nothing to grade). The
+   * card beat is dropped rather than held open: 1.3 seconds of an empty middle is worse
+   * pacing than no middle, and there is no bar to fill or tier to chime either.
+   */
+  skipCard?: boolean
   /** a beat has begun. Not called when `skip()` jumps the queue, and not under reduced motion. */
   onBeat?: (beat: Beat) => void
   /** the filling bar has crossed into a new tier; `step` is 1 for Goed, 2 for Super, 3 for Perfect */
@@ -32,18 +38,23 @@ export interface Celebration {
  * celebration scattered across a component's render body is exactly how that comes back. One
  * `clearAll()`, called from the effect's cleanup and from `skip()`, is the whole defence.
  *
+ * `skipCard` is the one shape change the sequence allows: a round with nothing to grade
+ * (docs/weetjes.md §2) goes settle -> strip -> done, closing the card's window up instead of
+ * holding 1.3 seconds open for a card that is not there.
+ *
  * Under `prefers-reduced-motion` the hook never starts: it mounts in `done` with
  * `progress` already 1, so the screen's first paint *is* the final state. No timers are
  * created, so `onBeat` and `onTierUp` never fire and none of the new sounds play either —
  * the gem count-up, which is numbers changing rather than motion, is the reward screen's own
  * effect and keeps running (§7).
  */
-export function useCelebration({ pct, onBeat, onTierUp }: Options): Celebration {
+export function useCelebration({ pct, skipCard = false, onBeat, onTierUp }: Options): Celebration {
   // Read once at mount. A media query that flips mid-celebration would otherwise strand the
   // sequence halfway, which is worse for the person who asked for less motion than finishing.
   const [reduced] = useState(prefersReducedMotion)
   const [beat, setBeat] = useState<Beat>(reduced ? 'done' : 'hero')
-  const [progress, setProgress] = useState(reduced ? 1 : 0)
+  // With no card there is nothing to fill, so the fill is over before it starts.
+  const [progress, setProgress] = useState(reduced || skipCard ? 1 : 0)
   const [skipped, setSkipped] = useState(false)
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
@@ -89,6 +100,14 @@ export function useCelebration({ pct, onBeat, onTierUp }: Options): Celebration 
     // `heroAt`, published to it as `--hero-at`.
     at(BEATS.heroAt, () => enter('hero'))
     at(BEATS.settleAt, () => enter('settle'))
+
+    if (skipCard) {
+      // settle -> strip -> done, with the card's window closed up rather than left empty.
+      at(BEATS.cardAt, () => enter('strip'))
+      at(BEATS.cardAt + (BEATS.doneAt - BEATS.stripAt), () => enter('done'))
+      return clearAll
+    }
+
     at(BEATS.cardAt, () => enter('card'))
     at(BEATS.stripAt, () => enter('strip'))
     at(BEATS.doneAt, () => enter('done'))
@@ -120,7 +139,7 @@ export function useCelebration({ pct, onBeat, onTierUp }: Options): Celebration 
     })
 
     return clearAll
-  }, [pct, reduced, clearAll])
+  }, [pct, reduced, skipCard, clearAll])
 
   return { beat, progress, skipped, skip }
 }
