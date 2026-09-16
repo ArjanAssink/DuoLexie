@@ -2,6 +2,8 @@
 
 Speels leren lezen, klank voor klank — met Frida als gids.
 
+**Probeer het live: [duolexie.assink.io](https://duolexie.assink.io)** — nog volop in ontwikkeling.
+
 <img src="art/avatar/frida-happy.svg" alt="Frida, de DuoLexie-mascotte" width="160" />
 
 Duolingo-achtige lees-oefenapp voor kinderen met dyslexie, gebouwd rond de 45 Nederlandse klanken uit de RID-behandeling. Speels oefenen met flitskaarten (snelheid!) en luisterspellen (klank → teken), met edelstenen, records en een weekdoel.
