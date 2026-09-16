@@ -61,9 +61,14 @@ tab or deleted — suggested: delete it once the new flow works, less to maintai
 ### 3.1 Setup screen
 
 - **Set to record**: Klanken (all 45) · Woorden, startset (first 20 of
-  `wordsInRecordingOrder()`, `data/path.ts`) · Woorden, alle · **Alleen ontbrekende** (skip
-  ids that already have an mp3 — reuse the existing HEAD-request status check).
-- **Pace**: seconds per prompt. Default **2.5s** for words, **2.0s** for klanken. Range 1.5–5.
+  `wordsInRecordingOrder()`, `data/path.ts`) · Woorden, alle · **Weetjes** (every
+  `reviewed: true` card in `shared/curriculum/weetjes.json`, three cues each —
+  `<id>-fact`, `<id>-doe`, `<id>-reveal`; the teleprompter shows the sentence, the cue sheet
+  carries the id, and the splitter writes `app/public/audio/weetjes/`. docs/weetjes.md §7) ·
+  **Alleen ontbrekende** (skip ids that already have an mp3 — reuse the existing
+  HEAD-request status check).
+- **Pace**: seconds per prompt. Default **2.5s** for words, **2.0s** for klanken, **7.0s**
+  for weetjes (a `doe` cue is a question plus its three options). Range 1.5–9.
 - **Lead-in**: 3s countdown with a beep on each second and a distinct higher beep at zero,
   after which the first prompt appears. The beeps are recorded into the take on purpose
   (§4.3).

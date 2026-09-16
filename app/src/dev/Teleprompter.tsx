@@ -12,6 +12,12 @@ export interface Take {
 
 interface Props {
   ids: string[]
+  /**
+   * What to put on screen for an id, when the id is not the thing to read. A Weetjes cue is
+   * `slim-doe`; what he has to say is "Kinderen met dyslexie zijn minder slim." The cue
+   * sheet still carries the id, which is what the splitter names the mp3 after.
+   */
+  labels?: Record<string, string>
   kind: TakeKind
   paceMs: number
   deviceId: string | null
@@ -49,7 +55,7 @@ const BLANK: Screen = { phase: 'starting', word: null, count: null, done: 0, tot
  * cue sheet is written in, and a re-render in the middle of that has nothing useful to say;
  * React state here is only what is on screen.
  */
-export function Teleprompter({ ids, kind, paceMs, deviceId, onDone, onError }: Props) {
+export function Teleprompter({ ids, labels, kind, paceMs, deviceId, onDone, onError }: Props) {
   const [screen, setScreen] = useState<Screen>({ ...BLANK, total: ids.length })
   const cues = useRef<Cue[]>([])
   const pauses = useRef<Pause[]>([])
@@ -260,7 +266,13 @@ export function Teleprompter({ ids, kind, paceMs, deviceId, onDone, onError }: P
       )}
       {screen.phase === 'prompting' && (
         <>
-          <div className={`big-sound tp-word${screen.flagged ? ' tp-word-flagged' : ''}`}>{screen.word}</div>
+          <div
+            className={`big-sound tp-word${screen.flagged ? ' tp-word-flagged' : ''}${
+              kind === 'weetjes' ? ' tp-sentence' : ''
+            }`}
+          >
+            {(screen.word && labels?.[screen.word]) ?? screen.word}
+          </div>
           <div className="tp-bar"><i key={screen.seq} style={ring} /></div>
         </>
       )}

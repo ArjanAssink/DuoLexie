@@ -11,7 +11,10 @@ It is written to be implemented by a fresh session that has not seen the convers
 it. Everything needed is here or in the files it names. Where it says *must*, that is an
 acceptance criterion; where it says *suggested*, use judgement.
 
-**Status:** planned, not built.
+**Status:** **built** (PR *Weetjes: dyslexie-feitjes als spel*). Everything below is what
+shipped, except where a paragraph is marked *(as built)* — those record where the
+implementation had to differ from this document and why. Fourteen of the twenty written
+cards are `reviewed: true`; the rest, and the two Dutch placeholders, wait on Arjan (§4).
 
 ---
 
@@ -82,6 +85,19 @@ is no wrong answer that costs anything. Then the card **shrinks and flies into a
 icon** at the top right, which bounces once and shows the new count ("7"). The `ding` /
 `swish` effects exist; the fly-to-book is a new keyframe.
 
+*(As built: "Goed geprobeerd!" is a separate element and a separate utterance rather than a
+prefix on `reveal`, because the one `<id>-reveal.mp3` clip is shared by both outcomes — a
+recorded reveal would otherwise silently drop the praise. The flight starts when the reveal
+has finished being read, not the instant the beat opens, so the card is not pulled off the
+screen while she is still hearing why; and the thing that flies is the card's tile, leaving
+the reveal in place to be re-read. Nothing is written to her profile until that moment,
+which is what makes quitting mid-narration cost her nothing.)*
+
+*(As built: the book in the header is not a link while a round is running. §8 asks the little
+book to be a way into the Weetjesboek; opening it mid-node would abandon the node halfway,
+and the thing that just bounced is exactly what a nine-year-old will tap. The profile
+screen's "Mijn weetjes" button is the entry point.)*
+
 After the last card: **the reward screen** (`RewardScreen`) with `kind: 'weetje'` — no
 percentage card (there is nothing to grade), headline **"Nu weet je dit ook!"**, subline
 **"Vertel het vanavond aan iemand thuis."**, the gem/XP strip, Verder. Gems are a flat
@@ -120,6 +136,14 @@ New file `shared/curriculum/weetjes.json`, one object per card:
 - `fact` ≤ 12 words. `statement`/`question` ≤ 10. Options ≤ 3 words. `reveal` ≤ 2 sentences,
   ≤ 20 words. A unit test enforces the limits and the per-type field requirements, and that
   `order` values are unique.
+  *(As built: two of these numbers were written before §4's copy was, and the copy is final —
+  so `tests/unit/weetjes.test.ts` enforces `fact` ≤ **18** words and `reveal` ≤ **3**
+  sentences instead. `grote-geheel` needs 18 because its mandatory "vertellen dat" hedge
+  costs words, and almost every reveal opens with "Niet waar!" as a sentence of its own.
+  Every other limit holds exactly as written, `reveal` ≤ 20 words included.)*
+- The placeholders `nl-1`/`nl-2` have no copy and no source at all, so the per-type and
+  non-empty-source checks apply to cards that have a `fact`; a card without one must be
+  `reviewed: false`, which the test does enforce. *(as built)*
 - Narration clips, when recorded, live at `app/public/audio/weetjes/<id>-fact.mp3`,
   `<id>-doe.mp3` (statement, or question + options), `<id>-reveal.mp3`; fallback is
   `speechSynthesis` via `utter()` at rate 0.9 (§7).
@@ -248,6 +272,12 @@ For dyslexia, and for a nine-year-old:
 - Follow `playWord`'s pattern in `audio/audio.ts`: try the clip (`loadWordClip`-style probe
   against a build-time manifest — add `__RECORDED_WEETJES__` next to `__RECORDED_WORDS__` in
   `vite.config.ts`), fall back to speech, both with the 6 s `SPEECH_TIMEOUT_MS` backstop.
+  *(As built: `playWeetje` probes the URL and does **not** consult `__RECORDED_WEETJES__`.
+  The manifest is a snapshot taken when Vite starts, so gating on it would mean a clip
+  recorded during a session is ignored until a restart — and, more immediately, it is the
+  probe that the e2e suite drives, because `speechSynthesis` cannot be patched under
+  Playwright's WebKit. `__RECORDED_WEETJES__` exists and drives the studio's recorded/not
+  grid instead.)*
 - **Auto-read** is a setting, `settings.autoRead: boolean`, default **true**; toggled in
   the Over DuoLexie block on `AvatarScreen`. Off = nothing plays until 🔊 is tapped, and
   *Verder* appears after 1.5 s instead of after narration.
@@ -265,7 +295,9 @@ For dyslexia, and for a nine-year-old:
   uncollected ones as face-down cards with a `?` (so she can see the book fills up — that is
   the collecting motive; it also tells a parent how far she is).
 - Tap a collected card → it opens full-screen as the *Bewaar* beat (fact + reveal, 🔊,
-  auto-read per setting). Swipe or arrows move between collected cards.
+  auto-read per setting). Swipe or arrows move between collected cards. *(As built: arrows
+  only. `swipe.ts` decides an up/down gesture, and up/down inside the book would fight the
+  page's own scroll; a horizontal swipe would be a second, unrelated gesture to teach.)*
 - Empty state (`0` collected): Frida + *"Speel een Weetje op het pad. Dan komt het hier."*
 
 ---
@@ -296,10 +328,13 @@ Unit (`tests/unit/weetjes.test.ts`):
 
 E2E (`tests/e2e/weetjes.spec.ts`, Proefronde-style direct route `/#/les/<unit>-weetje`,
 `skipOnboarding` + a `installNarration`-like fixture that serves silent mp3s for
-`/audio/weetjes/*`):
+`/audio/weetjes/*` — `tests/e2e/fixtures/weetjesNarration.ts`, which also carries the
+collection seeder that decides which card type a test gets, and the WebAudio spy):
 
 4. A `waar-niet-waar` card: statement narrated (spy), swipe down on a myth → *Bewaar* shows
-   the reveal, `ding` played (WebAudio spy), the book count goes 0 → 1.
+   the reveal, `ding` played (WebAudio spy), the book count goes 0 → 1. *(As built: the
+   positive "a `ding` was played" runs only where `AudioContext` exists; the negative "never
+   `bad`, never `fart`", which is what §9 is actually about, runs everywhere.)*
 5. Tapping the *Niet waar* label instead of swiping performs the same, with the visible
    swipe.
 6. A `kies` card: wrong option → reveal starts with "Goed geprobeerd!", no `bad` effect, book
@@ -313,6 +348,11 @@ E2E (`tests/e2e/weetjes.spec.ts`, Proefronde-style direct route `/#/les/<unit>-w
 10. Quit mid-narration: speech stopped (spy on `speechSynthesis.cancel` / media `pause`),
     nothing credited, no console errors.
 11. iPhone 375×667: every beat fits without scrolling with the longest reviewed card.
+    *(As built: polled rather than measured once — `.game-screen` enters with a 14px
+    `translateY`, which counts towards `scrollHeight` for the third of a second it runs.)*
+
+The screenshots in the pull request are produced by `tests/e2e/shots.spec.ts`, which is
+skipped unless `SHOTS=1` is set so a normal run never writes a file. *(as built)*
 
 Existing suites must stay green; `PathScreen` tests that count nodes per unit need the new
 node accounted for.
