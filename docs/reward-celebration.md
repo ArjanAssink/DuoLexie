@@ -460,7 +460,22 @@ Verification:
     (which a reading round cannot produce, since Hardop lezen is untimed by design), and a
     test that opening the preview credits nothing. §9.9 needed no new test at all: it is
     `quit-mid-animation.spec.ts`, which passes unchanged.
-20. **The three new synths were checked by spy count only, not by ear.** There is no audio
+20. **Two traps worth knowing about, both found by CI rather than locally.**
+    *Assertions about the final state have to wait for it.* Everything on this screen is
+    mid-climb for four seconds — the label walks all four tiers, the number counts 0 → pct —
+    and a polling `toHaveText` matches the instant a value flies past. The 79% boundary test
+    was green on Chromium while the screen was actually settling on 100% (a cap in the
+    preview's own URL parsing), and only WebKit's different polling cadence missed the
+    transient and caught the bug. Every final-state assertion now goes through a `settled()`
+    gate that waits for `data-beat="done"` first.
+    *The beats are only assertable on a fake clock.* On CI's ipad profile the DOM went
+    `hero → card → done`: React coalesces two state updates into one commit when the main
+    thread is busy enough that the render for `settle` has not flushed before `card` is set,
+    so the beat never reaches the DOM at all. Nothing is broken by that — a beat nobody had
+    time to paint is a beat nobody saw — but it makes "every beat appeared" a claim about the
+    runner. The test drives `page.clock` one beat at a time instead, the same tool and the
+    same reason as `quit-mid-animation.spec.ts`.
+21. **The three new synths were checked by spy count only, not by ear.** There is no audio
     device here. `whoosh` deliberately does not show up in an oscillator count at all — it is
     noise through a buffer source — so what the count proves is `cardPop` and the `tierUp`
     chimes. Worth one listen on a real device.

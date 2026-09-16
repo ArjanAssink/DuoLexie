@@ -33,7 +33,10 @@ export function RewardPreviewScreen() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
 
-  const totaal = clampInt(params.get('totaal'), 10, 0, 40)
+  // 200 rather than a round's ten: the cap is only here so a typo in the URL cannot ask for
+  // a hundred thousand chips, and a denominator large enough to express a percentage that
+  // ten cards cannot (79%, say) is exactly what a preview is for.
+  const totaal = clampInt(params.get('totaal'), 10, 0, 200)
   const goed = clampInt(params.get('goed'), totaal, 0, totaal)
   // `klank` scores per klank the way Tijdrit and Flitsen do; the default is a reading round
   const klank = params.get('spel') === 'klank'

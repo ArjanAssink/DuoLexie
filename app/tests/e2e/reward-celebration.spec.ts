@@ -12,6 +12,7 @@ import {
   resetAudioSpy,
   runningAnimations,
 } from './fixtures/round'
+import { BEATS } from '../../src/screens/rewardTimeline'
 
 /**
  * The celebration after a round (docs/reward-celebration.md §9).
@@ -36,8 +37,31 @@ function preview(goed: number, totaal = 10, extra = ''): string {
   return `/#/beloning?goed=${goed}&totaal=${totaal}${extra}`
 }
 
-/** BEATS.doneAt plus room for a slow runner — the sequence is ~4.3s end to end. */
-const SEQUENCE_MS = 9000
+/**
+ * Budget for "the celebration has finished". The sequence itself is ~4.3s; the rest is the
+ * app booting and hydrating from IndexedDB, which now sits inside this window because these
+ * tests open the screen cold rather than arriving on it with the app already running. At
+ * 9000 it was tight enough that CI's iphone profile lost one to it.
+ */
+const SEQUENCE_MS = 15_000
+
+/**
+ * Wait for the screen to be finished before reading anything off it.
+ *
+ * Everything on this screen is mid-climb for four seconds: the label walks
+ * Geoefend → Goed → Super → Perfect! and the number counts 0 → pct. A bare `toHaveText`
+ * polls, so it matches the instant the value flies past — which means an assertion about the
+ * *final* state can pass on a value the screen was only passing through. That is not a
+ * hypothetical: the 79% case below was green on Chromium for exactly that reason while the
+ * screen was actually settling on 100%, and only CI's WebKit profiles, polling on a
+ * different cadence, missed the transient and caught it.
+ */
+async function settled(page: Page) {
+  await expect(page.locator('.reward-screen')).toBeVisible({ timeout: SEQUENCE_MS })
+  await expect(page.locator('.reward-screen')).toHaveAttribute('data-beat', 'done', {
+    timeout: SEQUENCE_MS,
+  })
+}
 
 /** Long enough for a ten-card round on CI's two-core WebKit runners, plus the celebration. */
 const ROUND_TIMEOUT = 150_000
@@ -63,17 +87,54 @@ function barScaleX(page: Page): Promise<number> {
   })
 }
 
-test('the beats advance in order, and a perfect round lands on Perfect!', async ({ page }) => {
+/*
+ * §9.1 — the beats, on a fake clock.
+ *
+ * In real time this is not assertable on a loaded runner, and the first version proved it:
+ * CI's ipad profile came back with ['hero', 'card', 'done'], twice. That is not the observer
+ * missing a change — `recordBeats` reconstructs from each record's `oldValue` precisely so it
+ * cannot — it is React coalescing two state updates into one commit when the main thread is
+ * busy enough that the render for `settle` has not flushed before `card` is set. The beat
+ * genuinely never reaches the DOM. Nothing is broken by that (a beat nobody had time to paint
+ * is a beat nobody saw), but it makes "every beat appeared" a claim about the runner.
+ *
+ * With `page.clock`, each beat's timer is fired by its own `runFor` with a round-trip in
+ * between, so React has to flush each one — the order under test is the only thing that can
+ * vary. This is the same tool, for the same reason, as `quit-mid-animation.spec.ts`.
+ */
+test('the beats advance hero → settle → card → strip → done', async ({ page }) => {
+  await page.clock.install()
   await recordBeats(page)
   await page.goto(preview(10))
+  await expect(page.locator('.reward-screen')).toBeVisible({ timeout: SEQUENCE_MS })
 
-  // §9.1 — the order is the acceptance criterion; the milliseconds are tuning, and CI's
-  // ipad profile runs slow enough that asserting them would be asserting the runner.
-  await expect
-    .poll(() => beatsSeen(page), { timeout: SEQUENCE_MS })
-    .toEqual(['hero', 'settle', 'card', 'strip', 'done'])
+  const beat = () => page.locator('.reward-screen').getAttribute('data-beat')
+  expect(await beat(), 'the hero is on screen from the first frame').toBe('hero')
 
-  // §9.2 — the headline, the tier the bar climbed to, the fill and the number.
+  // step just past each boundary in turn; the halfway points are deliberately not tight
+  await page.clock.runFor(BEATS.settleAt + 50)
+  expect(await beat()).toBe('settle')
+  await page.clock.runFor(BEATS.cardAt - BEATS.settleAt)
+  expect(await beat()).toBe('card')
+  await page.clock.runFor(BEATS.stripAt - BEATS.cardAt)
+  expect(await beat()).toBe('strip')
+  await page.clock.runFor(BEATS.doneAt - BEATS.stripAt)
+  expect(await beat()).toBe('done')
+
+  expect(await beatsSeen(page), 'and nothing ran backwards or repeated').toEqual([
+    'hero',
+    'settle',
+    'card',
+    'strip',
+    'done',
+  ])
+})
+
+test('a perfect round lands on Perfect!, a full bar and eighteen gems', async ({ page }) => {
+  // §9.2
+  await page.goto(preview(10))
+  await settled(page)
+
   await expect(page.locator('.reward-screen h1')).toHaveText('Perfect!')
   await expect(label(page)).toHaveText('Perfect!')
   await expect(page.locator('.reward-pct')).toHaveText('100%')
@@ -89,8 +150,9 @@ test('the beats advance in order, and a perfect round lands on Perfect!', async 
 
 test('seven out of ten reads Goed, 70%, and lists the three it missed', async ({ page }) => {
   await page.goto(preview(7))
+  await settled(page)
 
-  await expect(label(page)).toHaveText('Goed', { timeout: SEQUENCE_MS })
+  await expect(label(page)).toHaveText('Goed')
   await expect(page.locator('.reward-pct')).toHaveText('70%')
   expect(await barScaleX(page)).toBeCloseTo(0.7, 2)
   // the text the existing hardop-lezen spec pins, now living under the card's number
@@ -101,21 +163,27 @@ test('seven out of ten reads Goed, 70%, and lists the three it missed', async ({
 
 test('eight out of ten is Super, and 79% is still only Goed', async ({ page }) => {
   // The boundary the unit tests pin, checked once on the real screen: 80 is where the label
-  // and the card's colours change, and it is the tier a good round actually lands on.
+  // and the card's colours change. 79 is the side of it a round can pass through on the way
+  // up, which is what makes `settled` load-bearing here rather than tidy — see its note.
   await page.goto(preview(8))
-  await expect(label(page)).toHaveText('Super', { timeout: SEQUENCE_MS })
+  await settled(page)
+  await expect(label(page)).toHaveText('Super')
   await expect(page.locator('.reward-pct')).toHaveText('80%')
   await expect(page.locator('.reward-screen h1')).toHaveText('Super gedaan!')
 
-  await page.goto(preview(79, 100))
-  await expect(label(page)).toHaveText('Goed', { timeout: SEQUENCE_MS })
+  // per klank, so 79 out of 100 needs no hundred chips to express
+  await page.goto(preview(79, 100, '&spel=klank'))
+  await settled(page)
+  await expect(label(page)).toHaveText('Goed')
   await expect(page.locator('.reward-pct')).toHaveText('79%')
+  await expect(page.locator('.reward-tally')).toHaveText('79 van 100 goed')
 })
 
 test('a round she gets entirely wrong still celebrates, at Geoefend and 0%', async ({ page }) => {
   await page.goto(preview(0))
+  await settled(page)
 
-  await expect(label(page)).toHaveText('Geoefend', { timeout: SEQUENCE_MS })
+  await expect(label(page)).toHaveText('Geoefend')
   await expect(page.locator('.reward-pct')).toHaveText('0%')
   expect(await barScaleX(page), 'an empty bar, not a missing one').toBeCloseTo(0, 3)
   // never a failure message, and never nothing earned
@@ -212,9 +280,8 @@ test('a Tijdrit record shows the banner instead of the subline', async ({ page }
   // The one case the reading preview cannot produce — Hardop lezen is untimed by design, so
   // `newRecord` only ever comes from a klank game.
   await page.goto(preview(9, 10, '&spel=klank&score=48&record=1'))
-  await expect(page.locator('.record-banner')).toHaveText('NIEUW RECORD!', {
-    timeout: SEQUENCE_MS,
-  })
+  await settled(page)
+  await expect(page.locator('.record-banner')).toHaveText('NIEUW RECORD!')
   await expect(page.locator('.reward-subline')).toHaveCount(0)
   await expect(page.locator('.reward-score')).toContainText('48 klanken per minuut')
   // per-klank scoring, so the card counts answers rather than words
@@ -230,7 +297,7 @@ test('the preview credits nothing — it is a screen, not a round', async ({ pag
    * on, since this is a route in the shipped app and not a test-only door.
    */
   await page.goto(preview(10))
-  await expect(page.locator('.reward-verder')).toBeVisible({ timeout: SEQUENCE_MS })
+  await settled(page)
   await expect
     .poll(() => page.locator('.reward-line').first().innerText(), { timeout: 20_000 })
     .toContain('+18')
@@ -269,6 +336,7 @@ test.describe('on an iPhone SE', () => {
     page,
   }) => {
     await page.goto(preview(6))
+    await expect(page.locator('.reward-screen')).toBeVisible({ timeout: SEQUENCE_MS })
 
     /*
      * The hero is a 2.2x Frida over a band 160% of the width. Both overhang, and on a phone a
