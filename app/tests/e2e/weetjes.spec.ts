@@ -76,6 +76,24 @@ async function swipeCard(page: Page, dy: number) {
   await page.mouse.up()
 }
 
+/**
+ * Wait for the gem count-up to settle on its total.
+ *
+ * Polled with a long timeout rather than asserted with a short one, which is the pattern
+ * hardop-lezen.spec.ts already established and wrote down: the count-up is a 90ms
+ * setInterval, and on the ipad profile it demonstrably does not run at 90ms — that test's
+ * comment records CI catching it still at "+6" after five seconds. The number it settles on
+ * is what this asserts; the pace it gets there at is not this feature's business.
+ *
+ * (Ten seconds and a plain toContainText is what the first version of these two tests used,
+ * and it went red on ipad at "+7" of 8, on all three attempts.)
+ */
+async function expectGems(page: Page, total: string) {
+  await expect
+    .poll(() => page.locator('.reward-line').first().innerText(), { timeout: 20_000 })
+    .toContain(total)
+}
+
 function watchErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('pageerror', (err) => errors.push(err.message))
@@ -197,7 +215,7 @@ test('a wrong answer costs nothing: no failure sound, the card is still kept, sa
   await verder(page)
 
   await expect(page.locator('.reward-screen')).toBeVisible()
-  await expect(page.locator('.reward-line').first()).toContainText('+8', { timeout: 10_000 })
+  await expectGems(page, '+8')
   expect(errors, `console/page errors: ${errors.join('\n')}`).toEqual([])
 })
 
@@ -240,7 +258,7 @@ test('the reward screen for a Weetje node has nothing to grade', async ({ page }
   // No percentage, no tally, no "x van y goed" — there is nothing here to be wrong about.
   await expect(page.locator('.reward-tally')).toHaveCount(0)
   await expect(page.locator('.reward-chips')).toHaveCount(0)
-  await expect(page.locator('.reward-line').first()).toContainText('+8', { timeout: 10_000 })
+  await expectGems(page, '+8')
 })
 
 test('the Weetjesboek shows what she has, face-down what she has not, and reads one back', async ({
