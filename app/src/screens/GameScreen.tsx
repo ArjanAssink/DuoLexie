@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import confetti from 'canvas-confetti'
 import type { AnswerRecord, GameType, Lesson, WordResult } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
@@ -91,21 +90,21 @@ export function GameScreen() {
       score: result.score,
       wordResults: result.wordResults,
     })
-    setReward({ ...reward, score: result.score, wordResults: result.wordResults })
+    setReward({
+      ...reward,
+      score: result.score,
+      wordResults: result.wordResults,
+      // the stat card's denominator for every game that is not scored per word
+      answers: result.answers,
+    })
     playEffect('fanfare')
     haptic(reward.newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
-    // a reading round's burst is sized to how much of it she got right, so ten out of ten
-    // visibly outshines four out of ten
-    const correctWords = result.wordResults?.filter((r) => r.correct).length
-    confetti({
-      particleCount: reward.newRecord
-        ? 220
-        : correctWords !== undefined
-          ? 40 + 18 * correctWords
-          : 120,
-      spread: 85,
-      origin: { y: 0.7 },
-    })
+    // The confetti used to fire here, and its sizing formula with it. Both now live in the
+    // reward screen's hero beat (screens/rewardTimeline.ts confettiCount,
+    // docs/reward-celebration.md §6): fired from here it landed a beat before the screen it
+    // was celebrating had even mounted, and it could not be skipped or switched off with
+    // the rest of the sequence. The fanfare and the haptics stay — they belong to the
+    // moment the round ends, not to the celebration that follows it.
   }
 
   if (reward) {
