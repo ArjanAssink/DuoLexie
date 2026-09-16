@@ -1,42 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
-import { readdirSync } from 'node:fs'
-
-/**
- * Word ids that have a recorded clip in public/audio/words/.
- *
- * Read from the directory at config time rather than globbed from src: these files live in
- * `public/`, so they are already copied verbatim, and an `import.meta.glob` over them would
- * emit a second bundled copy of every mp3. The app uses this to prefer recorded words when
- * filling a reading round (engine/exerciseSelector.ts), so the first rounds she plays are in
- * a family voice rather than browser speech.
- *
- * Caveat: it is a snapshot taken when Vite starts, so a clip recorded during a dev session
- * needs a dev-server restart to be noticed. Production builds always read it fresh.
- */
-function mp3Ids(dir: string): string[] {
-  try {
-    return readdirSync(fileURLToPath(new URL(dir, import.meta.url)))
-      .filter((f) => f.endsWith('.mp3'))
-      .map((f) => f.replace(/\.mp3$/, ''))
-  } catch {
-    return [] // the directory may not exist yet
-  }
-}
-
-const recordedWords = () => mp3Ids('./public/audio/words')
-
-/**
- * Weetjes clip ids that have a recording — `<card id>-fact`, `-doe` or `-reveal`
- * (docs/weetjes.md §7). Only the recording studio reads this: unlike words, playback probes
- * the URL regardless, so a clip that lands mid-session plays without a dev-server restart.
- */
-const recordedWeetjes = () => mp3Ids('./public/audio/weetjes')
+import { studioPlugin } from './vite-plugins/studio.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  // The studio plugin serves `virtual:recorded-audio` in both dev and build, and adds the
+  // dev-only /__studio/ middleware that lets the recording studio write a take, run the
+  // splitter and read the report back without a terminal (docs/recording-studio-v3.md §3).
+  // Its middleware lives in configureServer, which a build never calls, so nothing under
+  // /__studio reaches dist/.
+  plugins: [react(), studioPlugin()],
   resolve: {
     alias: {
       '@shared': fileURLToPath(new URL('../shared', import.meta.url)),
@@ -51,7 +25,5 @@ export default defineConfig({
     // cache-busts /audio/sounds/*.mp3 on every deploy — iOS Safari holds
     // onto cached media resources more stubbornly than Cache-Control implies
     __AUDIO_VERSION__: JSON.stringify(String(Date.now())),
-    __RECORDED_WORDS__: JSON.stringify(recordedWords()),
-    __RECORDED_WEETJES__: JSON.stringify(recordedWeetjes()),
   },
 })

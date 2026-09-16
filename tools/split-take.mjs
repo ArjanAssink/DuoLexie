@@ -7,6 +7,7 @@
  * says which burst is which word, so nothing here has to recognise speech.
  *
  *   node tools/split-take.mjs recordings/woorden-2026-09-14-1902.webm
+ *     [--latest]             use the newest take in recordings/ instead of naming one
  *     [--cues <file>]        cue sheet; defaults to the take's basename with .json
  *     [--out <dir>]          output directory; defaults to the one this kind belongs in
  *     [--ids kat,tas]        only write these
@@ -18,7 +19,7 @@
  *
  * Exits 0 when every id came out `ok`, 1 otherwise, so it can gate a commit.
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -104,8 +105,23 @@ const STATUS_RANK = ['missing', 'too-short', 'clipped', 'boundary', 'multiple', 
 const worstOf = (...statuses) =>
   STATUS_RANK[Math.min(...statuses.filter(Boolean).map((s) => STATUS_RANK.indexOf(s)))]
 
+/** The take recorded most recently — what `npm run take:split` means by "the one I just did". */
+function newestTake() {
+  const dir = join(REPO, 'recordings')
+  let newest = null
+  let newestAt = -1
+  for (const entry of existsSync(dir) ? readdirSync(dir) : []) {
+    if (!entry.endsWith('.webm')) continue
+    const at = statSync(join(dir, entry)).mtimeMs
+    if (at > newestAt) { newest = join(dir, entry); newestAt = at }
+  }
+  if (!newest) throw new Error('No .webm takes in recordings/ — record one at /#/opnemen first.')
+  process.stderr.write(`Newest take: ${basename(newest)}\n`)
+  return newest
+}
+
 function parseArgs(argv) {
-  const opts = { take: null, cues: null, out: null, ids: null, list: null, dryRun: false, verify: false, whisperBin: null, whisperModel: null }
+  const opts = { take: null, latest: false, cues: null, out: null, ids: null, list: null, dryRun: false, verify: false, whisperBin: null, whisperModel: null }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     const next = () => {
@@ -117,6 +133,7 @@ function parseArgs(argv) {
     else if (arg === '--out') opts.out = next()
     else if (arg === '--ids') opts.ids = next().split(',').map((s) => s.trim()).filter(Boolean)
     else if (arg === '--list') opts.list = next()
+    else if (arg === '--latest') opts.latest = true
     else if (arg === '--dry-run') opts.dryRun = true
     else if (arg === '--verify') opts.verify = true
     else if (arg === '--whisper-bin') opts.whisperBin = next()
@@ -125,7 +142,8 @@ function parseArgs(argv) {
     else if (opts.take === null) opts.take = arg
     else throw new Error(`Unexpected extra argument ${arg}`)
   }
-  if (!opts.take) throw new Error('Usage: node tools/split-take.mjs <take.webm> [options]')
+  if (opts.latest && !opts.take) opts.take = newestTake()
+  if (!opts.take) throw new Error('Usage: node tools/split-take.mjs <take.webm> [options]   (or --latest)')
   return opts
 }
 
@@ -478,7 +496,7 @@ function printSummary(report, reportPath, dryRun) {
   process.stdout.write(flagged.length ? `, ${flagged.length} to listen to.\n` : '.\n')
   for (const w of report.warnings) process.stdout.write(`⚠️  ${w}\n`)
   if (dryRun) process.stdout.write('\nDry run: nothing was written.\n')
-  else process.stdout.write(`\nWrote ${report.out}/ and ${reportPath}\nOpen /#/opnemen to listen to the flagged rows; restart the dev server so Vite picks up the new mp3s.\n`)
+  else process.stdout.write(`\nWrote ${report.out}/ and ${reportPath}\nOpen /#/opnemen to listen to the clips and judge them. A running dev server picks the new mp3s up on its own.\n`)
 }
 
 try {

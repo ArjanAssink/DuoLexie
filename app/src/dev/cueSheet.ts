@@ -19,6 +19,27 @@
  */
 export type TakeKind = 'klanken' | 'woorden' | 'weetjes'
 
+/** The three directories under `app/public/audio/` a take can write into. */
+export type AudioFolder = 'sounds' | 'words' | 'weetjes'
+
+const FOLDERS: Record<TakeKind, AudioFolder> = {
+  klanken: 'sounds',
+  woorden: 'words',
+  weetjes: 'weetjes',
+}
+
+/**
+ * Where a kind's clips live — the single answer, used by the studio, the grid and the report.
+ *
+ * It was three answers, and one of them was wrong: `TakeReview` read `kind === 'klanken' ?
+ * 'sounds' : 'words'`, so every Weetjes report played its clips from `/audio/words/`, found
+ * nothing, and silently reported that every row was silent (§2.8). A ternary that has to be
+ * updated in three files each time a fourth kind appears is not a thing to keep.
+ */
+export function folderFor(kind: TakeKind): AudioFolder {
+  return FOLDERS[kind]
+}
+
 export interface Cue {
   id: string
   shownAt: number
@@ -56,6 +77,14 @@ export interface CueSheet {
   beeps: BeepPlan
   cues: Cue[]
   pauses: Pause[]
+  /**
+   * The take these clips are replacing, when *Deze opnieuw opnemen* started this one.
+   *
+   * The splitter lifts a retake by the gain it gave that take instead of measuring this one
+   * (docs/recording-studio-v3.md §2.6): three words measured alone do not land where the
+   * twenty they have to sit among are.
+   */
+  retakeOf?: string
 }
 
 /** 3 · 2 · 1 and a higher one at zero. */
@@ -166,6 +195,7 @@ export function buildCueSheet(fields: {
   leadInMs: number
   cues: Cue[]
   pauses: Pause[]
+  retakeOf?: string | null
 }): CueSheet {
   return {
     version: 1,
@@ -176,5 +206,6 @@ export function buildCueSheet(fields: {
     beeps: beepPlan(fields.leadInMs),
     cues: fields.cues,
     pauses: fields.pauses,
+    ...(fields.retakeOf ? { retakeOf: fields.retakeOf } : {}),
   }
 }
