@@ -553,7 +553,6 @@ test.describe('a Weetjes report', () => {
     await context.grantPermissions(['microphone'])
     await withoutStudioApi(page)
     await spyOnPlayback(page, null)
-    await stubClips(page, 'weetjes', { 'slim-fact': 'Wed, 16 Sep 2026 20:40:00 GMT' })
     await page.addInitScript((report) => {
       ;(window as unknown as { showDirectoryPicker: unknown }).showDirectoryPicker = async () => ({
         name: 'recordings',
@@ -572,6 +571,22 @@ test.describe('a Weetjes report', () => {
     await page.goto('/#/opnemen')
     await expect(page.locator('.studio-cell-id').first()).toBeVisible()
     await page.getByRole('button', { name: /^Weetjes/ }).click()
+    const cues = await page.locator('.studio-cell-sub').allTextContents()
+    expect(cues.length).toBeGreaterThan(1)
+
+    // Every cue but one already recorded, so "alleen ontbrekende" leaves a single-cue take.
+    // The full Weetjes set is forty-odd sentences: at the fastest pace the slider allows that
+    // is over a minute of wall clock on a shared two-core runner, for a test about which
+    // folder a row plays from.
+    const served: Record<string, string> = { 'slim-fact': 'Wed, 16 Sep 2026 20:40:00 GMT' }
+    for (const id of cues.slice(1)) served[id] = 'Mon, 14 Sep 2026 09:00:00 GMT'
+    delete served[cues[0]]
+    await stubClips(page, 'weetjes', served)
+    await page.reload()
+    await page.getByRole('button', { name: /^Weetjes/ }).click()
+    await expect(page.getByText(`alleen ontbrekende (1 van ${cues.length})`)).toBeVisible()
+    await page.getByRole('checkbox').check()
+
     await page.getByRole('button', { name: /Kies map/ }).click()
     await expect(page.getByText('Map gekozen')).toBeVisible()
 
@@ -579,10 +594,10 @@ test.describe('a Weetjes report', () => {
     await expect(page.locator('.studio-cell-wide .studio-cell-id').first()).not.toHaveText(/^[a-z-]+$/)
     await expect(page.locator('.studio-cell-wide .studio-cell-sub').first()).toHaveText(/-(fact|doe|reveal)$/)
 
-    // a one-cue take is the shortest way to a report on this screen
     await page.locator('input[type=range]').fill('1500')
+    await expect(page.getByRole('button', { name: /Start take \(1 weetjes\)/ })).toBeVisible()
     await page.getByRole('button', { name: /Start take/ }).click()
-    await expect(page.getByText(/Take opgeslagen/)).toBeVisible({ timeout: 120_000 })
+    await expect(page.getByText(/Take opgeslagen/)).toBeVisible({ timeout: 30_000 })
     await page.getByRole('button', { name: 'Rapport laden' }).click()
 
     await expect(page.getByRole('heading', { name: /Rapport — 1\/1 ok/ })).toBeVisible()
