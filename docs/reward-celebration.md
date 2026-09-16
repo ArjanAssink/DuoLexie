@@ -298,6 +298,13 @@ block and makes `skip()` a one-attribute change.
 an independently ticking integer, so it always ends on exactly `pct`. The gem count-up is
 unchanged and lives in the strip.
 
+*(as built)* One existing test file did need changing: `weetjes.spec.ts` gave the gem
+count-up 10 seconds, which was enough while the reward screen started counting at mount. It
+no longer does — §2 holds the gems back until the strip beat, ~2.4s in — and that pushed CI's
+ipad profile over, with the count still at +3 when the clock ran out. Both polls now use the
+20s `hardop-lezen.spec.ts` already settled on for the same assertion: what these pin is the
+total the count lands on, never its pace. No selector or expected value changed.
+
 **Keep for the existing tests** (or update them in the same change — say which in the PR):
 `.reward-screen`, `.reward-screen h1`, `.reward-tally` containing `"{correct} goed"`,
 `.reward-line` **first** being the gems line and ending on `+{gems}`, `.word-chip` buttons,
