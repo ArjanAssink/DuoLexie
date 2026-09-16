@@ -40,6 +40,15 @@ Two consequences for this change:
     `TakeReview` and the games all go through it; nothing constructs
     `/audio/${folder}/${id}.mp3` inline.
 
+*(as built)* Both seams are in `app/src/audio/recorded.ts`, which also owns the single
+`kind → folder` mapping that `cueSheet.ts` re-exports — a second copy of that mapping is what
+made a Weetjes report play from `/audio/words/` and hear nothing (§2.8). `clipSrc` takes a
+third argument, the cache-buster, because the two callers need different ones: the build stamp
+for the games, where a clip changes only on a deploy, and the file's own `Last-Modified` for
+the studio, where a retake overwrites the same URL mid-session. The studio's `HEAD` probe goes
+through it too — it is the one clip URL that is not playback, and so the one that would
+otherwise have been left behind.
+
 ---
 
 ## 1. What is already right and must stay
