@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AvatarView } from '../components/AvatarView'
 import { AvatarPickers } from '../components/AvatarPickers'
 import { WipNote } from '../components/WipNote'
-import { GemIcon } from '../components/Icons'
+import { BookIcon, GemIcon } from '../components/Icons'
 import { MAX_PLAYER_NAME, normalizePlayerName, useProgress } from '../state/progress'
 import { useAvatar } from '../state/avatar'
 
@@ -13,6 +13,9 @@ export function AvatarScreen() {
   const playerName = useProgress((s) => s.settings.playerName)
   const setPlayerName = useProgress((s) => s.setPlayerName)
   const config = useAvatar((s) => s.config)
+  const collectedWeetjes = useProgress((s) => s.collectedWeetjes)
+  const autoRead = useProgress((s) => s.settings.autoRead)
+  const toggleAutoRead = useProgress((s) => s.toggleAutoRead)
 
   // Saved on blur rather than on every keystroke: this field is a correction, not the
   // delight moment the welkom-flow's live bubble is, and writing per keystroke would push a
@@ -37,6 +40,12 @@ export function AvatarScreen() {
 
       <button className="btn-primary shop-cta" onClick={() => navigate('/winkel')}>
         Naar de winkel
+      </button>
+
+      {/* docs/weetjes.md §8 — the way back into the Weetjesboek from anywhere she can reach
+          her profile, with the count on it so a full book is visible from here. */}
+      <button className="btn-primary weetjesboek-cta" onClick={() => navigate('/weetjes')}>
+        <BookIcon fill="#FFFFFF" size={22} /> Mijn weetjes ({collectedWeetjes.length})
       </button>
 
       <AvatarPickers />
@@ -64,6 +73,10 @@ export function AvatarScreen() {
               setPlayerName(clean)
             }}
           />
+        </label>
+        <label className="about-toggle">
+          <input type="checkbox" checked={autoRead} onChange={toggleAutoRead} />
+          <span>Weetjes automatisch voorlezen</span>
         </label>
         <WipNote />
         <button className="about-intro-btn" onClick={() => navigate('/welkom')}>
