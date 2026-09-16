@@ -137,6 +137,25 @@ test('tapping the Niet waar label performs the swipe, and answers the same', asy
   await expect.poll(() => bookCount(page)).toBe(1)
 })
 
+test('asking to hear the reveal again still keeps the card', async ({ page }) => {
+  // Regression: the flight and the collect used to be chained onto the reveal's narration
+  // promise, and that promise gives up whenever a newer narration replaces it — so a card she
+  // asked to hear twice was never collected at all.
+  await installWeetjeNarration(page, 200)
+  await page.goto(NODE)
+  await beat(page, 'luister')
+  await verder(page)
+  await beat(page, 'doe')
+  await page.locator('.weetje-label-niet').click()
+
+  await beat(page, 'bewaar')
+  await page.locator('.weetje-speak').click() // hear it again, mid-reveal
+  await expect.poll(() => bookCount(page)).toBe(1)
+  await expect(page.locator('.weetje-kept')).toContainText('in je Weetjesboek')
+  await verder(page)
+  await beat(page, 'luister')
+})
+
 test('a wrong answer costs nothing: no failure sound, the card is still kept, same gems', async ({
   page,
 }) => {

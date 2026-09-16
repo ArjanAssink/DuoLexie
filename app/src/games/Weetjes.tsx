@@ -143,7 +143,6 @@ export function Weetjes({ lesson, onComplete, onQuit }: Props) {
   const cancelled = useRef(false)
   /** The beat, readable synchronously — the guard `phaseRef` is in Hardop lezen. */
   const beatRef = useRef<Beat>('luister')
-  const busy = useRef(false)
   const startY = useRef(0)
   const samples = useRef<SwipeSample[]>([])
   const activePointerId = useRef<number | null>(null)
@@ -225,16 +224,9 @@ export function Weetjes({ lesson, onComplete, onQuit }: Props) {
     return true
   }
 
-  /**
-   * One beat, end to end: reset what belongs to it, read it aloud, and — on Bewaar — keep the
-   * card once she has heard why.
-   *
-   * Nothing is written to her profile before the reveal has been read, which is what makes
-   * quitting mid-narration cost her nothing (§10.10).
-   */
+  /** One beat: reset what belongs to it, and read it aloud. */
   useEffect(() => {
     if (!current) return
-    let alive = true
     beatRef.current = beat
     setBeatRead(false)
     setDragY(0)
@@ -243,15 +235,36 @@ export function Weetjes({ lesson, onComplete, onQuit }: Props) {
       playEffect('swish')
       setChosen(null)
     }
+    void narrate(BEAT_PART[beat], current)
+    // `narrate` closes over autoRead, which cannot change mid-beat (its toggle lives on the
+    // profile screen); re-running this on anything else would read the beat a second time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beat, current?.id])
 
+  /**
+   * Once the reveal has been read, the card is hers: it shrinks into the book, the book
+   * bounces, and its count goes up.
+   *
+   * Keyed on the beat having been *read* rather than chained onto the narration promise,
+   * because that promise gives up whenever a newer narration replaces it — and tapping 🔊 to
+   * hear the reveal again is exactly that. Chaining meant a card she asked to hear twice was
+   * never collected at all.
+   *
+   * Nothing reaches her profile before this point, which is what makes quitting
+   * mid-narration cost her nothing (§10.10).
+   */
+  const keptId = useRef<string | null>(null)
+  useEffect(() => {
+    if (beat !== 'bewaar' || !beatRead || !current) return
+    if (keptId.current === current.id) return
+    keptId.current = current.id
+
+    collectWeetje(current.id)
+    setKept((k) => (k.includes(current.id) ? k : [...k, current.id]))
+    if (reducedMotion) return
+
+    let alive = true
     void (async () => {
-      const finished = await narrate(BEAT_PART[beat], current)
-      if (!alive || cancelled.current || !finished || beat !== 'bewaar') return
-
-      collectWeetje(current.id)
-      setKept((k) => (k.includes(current.id) ? k : [...k, current.id]))
-      if (reducedMotion) return
-
       setFlying(true)
       await wait(FLY_MS)
       if (!alive || cancelled.current) return
@@ -261,14 +274,11 @@ export function Weetjes({ lesson, onComplete, onQuit }: Props) {
       if (!alive || cancelled.current) return
       setBumped(false)
     })()
-
     return () => {
       alive = false
     }
-    // `narrate` closes over autoRead, which cannot change mid-beat (its toggle lives on the
-    // profile screen); re-running this on anything else would read the beat a second time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [beat, current?.id])
+  }, [beat, beatRead, current?.id])
 
   /** Hear this beat again. Plays even with auto-read off — that is what the button is for. */
   function replay(): void {
@@ -289,16 +299,16 @@ export function Weetjes({ lesson, onComplete, onQuit }: Props) {
    * gets either way is the reveal, and the card, and the same eight gems.
    */
   function commit(right: boolean): void {
-    if (beatRef.current !== 'doe' || busy.current || !current) return
-    busy.current = true
+    if (beatRef.current !== 'doe' || !current) return
     correctRef.current = right
     setCorrect(right)
     stopNarration()
     playEffect(right ? 'ding' : 'pop')
     haptic(right ? [15, 60, 15] : 12)
     if (right && !reducedMotion) confettiPuff()
+    // Synchronous, so every guard that reads beatRef — the pointer handlers, the labels,
+    // a second tap on an option — sees the card as answered from this instant on.
     goBeat('bewaar')
-    busy.current = false
   }
 
   function confettiPuff(): void {
@@ -344,7 +354,7 @@ export function Weetjes({ lesson, onComplete, onQuit }: Props) {
 
   /** A tapped label performs the swipe she could have made, visibly, and then commits (§2). */
   function tapVerdict(verdict: Verdict): void {
-    if (beatRef.current !== 'doe' || busy.current || demo) return
+    if (beatRef.current !== 'doe' || demo) return
     if (reducedMotion) return answerVerdict(verdict)
     setDemo(verdict)
     later(DEMO_MS, () => {
@@ -357,7 +367,7 @@ export function Weetjes({ lesson, onComplete, onQuit }: Props) {
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>): void {
     // A pointer is already driving this drag — an incidental second touch (a resting palm on
     // a tablet) must not steal it and reset the gesture.
-    if (beatRef.current !== 'doe' || busy.current || demo || activePointerId.current !== null) return
+    if (beatRef.current !== 'doe' || demo || activePointerId.current !== null) return
     activePointerId.current = e.pointerId
     e.currentTarget.setPointerCapture(e.pointerId)
     startY.current = e.clientY
