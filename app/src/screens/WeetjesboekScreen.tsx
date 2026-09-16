@@ -40,7 +40,6 @@ export function WeetjesboekScreen() {
   const cards = dealableWeetjes
   const collected = new Set(collectedWeetjes)
   const open: Weetje | undefined = openId ? getWeetje(openId) : undefined
-  const openIndex = open ? cards.findIndex((c) => c.id === open.id) : -1
   /** Her own cards, in path order — what the arrows walk. */
   const mine = cards.filter((c) => collected.has(c.id))
 
@@ -68,9 +67,10 @@ export function WeetjesboekScreen() {
     if (autoRead) read(card)
   }
 
+  /** Where the open card sits among hers, which is what the two arrows walk. */
+  const at = open ? mine.findIndex((c) => c.id === open.id) : -1
+
   function step(delta: number): void {
-    if (!open) return
-    const at = mine.findIndex((c) => c.id === open.id)
     const next = mine[at + delta]
     if (next) openCard(next)
   }
@@ -147,7 +147,7 @@ export function WeetjesboekScreen() {
               className="weetjesboek-step"
               aria-label="Vorige"
               onClick={() => step(-1)}
-              disabled={mine.findIndex((c) => c.id === open.id) === 0}
+              disabled={at <= 0}
             >
               ‹
             </button>
@@ -158,12 +158,11 @@ export function WeetjesboekScreen() {
               className="weetjesboek-step"
               aria-label="Volgende"
               onClick={() => step(1)}
-              disabled={mine.findIndex((c) => c.id === open.id) === mine.length - 1}
+              disabled={at === mine.length - 1}
             >
               ›
             </button>
           </div>
-          {openIndex === -1 && <p className="weetjesboek-missing">Dit weetje is er niet meer.</p>}
         </div>
       )}
     </div>

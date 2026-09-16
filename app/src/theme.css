@@ -2175,7 +2175,6 @@ html[data-welkom] .app { height: 100dvh; min-height: 100dvh; }
   color: var(--text);
 }
 .weetjesboek-step:disabled { opacity: 0.4; }
-.weetjesboek-missing { color: #fff; font-weight: 800; }
 .weetjesboek-cta { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 
 .about-toggle {
