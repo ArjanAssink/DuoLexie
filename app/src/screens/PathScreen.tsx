@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import type { Lesson, Unit } from '@shared/src/types'
 import { path, allLessons } from '../data/path'
 import { useProgress, daysThisWeek } from '../state/progress'
@@ -147,6 +147,8 @@ export function PathScreen() {
   const practiceDays = useProgress((s) => s.practiceDays)
   const font = useProgress((s) => s.settings.font)
   const toggleFont = useProgress((s) => s.toggleFont)
+  const playerName = useProgress((s) => s.settings.playerName)
+  const onboardedAt = useProgress((s) => s.settings.onboardedAt)
   const avatarConfig = useAvatar((s) => s.config)
 
   const firstOpenIdx = allLessons.findIndex((l) => !completedLessons[l.id])
@@ -154,6 +156,19 @@ export function PathScreen() {
   // ?test=true (see /proberen) unlocks every lesson for trying out game modes without
   // playing through the whole tree first — never surfaced in the visible kid-facing UI.
   const testMode = new URLSearchParams(window.location.search).get('test') === 'true'
+
+  /*
+   * The onboarding gate (docs/onboarding-welkom.md ss3.2). It sits here, on "/" alone:
+   * deep links — /#/les/..., /#/proberen, /#/avatar — must keep working on a profile that
+   * has never been onboarded, which is what the e2e suite and the Proefronde menu rely on.
+   * ?test=true bypasses it too, so the menu's "Open het pad, alles ontgrendeld" link still
+   * goes straight to an unlocked leerpad.
+   *
+   * Safe to read onboardedAt directly because App.tsx renders no route until both stores
+   * have hydrated; before that this value is null for everyone, returning players included.
+   * `replace` so the phone's back gesture does not bounce her between the two.
+   */
+  if (!onboardedAt && !testMode) return <Navigate to="/welkom" replace />
 
   function coinState(lesson: Lesson): CoinState {
     if (completedLessons[lesson.id]) return 'done'
@@ -189,6 +204,7 @@ export function PathScreen() {
       </header>
 
       <main>
+        {playerName && <p className="path-greeting">Hoi, {playerName}!</p>}
         {path.map((fase, faseIdx) =>
           fase.units.map((unit, unitIdx) => (
             <section key={unit.id}>

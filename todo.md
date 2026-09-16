@@ -17,13 +17,14 @@ Voortgang per fase uit [plan.md](plan.md). Bijwerken bij elke werksessie.
 ## Phase 1 — Eerste speelbare versie (lokaal, geen backend)
 - [x] Padscherm: fases → units → lessen, lineaire unlock, edelstenen + weekdoel (5 van 7)
 - [x] **Tijdrit** (heette Flitsen, hernoemd): 60s-rondes, Goed/Nog even, klanken-per-minuut records, NIEUW RECORD-viering
-- [x] ~~Klankenjacht~~ verwijderd (niet leuk genoeg bevonden) → vervangen door **Flitsen** (nieuwe naam, was Klankkaarten), geport vanuit [CardFlash](https://github.com/ArjanAssink/CardFlash): tik de stapel om, kaart flipt en vliegt naar de aflegstapel, timer, geen score, geen narratie — geverifieerd in browser + e2e-suite (incl. snel overlappend tikken, geen dubbele afronding); iOS-jank-fix onderweg (box-shadow tijdens de flip-animatie is een bekend WebKit-perf-probleem — kon zelf niet op een echte iPhone testen, wachtend op bevestiging)
+- [x] ~~Klankenjacht~~ verwijderd (niet leuk genoeg bevonden) → vervangen door **Flitsen** (nieuwe naam, was Klankkaarten), geport vanuit [CardFlash](https://github.com/ArjanAssink/CardFlash): tik de stapel om, kaart flipt en vliegt naar de aflegstapel, timer, geen score, geen narratie — geverifieerd in browser + e2e-suite (incl. snel overlappend tikken, geen dubbele afronding); **ronde staat nu vast op 20 kaarten** (`FLITS_DECK_SIZE`) in plaats van de hele klankenpool — die loopt van 5 (de eerste unit) tot 45, dus het spel was eerst vijf tikken lang en aan het eind een zit; onder de 20 herhaalt de pool zich in hele geschudde rondes (iedere klank even vaak), boven de 20 wordt er gesampled met de nieuwe klanken van die unit er altijd in; iOS-jank-fix onderweg (box-shadow tijdens de flip-animatie is een bekend WebKit-perf-probleem — kon zelf niet op een echte iPhone testen, wachtend op bevestiging)
 - [x] Lokale voortgang in IndexedDB (zustand persist): stats per klank, EWMA, mastery
 - [x] Audio met TTS-fallback zolang opnames ontbreken
 - [x] Opnamestudio `/opnemen` (dev-only) + `tools/convert-audio.mjs`
 - [x] Lettertype-toggle (dyslexievriendelijke spatiëring), NL UI
 - [x] Frida-redesign geïmplementeerd (art/design_handoff_leerpad): warm licht thema, coin-pad, statbalk, bottom nav, Frida-mascotte + favicons/manifest
 - [x] Probeermenu `/proberen` (niet gelinkt in de navigatie): elke spelmodus direct spelen zonder het pad te doorlopen, plus `?test=true` ontgrendelt alle lessen op het echte pad-scherm zelf
+- [x] Onboarding bij het eerste bezoek (`/welkom`, zie [docs/onboarding-welkom.md](docs/onboarding-welkom.md)): welkomscherm met Frida, naam kiezen (mag ook niet), avatar maken, confetti — daarna redirect `/` nooit meer; naam + vlag in de bestaande zustand-stores, hydratie-gate in `App.tsx` zodat een terugkerende speler geen flits van het welkomscherm ziet
 - [ ] Klanken inspreken (Fase-1-klanken minimaal) en mp3's committen — **opnieuw**, via de nieuwe teleprompter + `split-take.mjs`; de 45 die er nu staan zijn met de oude klik-per-clip-studio gemaakt en klinken clacky
 - [ ] End-to-end test in browser: les afronden, herladen, voortgang blijft staan
 - [ ] Testen op haar eigen tablet/device

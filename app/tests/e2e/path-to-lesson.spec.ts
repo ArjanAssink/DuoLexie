@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { skipOnboarding } from './fixtures/onboarded'
 
 test('clicking the active lesson coin opens the game', async ({ page }) => {
   const errors: string[] = []
@@ -7,6 +8,7 @@ test('clicking the active lesson coin opens the game', async ({ page }) => {
     if (msg.type() === 'error') errors.push(msg.text())
   })
 
+  await skipOnboarding(page)
   await page.goto('/')
 
   const activeCoin = page.locator('.coin-item.active .coin')
@@ -22,6 +24,7 @@ test('clicking the active lesson coin opens the game', async ({ page }) => {
 })
 
 test('the first lesson is Flitsen and flipping the deck lands a card', async ({ page }) => {
+  await skipOnboarding(page)
   await page.goto('/')
   await page.locator('.coin-item.active .coin').click()
 

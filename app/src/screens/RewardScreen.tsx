@@ -4,6 +4,7 @@ import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
 import { playEffect, playWord } from '../audio/audio'
 import { Frida } from '../components/Frida'
+import { useProgress } from '../state/progress'
 
 /** What completeLesson computed, plus the bits only the display needs. */
 export interface DisplayReward extends Reward {
@@ -23,11 +24,19 @@ const GEM_TICK_MS = 90
 /** Gems per step up the tick scale, so a long count-up still ends on a musical note. */
 const GEMS_PER_TICK_STEP = 4
 
-function headline(reward: DisplayReward, correct: number, graded: number): string {
-  if (reward.perfect) return 'Perfect!'
-  if (graded === 0) return 'Goed gedaan!'
+function headline(
+  reward: DisplayReward,
+  correct: number,
+  graded: number,
+  name: string,
+): string {
+  // '' when she skipped the name in the welkom-flow, so every praise line has to read
+  // properly without one.
+  const praise = name ? `, ${name}!` : '!'
+  if (reward.perfect) return `Perfect${praise}`
+  if (graded === 0) return `Goed gedaan${praise}`
   // Never a failure message: the worst round still says she practised.
-  return correct >= graded / 2 ? 'Goed gedaan!' : 'Lekker geoefend!'
+  return correct >= graded / 2 ? `Goed gedaan${praise}` : 'Lekker geoefend!'
 }
 
 /**
@@ -36,6 +45,7 @@ function headline(reward: DisplayReward, correct: number, graded: number): strin
  * practise. Tapping one plays it again.
  */
 export function RewardScreen({ reward, onDone }: Props) {
+  const playerName = useProgress((s) => s.settings.playerName)
   const graded = reward.wordResults?.length ?? 0
   const correct = reward.wordResults?.filter((r) => r.correct).length ?? 0
   const missed = reward.wordResults?.filter((r) => !r.correct) ?? []
@@ -64,7 +74,7 @@ export function RewardScreen({ reward, onDone }: Props) {
         alt="Frida is blij"
       />
       {reward.newRecord && <div className="record-banner">NIEUW RECORD!</div>}
-      <h1>{headline(reward, correct, graded)}</h1>
+      <h1>{headline(reward, correct, graded, playerName)}</h1>
 
       {graded > 0 && (
         <>

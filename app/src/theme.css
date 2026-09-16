@@ -1630,3 +1630,288 @@ button:disabled { cursor: default; }
   /* the badge still lands, it just doesn't spring */
   .bs-badge { animation: none; opacity: 1; transform: translate(-50%,-50%) scale(1); }
 }
+
+/* ---------- onboarding: the welkom-flow (docs/onboarding-welkom.md) ---------- */
+
+/*
+ * Height, and why it is dvh.
+ *
+ * `.app` is min-height: 100vh, which on iOS Safari is the viewport *with the URL bar hidden*
+ * — taller than what is actually on screen. A step laid out to fill it therefore puts its
+ * CTA below the fold before the software keyboard is even up. While the flow is mounted the
+ * card is sized in dvh instead, so "the bottom of the step" and "the bottom of the screen"
+ * are the same place. The attribute is set by OnboardingScreen on <html> (it also drives the
+ * desktop backdrop further down, which has to paint on <body>).
+ *
+ * A fixed `height`, not a `min-height`: the step's middle section is the scroller and the CTA
+ * sits under it in normal flow, and neither can be held to the screen unless the box they are
+ * in has a definite height to divide up. With only a minimum, a long step (step 1 on a 664px
+ * phone) simply grows the card and pushes the CTA and the footer below the fold — which is
+ * exactly what it did before this was tightened.
+ */
+html[data-welkom] .app { height: 100dvh; min-height: 100dvh; }
+
+.welkom {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 22px calc(14px + env(safe-area-inset-bottom));
+  /* The step is a column with the CTA last in *normal flow* — never position: fixed, which
+     is what breaks when the keyboard reduces the visual viewport. */
+  min-height: 0;
+}
+
+.welkom-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Only as tall as the dots; .welkom-back's own 44px grows the row on steps 2 and 3, so
+     step 1 does not pay for a tap target it has no button for. */
+  min-height: 20px;
+  flex: 0 0 auto;
+}
+.welkom-back {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--muted);
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  margin-left: -10px;
+}
+.welkom-dots { display: flex; gap: 8px; }
+.welkom-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--locked);
+  transition: background 0.2s ease;
+}
+.welkom-dot.on { background: var(--teal); }
+
+/*
+ * The scrolling middle. Steps 1 and 2 are built to fit a phone screen outright and step 3's
+ * pickers are meant to scroll — but this scrolls on every step regardless, because that is
+ * what keeps the CTA below it reachable no matter what shrinks the viewport: a short
+ * landscape phone, a large font setting, or the software keyboard on step 2. The CTA is in
+ * normal flow under a scroller rather than pinned over one, so nothing overlaps the last
+ * picker either.
+ */
+.welkom-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* the pickers' focus rings and the swatches' shadows must not be clipped by the scroller */
+  padding: 2px;
+  margin: -2px;
+}
+
+.welkom-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+.welkom-cta { width: 100%; max-width: 340px; text-align: center; }
+
+/* "Liever geen naam" — a text link, deliberately not a second button competing with Verder */
+.welkom-skip {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--muted);
+  text-decoration: underline;
+  padding: 12px 16px;
+  min-height: 44px;
+}
+
+.welkom h1 {
+  margin: 0;
+  font-size: clamp(28px, 7vw, 36px);
+  font-weight: 800;
+  line-height: 1.1;
+}
+.welkom-kicker {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 2.5px;
+  color: var(--teal);
+  text-transform: uppercase;
+}
+.welkom-intro { margin: 0; font-size: 14.5px; line-height: 1.42; }
+.welkom-sub { margin: 0; font-size: 14px; color: var(--muted); }
+
+.welkom-bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.welkom-bullets li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.welkom-bullets svg { flex: 0 0 auto; }
+
+.wip-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  text-align: center;
+}
+.wip-note a { color: var(--teal); font-weight: 800; }
+
+/* ---------- Frida with a speech bubble ---------- */
+.frida-says {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.frida-says-art { height: auto; flex: 0 0 auto; }
+/* .coach-bubble's tail points left, at Frida — so she is always the element before it. */
+.coach-bubble--large {
+  font-family: var(--font-display);
+  font-size: clamp(17px, 4.4vw, 21px);
+  padding: 12px 18px;
+  border-radius: 20px;
+}
+/* Step 1: Frida is the hero, so she and the bubble share the width rather than the bubble
+   taking whatever is left of a 150px dog. */
+.frida-says-hero { justify-content: center; }
+/* Step 3: the pickers are the subject, so Frida gets out of their way. */
+.frida-says-corner { justify-content: flex-end; }
+
+/* She must be alive before anything is touched — a slow idle float, nothing more. */
+@keyframes fridaFloat {
+  0%, 100% { transform: translateY(-4px); }
+  50% { transform: translateY(4px); }
+}
+.welkom .frida-says-art { animation: fridaFloat 3s ease-in-out infinite; }
+
+/* Same spring the game cards use, 300ms after Frida has landed. */
+@keyframes bubblePop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+.welkom .coach-bubble {
+  transform-origin: left center;
+  animation: bubblePop 0.3s cubic-bezier(.2, 1.3, .4, 1) both;
+  animation-delay: 0.3s;
+}
+
+/* ---------- step 2: the name ---------- */
+.welkom-name-form { display: flex; flex-direction: column; gap: 8px; }
+.welkom-name-input {
+  font-family: var(--font-ui);
+  /* 20px, not 17px: below 16px iOS Safari zooms the page on focus and user-scalable=no
+     does not stop it. Anything that lets that happen mid-onboarding is a bad first minute. */
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  background: #fff;
+  border: 2px solid var(--hairline);
+  border-radius: 16px;
+  padding: 14px 16px;
+  width: 100%;
+  /* .app turns selection off app-wide to feel installed; a text field is the exception. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+.welkom-name-input:focus {
+  outline: none;
+  border-color: var(--teal-pill-border);
+  box-shadow: 0 0 0 3px var(--teal-pill);
+}
+.welkom-name-input::placeholder { color: var(--muted); font-weight: 700; }
+.welkom-helper { font-size: 13px; color: var(--muted); }
+
+/* ---------- the closing beat ---------- */
+.welkom-klaar {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ---------- Profiel -> Over DuoLexie ---------- */
+.about-section { display: flex; flex-direction: column; gap: 12px; }
+.about-name { display: flex; flex-direction: column; gap: 6px; }
+.about-name > span {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.about-intro-btn {
+  align-self: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--teal);
+  border: 2px solid var(--teal-pill-border);
+  background: var(--teal-pill);
+  border-radius: 16px;
+  padding: 12px 20px;
+  min-height: 44px;
+}
+
+/* ---------- the leerpad greeting ---------- */
+.path-greeting {
+  margin: 0 0 -6px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+/* ---------- desktop: the card as a landing page ---------- */
+@media (min-width: 540px) {
+  html[data-welkom] .app { height: min(calc(100dvh - 48px), 820px); min-height: 0; }
+  /*
+   * The card is far taller than steps 1 and 2 need, and left alone they sit at the top of a
+   * mostly-empty 820px card. `safe` is the point of this: step 3 genuinely overflows, and
+   * safe centring falls back to flex-start rather than centring content half of which can
+   * then never be scrolled to.
+   */
+  .welkom-body { justify-content: safe center; }
+}
+@media (min-width: 900px) {
+  /* The floating card already reads as a phone screenshot; this puts it on a page rather
+     than on a flat slab. Painted on body because it has to fill the viewport, not the card. */
+  html[data-welkom] body {
+    background:
+      radial-gradient(circle at 50% 42%, var(--bg) 0%, var(--bg-desktop) 62%);
+  }
+  html[data-welkom] body::before {
+    content: '';
+    position: fixed;
+    left: -60px;
+    bottom: -80px;
+    width: 700px;
+    height: 700px;
+    background: url('/avatar/frida-sass.svg') left bottom / contain no-repeat;
+    opacity: 0.06;
+    pointer-events: none;
+    z-index: 0;
+  }
+  html[data-welkom] .app { position: relative; z-index: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welkom .frida-says-art,
+  .welkom .coach-bubble { animation: none; }
+}

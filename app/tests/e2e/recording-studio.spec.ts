@@ -73,6 +73,10 @@ async function stubFolder(page: Page) {
  */
 async function threeWordSet(page: Page, keep: number): Promise<string[]> {
   await page.goto('/#/opnemen')
+  // No route renders until both persisted stores have hydrated from IndexedDB
+  // (state/hydration.ts), so the grid arrives a beat after load — and allTextContents(),
+  // unlike most locator calls, reads whatever matches right now instead of waiting for it.
+  await expect(page.locator('.studio-cell-id').first()).toBeVisible()
   const ids = await page.locator('.studio-cell-id').allTextContents()
   expect(ids.length).toBeGreaterThan(keep)
   const missing = ids.slice(0, keep)

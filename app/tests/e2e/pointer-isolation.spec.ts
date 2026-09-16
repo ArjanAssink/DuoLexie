@@ -20,7 +20,14 @@ const LEZEN = '/#/les/fase1-m-s-k-r-t-l5'
 const THUMB_ID = 0
 const FINGER_ID = 1
 
-async function touch(cdp: CDPSession, type: string, points: { id: number; x: number; y: number }[]) {
+/** The four touch phases CDP accepts; `string` here let a typo through to runtime. */
+type TouchType = 'touchStart' | 'touchEnd' | 'touchMove' | 'touchCancel'
+
+async function touch(
+  cdp: CDPSession,
+  type: TouchType,
+  points: { id: number; x: number; y: number }[],
+) {
   await cdp.send('Input.dispatchTouchEvent', {
     type,
     touchPoints: points.map((p) => ({ x: p.x, y: p.y, id: p.id, radiusX: 20, radiusY: 20 })),
