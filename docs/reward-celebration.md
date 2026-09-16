@@ -10,7 +10,8 @@ It is written to be implemented by a fresh session that has not seen the convers
 it. Everything needed is here or in the files it names. Where it says *must*, that is an
 acceptance criterion; where it says *suggested*, use judgement.
 
-**Status:** planned, not built.
+**Status:** built (PR *Beloningsscherm v2: viering na een ronde*). Deviations from what is
+written below are marked *(as built)* where they occur, and listed together in §13.
 
 ---
 
@@ -127,7 +128,9 @@ and no crash.
 | geoefend | 0–49 | **Geoefend** | `--orange` / `#FDEBD5` fill |
 | goed | 50–79 | **Goed** | `--teal` / `--teal-pill` |
 | super | 80–99 | **Super** | `--teal-shadow` / `--teal-pill` with a `--gold` border |
-| perfect | 100 | **Perfect!** | `--gold` / `#FFF1B8` |
+| perfect | 100 | **Perfect!** | `--gold` / `#FFF1B8` *(as built: `--gold` is the border and
+  `#FFF1B8` the fill, but the label and the number are `--gold-shadow` — `--gold` on white is
+  too thin to read at 11px caps)* |
 
 - The bar's inner fill animates `scaleX(0)` → `scaleX(pct/100)` over `BAR_FILL_MS` (800)
   with `cubic-bezier(.22,.9,.35,1)`. The number counts up in step with the fill (drive both
@@ -158,6 +161,11 @@ Selected from the *final* percentage (`pct`) and `reward.perfect`:
 | pct ≥ 80 | **Super gedaan!** | Bijna alles goed! |
 | pct ≥ 50 | **Goed gedaan!** | Je hebt lekker geoefend. |
 | pct < 50 | **Lekker geoefend!** | Oefenen helpt. Volgende keer weer! |
+
+*(as built)* The headline keeps v1's personalisation, so the first three rows read
+**Perfect, Lexie!** / **Super gedaan, Lexie!** / **Goed gedaan, Lexie!** where she gave a
+name, and exactly as tabled where she did not. The floor line stays impersonal on purpose:
+her name on the weakest result would sting rather than warm.
 
 Never a failure message; `Lekker geoefend!` is the floor. The existing test asserts the h1
 does **not** contain "Perfect" for an all-wrong round — that holds.
@@ -226,9 +234,11 @@ gem ticks that were already running.
 - `app/src/screens/RewardScreen.tsx` — rewrite. Keep the `DisplayReward` export and the
   `{ reward, onDone }` props; `GameScreen` keeps calling it the same way.
 - `app/src/screens/rewardTimeline.ts` — **new**, pure: the beat constants, a
-  `tierFor(pct)` function, the headline/subline table, and the confetti sizing formula. Unit
-  test this file (`tests/unit/rewardTimeline.test.ts`) — tiers at the boundaries (49/50,
-  79/80, 99/100), headline per tier, `total === 0`.
+  `tierFor(pct)` function, the headline/subline table, the confetti sizing formula and the
+  bar's easing. Unit test this file — tiers at the boundaries (49/50, 79/80, 99/100),
+  headline per tier, `total === 0`. *(as built: `app/src/screens/rewardTimeline.test.ts`,
+  not `tests/unit/` — `vitest.config.ts` includes `src/**/*.test.ts` only, and every other
+  unit test in the app sits beside the file it tests.)*
 - `app/src/screens/useCelebration.ts` — **new** hook: owns the timers, exposes
   `{ beat, progress, skip }`. `progress` is the eased 0–1 fill progress driven by rAF during
   the card beat. `skip()` sets `beat = 'done'` and `progress = 1` and clears everything.
@@ -237,6 +247,12 @@ gem ticks that were already running.
 - `app/src/theme.css` — replace the `/* ---------- reward ---------- */` block. New
   keyframes: `heroIn`, `heroWobble`, `streakIn`, `streakOut`, `settleFrida`, `settleTitle`,
   `cardIn`, `sparkle`, `fridaFloat`, `riseIn`; reduced-motion overrides for all.
+  *(as built: `cardIn` is `rewardCardIn` — `@keyframes cardIn` is already Flitsen's
+  `.flash-card` entrance and a second definition would have replaced it. `fridaFloat`
+  already exists for the welkom-flow and is reused as it stands, at ±4px rather than ±6px.
+  Four more were needed: `heroTitleIn` for the headline's own hero entrance, `heroInQuiet`
+  for §5's gentle pop-in below 50%, `stripIn` for the strip, chips and subline, and
+  `tierBump` for the label bump §4 asks for.)*
 - `app/src/screens/GameScreen.tsx` — remove the `confetti` import and call; leave fanfare and
   haptics.
 
@@ -250,6 +266,8 @@ export const BEATS = {
   barDelay: 150,
   barFillMs: 800,
   stripAt: 3700,
+  // (as built) — see §13
+  doneAt: 4300,
 } as const
 ```
 
@@ -338,3 +356,88 @@ Unit: `rewardTimeline.test.ts` as in §8.
   different `expression`; nothing else changes.
 - Recorded sound assets.
 - Showing time or XP as their own cards.
+
+---
+
+## 13. As built: every deviation, and why
+
+Naming and structure:
+
+1. **`cardIn` is `rewardCardIn`.** `@keyframes cardIn` already exists in `theme.css` as
+   Flitsen's `.flash-card` entrance. Keyframe names are global, so a second definition would
+   have silently replaced it and changed a game this plan does not touch.
+2. **`fridaFloat` is reused, not redefined** — it already exists for the welkom-flow, at ±4px
+   rather than the ±6px above. Same reason: redefining the name would have changed that
+   screen too, and 2px is not worth it.
+3. **Four keyframes beyond the list in §8**: `heroTitleIn` (the headline's own entrance into
+   the hero, which §2 describes but §8's list omits), `heroInQuiet` (§5's "gentle pop-in
+   instead of the burst" below 50%), `stripIn` (the strip, the chips and the subline fading
+   in) and `tierBump` (the `scale(1.25)→1` label bump §4 asks for). All four have
+   reduced-motion coverage.
+4. **The unit test is `src/screens/rewardTimeline.test.ts`**, not `tests/unit/`.
+   `vitest.config.ts` includes `src/**/*.test.ts` only, and all eleven existing unit test
+   files sit beside the file they test.
+5. **A new e2e fixture, `tests/e2e/fixtures/round.ts`** — `finishRound(page, correct)` as §9
+   suggests, plus the beat recorder, the WebAudio spy and the running-animation reader the
+   tests need.
+
+Behaviour:
+
+6. **`BEATS.doneAt` (4300) was added.** §2 puts beat 5 at "when the strip has finished"; what
+   has to be finished is the strip *arriving*, not the gem count-up — §6 explicitly allows
+   those ticks to run on into `done`, and waiting for them would hold Verder back by up to
+   1.6s on exactly the rounds she did best on.
+7. **The headline keeps v1's player name** (§5, marked in place).
+8. **The h1 stays `--orange` in the final state**, gold only during the hero, as §3's layout
+   drawing says. §4's "final tier colours also drive the headline's accent" was not taken any
+   further than that: the tier colour drives the card, and a headline that changed colour
+   with it fought the card for the same beat.
+9. **`DisplayReward` gained an optional `answers`.** §4 wants `total = answers.length` for
+   klank games and the screen had no denominator otherwise; `GameScreen` passes what it
+   already holds. `DisplayReward` and the `{ reward, onDone }` props are otherwise unchanged.
+10. **The klanken-per-minuut line is `.reward-score`, not a third `.reward-line`.** The
+    existing tests read the *first* `.reward-line` as the gems line, and in v1 the score line
+    came before it for Tijdrit — an ordering bug waiting for the first Tijdrit test.
+11. **`cardPop` fires as the card starts its pop**, not at the visual landing 420ms later.
+    Leading the visual by a fraction is what a pop sounds like; trailing it is a rattle.
+12. **The sparkles stop at the strip beat** rather than twinkling on into `done`. §2 beat 5
+    and §9.5 both require `fridaFloat` to be the only thing still running at the end, and a
+    gate that is checkable is worth more than four more twinkles.
+13. **The `NIEUW RECORD!` banner keeps its infinite `pulse`** — that is v1 behaviour §5 says
+    to keep, so a Tijdrit record round does have a second infinite animation in the final
+    state. Flagged rather than changed silently; no test covers it, because no Tijdrit test
+    reaches a record.
+
+Layout:
+
+14. **The root is `overflow: hidden` through the hero, `overflow-y: auto` from the strip
+    beat.** §2's clipping gate and §3's "with more chips the screen may scroll" cannot both
+    hold of the same rule. The thing that needs clipping is the 2.2× hero, and it is long
+    over by the time the chips are on screen.
+15. **A `@media (max-height: 700px)` block tightens the rhythm.** Measured at 375×667 with
+    four chips, the comfortable spacing ran 47px over and pushed Verder off the screen. Short
+    screens get `gap: 10px`, less padding, a 34px number and smaller chips; Frida stays
+    180px, because she is the thing worth the space.
+
+Elsewhere in the app:
+
+16. **`prefersReducedMotion` moved to `app/src/motion.ts`** (§7's suggestion). `HardopLezen`
+    and `OnboardingScreen` import it instead of each keeping a copy.
+17. **`GameScreen` also stopped passing its confetti sizing**, which moved to
+    `rewardTimeline.confettiCount` with the call. The fanfare and the haptics stayed.
+
+Verification:
+
+18. **WebKit could not be run locally.** This machine is missing the system libraries
+    Playwright's WebKit needs (`libicu74`, `libxml2`, `libflite1`) and installing them needs
+    root. Desktop Chromium was run in full and is green; the ipad and iphone profiles are
+    covered by CI only.
+19. **The ten cases in §9 are covered by seven tests**, not ten. Every one of them pays for a
+    full ten-card round to reach the screen, so they carry as much as they honestly can each
+    — the skip case and the Verder case share a round, and §9.10's iPhone SE test also does
+    the horizontal-overflow poll §10 asks for. §9.9 needed no new test: it is
+    `quit-mid-animation.spec.ts`, which passes unchanged.
+20. **The three new synths were checked by spy count only, not by ear.** There is no audio
+    device here. `whoosh` deliberately does not show up in an oscillator count at all — it is
+    noise through a buffer source — so what the count proves is `cardPop` and the `tierUp`
+    chimes. Worth one listen on a real device.

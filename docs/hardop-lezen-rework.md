@@ -401,6 +401,12 @@ perfect round     +3
 - "Verder" button as today. Confetti volume scales with correct count (`particleCount:
   40 + 18 * correct`).
 
+*(superseded)* That reward screen is now the first beat of a longer one: a hero moment, a
+settle, a stat card whose bar fills to the percentage, then the gems and the chips — the same
+numbers, staged rather than listed, for every game. See
+[docs/reward-celebration.md](reward-celebration.md); the confetti and its sizing formula moved
+there with it.
+
 ---
 
 ## 8. Word recordings
