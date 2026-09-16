@@ -1836,7 +1836,9 @@ button:disabled { cursor: default; }
 .studio-checklist ul { margin: 6px 0; padding-left: 20px; }
 .studio-checklist li { margin: 2px 0; }
 
-.studio-progress {
+/* `.studio-next pre` also matches this element and is more specific, which left the
+   splitter's output as pale grey on pale tan — legible in the stylesheet and not on screen */
+.studio-next pre.studio-progress, .studio-progress {
   background: #1e1e1e; color: #d6d6d6; padding: 10px 12px; border-radius: 8px;
   font-size: 12.5px; line-height: 1.5; max-height: 220px; overflow: auto; white-space: pre-wrap;
 }
@@ -1945,21 +1947,25 @@ button:disabled { cursor: default; }
 .review-state { font-size: 14px; }
 .review-row[data-state='goed'] { background: rgba(76, 175, 80, 0.10); }
 .review-row[data-state='afgekeurd'] { background: rgba(229, 57, 53, 0.10); }
+/* Flex-wrap rather than a grid with fixed columns.
+   The app shell is 480px wide on every screen, so a `@media (max-width:)` here would be
+   asking the *viewport* about a container that is narrow regardless — which is how the
+   verdict buttons ended up rendered outside the card on a 1180px window. Wrapping needs to
+   know nothing about either. */
 .review-row {
-  display: grid; align-items: center; gap: 10px;
-  grid-template-columns: auto auto minmax(6em, 1.4fr) 9em 6em 5em auto 1fr;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
   padding: 6px 8px; border-bottom: 1px solid var(--hairline);
   font-variant-numeric: tabular-nums;
 }
+.review-row .review-id { flex: 1 1 5em; min-width: 5em; }
+.review-meta { display: flex; gap: 10px; align-items: baseline; margin-left: auto; }
 .review-row-flagged { background: #fff4f4; }
 .review-play { background: none; border: 0; font-size: 18px; cursor: pointer; }
 .review-id { font-weight: 800; }
 .review-status, .review-dur, .review-peak, .review-heard { font-size: 13px; color: var(--muted); }
+.review-heard { flex-basis: 100%; }
 .review-row-flagged .review-status { color: #c0392b; font-weight: 700; }
-@media (max-width: 640px) {
-  .review-row { grid-template-columns: auto auto 1fr auto; }
-  .review-dur, .review-peak, .review-heard, .review-status { display: none; }
-}
+
 
 /* ---------- Bliksemsprint: 3-op-een-rij celebration ---------- */
 /* Prototype + tunable dials: art/avatar animation/frida-lightning-dash.html

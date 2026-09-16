@@ -163,21 +163,26 @@ export function TakeReview({ report, labels, store, probes, onVerdict, onRetake 
                 {labels?.[clip.id] ?? clip.id}
                 {labels?.[clip.id] && <span className="review-sub">{clip.id}</span>}
               </span>
-              <span className="review-status">{LABEL[clip.status] ?? clip.status}</span>
-              <span className="review-dur">{clip.durationMs === null ? '—' : `${clip.durationMs} ms`}</span>
-              <span className="review-peak">{clip.peakDbfs === null ? '' : `${clip.peakDbfs} dB`}</span>
+              <span className="review-meta">
+                <span className="review-status">{LABEL[clip.status] ?? clip.status}</span>
+                <span className="review-dur">{clip.durationMs === null ? '—' : `${clip.durationMs} ms`}</span>
+                <span className="review-peak">{clip.peakDbfs === null ? '' : `${clip.peakDbfs} dB`}</span>
+              </span>
               <span className="review-judge">
                 <span className="review-state" title={state}>{STATE_ICON[state]}</span>
+                {/* A verdict belongs to a file, so a row whose clip the studio cannot find
+                    has nothing to attach one to — the buttons say so rather than accepting a
+                    click and dropping it. */}
                 <button
                   className={`studio-judge${state === 'goed' ? ' studio-judge-on' : ''}`}
                   aria-label={`${clip.id} goedkeuren`}
-                  disabled={clip.file === null}
+                  disabled={state === 'ontbreekt'}
                   onClick={() => judge(clip.id, 'goed')}
                 >✓</button>
                 <button
                   className={`studio-judge${state === 'afgekeurd' ? ' studio-judge-on' : ''}`}
                   aria-label={`${clip.id} afkeuren`}
-                  disabled={clip.file === null}
+                  disabled={state === 'ontbreekt'}
                   onClick={() => judge(clip.id, 'afgekeurd')}
                 >✗</button>
               </span>
