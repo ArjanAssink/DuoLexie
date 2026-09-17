@@ -1,5 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import type { TakeKind } from './cueSheet'
+import { useMemo, useState } from 'react'
+import { folderFor, type TakeKind } from './cueSheet'
+import { useClipPlayer } from './clipPlayer'
+import {
+  MISSING, STATE_ICON, clipState, type ClipProbe, type Verdict, type VerdictStore,
+} from './verdicts'
 
 /** One row of `<take>.report.json`, as tools/split-take.mjs writes it (§4.1 step 7). */
 export interface ReportClip {
@@ -23,6 +27,11 @@ export interface SplitReport {
   warnings: string[]
   clips: ReportClip[]
   summary: { total: number; ok: number }
+  audio?: {
+    appliedGainDb?: number
+    gainSource?: 'measured' | 'reused'
+    gainFrom?: string | null
+  }
 }
 
 /** Flagged rows first, then the rest in the order they were recorded. */
@@ -37,124 +46,160 @@ const LABEL: Record<string, string> = {
   clipped: 'oversturing',
 }
 
-const GAP_MS = 400
+interface Props {
+  report: SplitReport
+  /** Weetjes cues are sentences; `slim-doe` is not what was said (§2.8) */
+  labels?: Record<string, string>
+  store: VerdictStore
+  probes: Record<string, ClipProbe>
+  onVerdict: (id: string, verdict: Verdict | null) => void
+  onRetake: (ids: string[]) => void
+}
 
 /**
- * The listening half of the loop (docs/recording-pipeline-v2.md §5): a three-minute take, a
- * ten-second split, a one-minute listen, and a twenty-second retake of whatever was wrong.
+ * The listening half of the loop (docs/recording-pipeline-v2.md §5, and §2.1 of the v3 spec).
  *
- * The report decides what to look at first, but it does not decide anything else. Every row
- * plays, including the ones it called `ok` — the tool can only hear levels and silence, and
- * "he said it oddly" is not a status it has.
+ * The report decides what to look at first, and nothing else. Every row plays, including the
+ * ones it called `ok`: the tool can hear levels and silence, and "he read it oddly" is not a
+ * status it has — which is exactly the kind of thing that sends a clip back.
+ *
+ * The verdict buttons here write the same store as the set grid's, so judging right after a
+ * split and judging a week later in the grid are the same act rather than two records of it.
  */
-export function TakeReview({ report, onRetake }: { report: SplitReport; onRetake: (ids: string[]) => void }) {
-  const [checked, setChecked] = useState<Set<string>>(new Set())
-  const [playing, setPlaying] = useState<string | null>(null)
-  const audio = useRef<HTMLAudioElement | null>(null)
-  const chain = useRef<number | null>(null)
-
-  const folder = report.kind === 'klanken' ? 'sounds' : 'words'
-  const rows = [...report.clips].sort((a, b) => SEVERITY.indexOf(a.status) - SEVERITY.indexOf(b.status))
-
-  useEffect(() => () => stop(), [])
-
-  function stop() {
-    if (chain.current !== null) clearTimeout(chain.current)
-    chain.current = null
-    audio.current?.pause()
-    audio.current = null
-    setPlaying(null)
-  }
+export function TakeReview({ report, labels, store, probes, onVerdict, onRetake }: Props) {
+  const folder = folderFor(report.kind)
+  const player = useClipPlayer(report.kind)
+  const rows = useMemo(
+    () => [...report.clips].sort((a, b) => SEVERITY.indexOf(a.status) - SEVERITY.indexOf(b.status)),
+    [report.clips],
+  )
+  const stateOf = (id: string) => clipState(store, folder, id, probes[id] ?? MISSING)
 
   /**
-   * Always a fresh <audio> with a cache-buster: a re-split writes over the same URL, and both
-   * the browser and the service worker will happily keep handing back the take before it.
+   * Rejected rows start ticked.
+   *
+   * ❌ already means "record this again" everywhere else — it is what makes the id count as
+   * missing — so making him tick it a second time to say the same thing is the sort of step
+   * that turns a two-minute loop into one he does once.
    */
-  function play(id: string, onEnded?: () => void) {
-    audio.current?.pause()
-    const el = new Audio(`/audio/${folder}/${id}.mp3?t=${report.generatedAt}`)
-    audio.current = el
-    setPlaying(id)
-    el.onended = () => {
-      setPlaying(null)
-      onEnded?.()
-    }
-    el.onerror = () => {
-      setPlaying(null)
-      onEnded?.()
-    }
-    void el.play().catch(() => setPlaying(null))
-  }
-
-  /** The fastest way to hear a level or quality outlier: all of them, in order, with a gap. */
-  function playAll(queue: ReportClip[]) {
-    const next = (rest: ReportClip[]) => {
-      const [head, ...tail] = rest
-      if (!head) return stop()
-      play(head.id, () => { chain.current = window.setTimeout(() => next(tail), GAP_MS) })
-    }
-    next(queue.filter((c) => c.file !== null))
-  }
-
-  function toggle(id: string) {
-    setChecked((s) => {
-      const next = new Set(s)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+  const rejected = rows.filter((r) => stateOf(r.id) === 'afgekeurd').map((r) => r.id)
+  const [checked, setChecked] = useState<Set<string> | null>(null)
+  const ticked = checked ?? new Set(rejected)
 
   const flagged = rows.filter((r) => r.status !== 'ok')
+  const playable = rows.filter((r) => r.file !== null).map((r) => r.id)
+
+  function toggle(id: string) {
+    const next = new Set(ticked)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    setChecked(next)
+  }
+
+  function judge(id: string, verdict: Verdict) {
+    onVerdict(id, stateOf(id) === verdict ? null : verdict)
+    if (player.playing === id) player.advance()
+  }
 
   return (
     <div className="review">
       <h2>Rapport — {report.summary.ok}/{report.summary.total} ok</h2>
       {report.warnings.map((w) => <p key={w} className="review-warning">⚠️ {w}</p>)}
+      {report.audio?.gainSource === 'reused' && (
+        <p className="review-note">
+          Niveau overgenomen van <code>{report.audio.gainFrom}</code>{' '}
+          ({report.audio.appliedGainDb! >= 0 ? '+' : ''}{report.audio.appliedGainDb} dB), zodat
+          deze clips op hetzelfde niveau staan als de rest van de set.
+        </p>
+      )}
+
       <p className="review-actions">
-        <button className="btn-primary" onClick={() => playAll(rows)}>▶️ Alles afluisteren</button>
-        {playing !== null && <button className="btn-bad" onClick={stop}>⏹ Stop</button>}
+        <button
+          className="btn-primary"
+          disabled={playable.length === 0}
+          onClick={() => player.walk(playable, (id) => probes[id]?.lastModified ?? report.generatedAt)}
+        >
+          ▶️ Alles afluisteren
+        </button>
+        {(player.playing !== null || player.walking) && (
+          <button className="btn-bad" onClick={player.stop}>⏹ Stop</button>
+        )}
         {flagged.length > 0 && (
           <button className="btn-primary" onClick={() => setChecked(new Set(flagged.map((r) => r.id)))}>
             Vink alle {flagged.length} gemarkeerde aan
           </button>
         )}
       </p>
+      {player.walking && (
+        <p className="clipgrid-hint"><b>G</b> = goed · <b>A</b> = afkeuren · <b>Esc</b> = stoppen.</p>
+      )}
 
       <ul className="review-list">
-        {rows.map((clip) => (
-          <li key={clip.id} className={`review-row${clip.status === 'ok' ? '' : ' review-row-flagged'}`}>
-            <input
-              type="checkbox"
-              aria-label={`${clip.id} opnieuw opnemen`}
-              checked={checked.has(clip.id)}
-              onChange={() => toggle(clip.id)}
-            />
-            <button
-              className="review-play"
-              disabled={clip.file === null}
-              aria-label={`${clip.id} afspelen`}
-              onClick={() => play(clip.id)}
+        {rows.map((clip) => {
+          const state = stateOf(clip.id)
+          return (
+            <li
+              key={clip.id}
+              className={`review-row${clip.status === 'ok' ? '' : ' review-row-flagged'}${
+                player.playing === clip.id ? ' review-row-playing' : ''
+              }`}
+              data-state={state}
             >
-              {playing === clip.id ? '⏸' : '▶️'}
-            </button>
-            <span className="review-id">{clip.id}</span>
-            <span className="review-status">{LABEL[clip.status] ?? clip.status}</span>
-            <span className="review-dur">{clip.durationMs === null ? '—' : `${clip.durationMs} ms`}</span>
-            <span className="review-peak">{clip.peakDbfs === null ? '' : `${clip.peakDbfs} dB`}</span>
-            {clip.transcript !== undefined && <span className="review-heard">gehoord: “{clip.transcript}”</span>}
-          </li>
-        ))}
+              <input
+                type="checkbox"
+                aria-label={`${clip.id} opnieuw opnemen`}
+                checked={ticked.has(clip.id)}
+                onChange={() => toggle(clip.id)}
+              />
+              <button
+                className="review-play"
+                disabled={clip.file === null}
+                aria-label={`${clip.id} afspelen`}
+                onClick={() => player.play(clip.id, probes[clip.id]?.lastModified ?? report.generatedAt)}
+              >
+                {player.playing === clip.id ? '🔊' : '▶️'}
+              </button>
+              <span className="review-id">
+                {labels?.[clip.id] ?? clip.id}
+                {labels?.[clip.id] && <span className="review-sub">{clip.id}</span>}
+              </span>
+              <span className="review-meta">
+                <span className="review-status">{LABEL[clip.status] ?? clip.status}</span>
+                <span className="review-dur">{clip.durationMs === null ? '—' : `${clip.durationMs} ms`}</span>
+                <span className="review-peak">{clip.peakDbfs === null ? '' : `${clip.peakDbfs} dB`}</span>
+              </span>
+              <span className="review-judge">
+                <span className="review-state" title={state}>{STATE_ICON[state]}</span>
+                {/* A verdict belongs to a file, so a row whose clip the studio cannot find
+                    has nothing to attach one to — the buttons say so rather than accepting a
+                    click and dropping it. */}
+                <button
+                  className={`studio-judge${state === 'goed' ? ' studio-judge-on' : ''}`}
+                  aria-label={`${clip.id} goedkeuren`}
+                  disabled={state === 'ontbreekt'}
+                  onClick={() => judge(clip.id, 'goed')}
+                >✓</button>
+                <button
+                  className={`studio-judge${state === 'afgekeurd' ? ' studio-judge-on' : ''}`}
+                  aria-label={`${clip.id} afkeuren`}
+                  disabled={state === 'ontbreekt'}
+                  onClick={() => judge(clip.id, 'afgekeurd')}
+                >✗</button>
+              </span>
+              {clip.transcript !== undefined && <span className="review-heard">gehoord: “{clip.transcript}”</span>}
+            </li>
+          )
+        })}
       </ul>
 
       <p className="review-actions">
         <button
           className="btn-primary"
-          disabled={checked.size === 0}
-          style={{ opacity: checked.size ? 1 : 0.4 }}
-          onClick={() => onRetake([...checked])}
+          disabled={ticked.size === 0}
+          style={{ opacity: ticked.size ? 1 : 0.4 }}
+          onClick={() => onRetake([...ticked])}
         >
-          🔴 Deze {checked.size || ''} opnieuw opnemen
+          🔴 Deze {ticked.size || ''} opnieuw opnemen
         </button>
       </p>
     </div>

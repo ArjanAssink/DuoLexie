@@ -7,6 +7,7 @@
  * says which burst is which word, so nothing here has to recognise speech.
  *
  *   node tools/split-take.mjs recordings/woorden-2026-09-14-1902.webm
+ *     [--latest]             use the newest take in recordings/ instead of naming one
  *     [--cues <file>]        cue sheet; defaults to the take's basename with .json
  *     [--out <dir>]          output directory; defaults to the one this kind belongs in
  *     [--ids kat,tas]        only write these
@@ -18,12 +19,12 @@
  *
  * Exits 0 when every id came out `ok`, 1 otherwise, so it can gate a commit.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import {
-  requireFfmpeg, durationMs, decodeToWav, measureLoudness, applyLoudnorm,
+  requireFfmpeg, durationMs, decodeToWav, measureLoudness, applyLoudnorm, applyGainDb,
   noiseFloorDbfs, silenceThresholdDb, detectSilences, burstsFromSilences,
   estimateHz, peakDbfs, cutToMp3,
 } from './lib/audio.mjs'
@@ -78,6 +79,23 @@ const PROFILES = {
 
 /** Shorter gaps are inside words — the stop closure before the t in "kat" is about 80ms. */
 const MIN_SILENCE_MS = 350
+
+/** What `loudnorm` is asked to hit, and therefore what `appliedGainDb` is measured against. */
+const TARGET_LUFS = -16
+
+/**
+ * Below this, a take does not get to decide its own level (docs/recording-studio-v3.md §2.6).
+ *
+ * The spec says "shorter than 30 s of speech". Speech is about a quarter of a reading take —
+ * twenty words at a 2.5s pace is fifty seconds of take and maybe twelve of voice — so read
+ * literally that would send every take down the reuse path, including the first one, which
+ * has nothing to reuse. Thirty seconds of *take* is the line that actually separates the two
+ * cases it is about: a three-word retake is twelve seconds and must not be re-measured, a
+ * twenty-word set is fifty and must be. It is also roughly where EBU R128's integrated
+ * measurement stops having enough gated content to be worth trusting, which is the reason
+ * any of this exists.
+ */
+const SHORT_TAKE_MS = 30_000
 const TOO_SHORT_MS = 120
 const CLIPPED_DBTP = -0.5
 const DEFAULT_BEEP_MS = 120
@@ -87,8 +105,23 @@ const STATUS_RANK = ['missing', 'too-short', 'clipped', 'boundary', 'multiple', 
 const worstOf = (...statuses) =>
   STATUS_RANK[Math.min(...statuses.filter(Boolean).map((s) => STATUS_RANK.indexOf(s)))]
 
+/** The take recorded most recently — what `npm run take:split` means by "the one I just did". */
+function newestTake() {
+  const dir = join(REPO, 'recordings')
+  let newest = null
+  let newestAt = -1
+  for (const entry of existsSync(dir) ? readdirSync(dir) : []) {
+    if (!entry.endsWith('.webm')) continue
+    const at = statSync(join(dir, entry)).mtimeMs
+    if (at > newestAt) { newest = join(dir, entry); newestAt = at }
+  }
+  if (!newest) throw new Error('No .webm takes in recordings/ — record one at /#/opnemen first.')
+  process.stderr.write(`Newest take: ${basename(newest)}\n`)
+  return newest
+}
+
 function parseArgs(argv) {
-  const opts = { take: null, cues: null, out: null, ids: null, list: null, dryRun: false, verify: false, whisperBin: null, whisperModel: null }
+  const opts = { take: null, latest: false, cues: null, out: null, ids: null, list: null, dryRun: false, verify: false, whisperBin: null, whisperModel: null }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     const next = () => {
@@ -100,6 +133,7 @@ function parseArgs(argv) {
     else if (arg === '--out') opts.out = next()
     else if (arg === '--ids') opts.ids = next().split(',').map((s) => s.trim()).filter(Boolean)
     else if (arg === '--list') opts.list = next()
+    else if (arg === '--latest') opts.latest = true
     else if (arg === '--dry-run') opts.dryRun = true
     else if (arg === '--verify') opts.verify = true
     else if (arg === '--whisper-bin') opts.whisperBin = next()
@@ -108,7 +142,8 @@ function parseArgs(argv) {
     else if (opts.take === null) opts.take = arg
     else throw new Error(`Unexpected extra argument ${arg}`)
   }
-  if (!opts.take) throw new Error('Usage: node tools/split-take.mjs <take.webm> [options]')
+  if (opts.latest && !opts.take) opts.take = newestTake()
+  if (!opts.take) throw new Error('Usage: node tools/split-take.mjs <take.webm> [options]   (or --latest)')
   return opts
 }
 
@@ -138,6 +173,86 @@ function resolveIds(list) {
   const path = resolve(list)
   if (!existsSync(path)) throw new Error(`--list ${list}: not a known list and not a file`)
   return readFileSync(path, 'utf8').split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
+}
+
+/**
+ * The gain a retake should inherit, and the take it comes from (§2.6).
+ *
+ * `retakeOf` is the exact answer and is what the studio writes when *Deze opnieuw opnemen*
+ * starts a take. A short take without one — a handful of words recorded straight from the
+ * setup screen — has no named parent, so the newest report of the same kind in the same
+ * folder stands in: it is the level the rest of that set is already sitting at on disk, which
+ * is the thing a new clip has to match. Returns null when there is nothing to inherit, and
+ * the caller measures with a warning.
+ */
+function findReferenceGain(dir, retakeOf, kind, selfBase) {
+  const read = (base) => {
+    try {
+      const report = JSON.parse(readFileSync(join(dir, `${base}.report.json`), 'utf8'))
+      const gainDb = report?.audio?.appliedGainDb
+      if (typeof gainDb !== 'number' || !Number.isFinite(gainDb)) return null
+      return { basename: base, gainDb, kind: report.kind, generatedAt: report.generatedAt ?? '' }
+    } catch {
+      return null
+    }
+  }
+  if (retakeOf) return read(retakeOf)
+
+  let newest = null
+  for (const entry of readdirSync(dir)) {
+    if (!entry.endsWith('.report.json')) continue
+    const base = entry.slice(0, -'.report.json'.length)
+    if (base === selfBase) continue
+    const found = read(base)
+    if (!found || found.kind !== kind) continue
+    if (!newest || found.generatedAt > newest.generatedAt) newest = found
+  }
+  return newest
+}
+
+/**
+ * How much this take gets lifted, and on whose authority (§2.6).
+ *
+ * A full take measures itself, as it always has. A retake — or anything too short to measure
+ * honestly — is moved by exactly the number its parent was moved by instead, because the
+ * point of a retake is to produce a clip that sits among clips that already exist, and a
+ * measurement taken over three words cannot know where those are.
+ *
+ * The input loudness is measured either way. It costs one pass over a file that is short by
+ * definition in the case where it is not used for anything, and it is what a later session
+ * needs in the report to see that the microphone moved.
+ */
+function chooseNormalisation(rawWav, { sheet, takeDir, takeBase, rawMs, kind, warnings }) {
+  const measured = measureLoudness(rawWav)
+  const measuredGainDb = Number((TARGET_LUFS - Number(measured.input_i)).toFixed(2))
+  const short = rawMs < SHORT_TAKE_MS
+  if (!sheet?.retakeOf && !short) {
+    return { mode: 'measured', measured, appliedGainDb: measuredGainDb, reference: null }
+  }
+
+  const reference = findReferenceGain(takeDir, sheet?.retakeOf ?? null, kind, takeBase)
+  if (reference) {
+    return { mode: 'reused', measured, appliedGainDb: reference.gainDb, reference: reference.basename }
+  }
+
+  // A named parent that has gone missing is worth a warning: these clips are replacing ones
+  // that are already on disk at a level nothing here can see any more, and a mismatch will
+  // only turn up by ear, mid-round, weeks later.
+  if (sheet?.retakeOf) {
+    warnings.push(
+      `This take says it re-records ${sheet.retakeOf}, whose report is gone — measuring on its own instead, ` +
+      'so these clips may not sit at the level of the ones they replace.',
+    )
+  } else {
+    // A short take with nothing before it is the first take of a set. There is no level to
+    // match and measuring is the only thing available, so this is a note, not a fault — a
+    // warning here would make the very first session exit non-zero for doing the only
+    // possible thing.
+    process.stderr.write(
+      `Only ${(rawMs / 1000).toFixed(0)}s of take and no earlier report of this kind — measuring it on its own.\n`,
+    )
+  }
+  return { mode: 'measured', measured, appliedGainDb: measuredGainDb, reference: null }
 }
 
 function readCueSheet(path) {
@@ -216,9 +331,22 @@ function main() {
     const rawWav = decodeToWav(takePath, join(work, 'take.wav'))
 
     // §4.1 step 2 — normalise the whole take once, before anything is cut out of it
-    process.stderr.write('Normalising the whole take (two-pass loudnorm)…\n')
-    const measured = measureLoudness(rawWav)
-    const normWav = applyLoudnorm(rawWav, join(work, 'norm.wav'), measured)
+    const rawMs = durationMs(rawWav)
+    const gain = chooseNormalisation(rawWav, {
+      sheet, takeDir: dirname(takePath), takeBase: basename(takeBase), rawMs, kind, warnings,
+    })
+    const normWav = join(work, 'norm.wav')
+    if (gain.mode === 'reused') {
+      process.stderr.write(`Reusing ${gain.reference}'s level: ${gain.appliedGainDb >= 0 ? '+' : ''}${gain.appliedGainDb} dB…\n`)
+      applyGainDb(rawWav, normWav, gain.appliedGainDb)
+      const peak = peakDbfs(normWav, 0, rawMs)
+      if (peak !== null && peak > -1) {
+        warnings.push(`Reusing that level puts this take's peak at ${peak.toFixed(1)} dBTP — louder than the -1.5 the pipeline aims for. Check the loud words by ear.`)
+      }
+    } else {
+      process.stderr.write('Normalising the whole take (two-pass loudnorm)…\n')
+      applyLoudnorm(rawWav, normWav, gain.measured)
+    }
     const totalMs = durationMs(normWav)
 
     // §4.1 step 3 — a threshold this take's own noise floor earns
@@ -328,7 +456,12 @@ function main() {
         noiseFloorDbfs: floor === null ? null : Number(floor.toFixed(1)),
         silenceThresholdDb: Number(threshold.toFixed(1)),
         burstCount: bursts.length,
-        inputLufs: Number(measured.input_i),
+        inputLufs: Number(gain.measured.input_i),
+        // What a retake of this take will be moved by, so it lands where these clips did
+        appliedGainDb: gain.appliedGainDb,
+        gainSource: gain.mode,
+        gainFrom: gain.reference,
+        retakeOf: sheet?.retakeOf ?? null,
         beepsFound: alignment.beepsFound,
         alignmentOffsetMs: Math.round(alignment.offsetMs),
       },
@@ -363,7 +496,7 @@ function printSummary(report, reportPath, dryRun) {
   process.stdout.write(flagged.length ? `, ${flagged.length} to listen to.\n` : '.\n')
   for (const w of report.warnings) process.stdout.write(`⚠️  ${w}\n`)
   if (dryRun) process.stdout.write('\nDry run: nothing was written.\n')
-  else process.stdout.write(`\nWrote ${report.out}/ and ${reportPath}\nOpen /#/opnemen to listen to the flagged rows; restart the dev server so Vite picks up the new mp3s.\n`)
+  else process.stdout.write(`\nWrote ${report.out}/ and ${reportPath}\nOpen /#/opnemen to listen to the clips and judge them. A running dev server picks the new mp3s up on its own.\n`)
 }
 
 try {

@@ -5,7 +5,9 @@ continuous take plus an automatic splitter. Written for a fresh session to imple
 having seen the conversation behind it. *Must* marks an acceptance criterion; *suggested* is
 open to judgement.
 
-**Status:** specified, not built.
+**Status:** built. Extended by [recording-studio-v3.md](recording-studio-v3.md), which adds
+judging clips, metering before and during a take, and a dev-server API that takes the
+terminal out of the record → cut → listen loop. Nothing there removes anything here.
 
 ---
 

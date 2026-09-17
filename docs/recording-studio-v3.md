@@ -14,7 +14,9 @@ acceptance criterion; where it says *suggested*, use judgement. The three tiers 
 build order; **Tier 1 and Tier 2 ship together in one PR**, Tier 3 is a second PR after Arjan
 has heard real output.
 
-**Status:** planned, not built.
+**Status:** Tier 1 and Tier 2 **built** (Claude Opus 5, 1M context). Tier 3 planned, not built —
+a second PR once Arjan has heard real output. Deviations are marked *(as built)* where they
+occur.
 
 ### Sequencing, and the two seams this change must leave
 
@@ -37,6 +39,15 @@ Two consequences for this change:
   - **`clipSrc(kind, id)`** — the one place a clip URL is built. The §2.1 verdict grid,
     `TakeReview` and the games all go through it; nothing constructs
     `/audio/${folder}/${id}.mp3` inline.
+
+*(as built)* Both seams are in `app/src/audio/recorded.ts`, which also owns the single
+`kind → folder` mapping that `cueSheet.ts` re-exports — a second copy of that mapping is what
+made a Weetjes report play from `/audio/words/` and hear nothing (§2.8). `clipSrc` takes a
+third argument, the cache-buster, because the two callers need different ones: the build stamp
+for the games, where a clip changes only on a deploy, and the file's own `Last-Modified` for
+the studio, where a retake overwrites the same URL mid-session. The studio's `HEAD` probe goes
+through it too — it is the one clip URL that is not playback, and so the one that would
+otherwise have been left behind.
 
 ---
 
@@ -79,12 +90,26 @@ dislikes stays until he remembers to retake it. The grid becomes the place where
 - **A verdict belongs to a file, not an id.** Store the clip's `Last-Modified` with the
   verdict; when the probe sees a newer file (a retake landed), the verdict resets to
   `onbeoordeeld`. Otherwise a retake would inherit the `❌`.
+  *(as built)* Compared for **inequality**, not for "newer": a clip restored by hand out of
+  `recordings/afgekeurd/` carries an older timestamp and is still not the recording that was
+  judged. When the server sends no `Last-Modified` the verdict is kept rather than reset —
+  losing one is a nuisance, inheriting one across a retake is a wrong answer that hides
+  itself — and a verdict is not stored at all against a file whose timestamp is unknown,
+  since nothing could ever invalidate it.
+  *(as built)* A `❌` survives the file disappearing, because with Tier 2 rejecting *moves*
+  the mp3 out of `public/`. `❌` and `⬜` both mean "record this", but they are not the same
+  fact and one of them says somebody listened. A `✅` about a file that has vanished is
+  dropped.
 - **Storage:** `localStorage['duolexie-studio-verdicts']` as `{ [folder/id]: { verdict,
   lastModified } }` in Tier 1; Tier 2 moves it to `recordings/verdicts.json` through the dev
   middleware so it survives browsers and is visible to the tools (§3.3). Migrate silently
   on first load when the middleware is there.
 - **Counts in the set buttons** become `goed / totaal` (e.g. *Woorden, startset (12 goed van
   20)*), and the header shows `⬜ n · 🎧 n · ✅ n · ❌ n` for the current set.
+  *(as built)* `goed` counts `✅` only, not "has a file". The 45 klanken on disk are the old
+  clacky batch and none of them has been approved, so *Klanken (0 goed van 45)* is exactly
+  what that set's state is. All four sets are probed on load so every button can say where it
+  stands without being clicked; the counts fill in over a second or two.
 - **Same verdict controls in `TakeReview`** (the per-take report): its rows get ✓/✗ too and
   write the same store, so judging right after a split and judging later in the grid are the
   same act. The report's *"Deze opnieuw opnemen"* pre-checks every `❌`.
@@ -99,6 +124,13 @@ teleprompter, small and out of the way of the word:
 - a **clip counter** (`> -0.5 dBFS` for ≥ 2 consecutive frames), red, with the id it happened
   on — those ids are **auto-flagged for retake** in the cue sheet (`retake: true`), exactly as
   if Space had been pressed;
+  *(as built)* counted and flagged **once per word**. Once per frame races to hundreds on a
+  microphone set too hot; once per take is worse, because a continuously clipping input never
+  lets the frame counter fall back, so the only clip ever reported is the one during the
+  countdown — before any word is on screen — and the counter never names a word at all.
+  Auto-flagging is bounded the same way: that microphone clips the retakes too, and a queue
+  that re-flags what it re-prompts is a take that never ends, where a person pressing Space
+  eventually stops;
 - a **"geen signaal"** warning when the peak stays below -55 dBFS for 5 s while prompting.
 
 ### 2.3 Target zone and verdict on the setup meter
@@ -129,6 +161,20 @@ until the next take.
 rumble, desk thumps and the hum fundamental; speech loses nothing audible. One flag; add a
 unit test that a synthetic 50 Hz tone comes out ≥ 20 dB down and a 300 Hz tone within 1 dB.
 
+*(as built)* **The filter is as specified; the 20 dB figure is not reachable with it and the
+test asserts the curve it really has.** ffmpeg's `highpass` caps at two poles, and 50 Hz is
+less than half an octave below a 70 Hz corner. Measured, sine in / sine out:
+
+| 20 Hz | 30 Hz | 40 Hz | 50 Hz | 70 Hz | 100 Hz | 150 Hz | 300 Hz |
+|---|---|---|---|---|---|---|---|
+| −21.8 dB | −14.8 dB | −10.1 dB | −6.8 dB | −3.0 dB | −0.9 dB | −0.2 dB | −0.0 dB |
+
+So 20 dB of attenuation lands at 20 Hz, where the rumble is, rather than at 50. Cascading to
+reach 20 dB at 50 Hz would cost about 3 dB at 100 Hz, which is a voice's own fundamental and
+the one thing a filter here must not touch. The test asserts ≥ 20 dB at 20 Hz, ≥ 5 dB at
+50 Hz, and within 1 dB at 150, 300 and 1000. The real answer to hum is §2.4: notice it before
+the take.
+
 ### 2.6 Retake loudness
 
 `split-take` normalises **each take** to -16 LUFS. A retake take of three words is exactly
@@ -141,6 +187,19 @@ words measured alone land at a different level than the twenty they must sit amo
   studio when *Deze opnieuw opnemen* started it) **or** shorter than 30 s of speech, apply
   the **gain of the take it retakes** (read from that take's report) instead of measuring.
   Fall back to measuring, with a warning, when the original report is gone.
+  *(as built)* Three readings of that sentence had to be pinned down.
+  **"30 s of speech" is read as 30 s of take.** Speech is about a quarter of a reading take —
+  twenty words at 2.5 s is fifty seconds of take and maybe twelve of voice — so taken
+  literally every take including the first would go down the reuse path, and the first has
+  nothing to reuse. Thirty seconds of take is where a three-word retake and a twenty-word set
+  actually separate, and roughly where EBU R128 stops having enough gated content to trust.
+  **A short take with no `retakeOf` falls back to the newest report of the same kind in the
+  same folder**, because that is the level the rest of the set is already sitting at on disk;
+  without this rule the "or shorter than 30 s" half of the sentence has nothing to reuse.
+  **Only a *named* parent going missing warns.** A short take with nothing before it is the
+  first take of a set: measuring is the only thing available, and a warning — which makes the
+  exit code 1 — would have the first session of every set failing for doing the only possible
+  thing.
 - Tier 3's calibration sentence (§4.3) makes this robust across sessions; this is the
   minimum that keeps a same-evening retake at the same level.
 
@@ -182,6 +241,15 @@ collapses it.
 
 Paths are validated: basenames only, no `..`, folder must be one of the three known ones.
 
+*(as built)* An allowlist — `^[A-Za-z0-9][A-Za-z0-9._-]*$`, then an explicit `..` rejection on
+top — rather than a search for `..`: a denylist has to anticipate `..`, `%2e%2e`, a leading
+slash, a Windows drive letter, a NUL and a backslash, and it only takes one being missed. This
+server listens on the network whenever `vite --host` is used to try a clip on the iPad.
+*(as built)* Multipart is parsed by Node's own `Request.formData()` (undici), so there is no
+dependency and no hand-rolled boundary splitting over binary data.
+*(as built)* Anything else under `/__studio` answers 404 JSON rather than falling through to
+the SPA, which would hand back `index.html` with a 200 for a request that expects JSON.
+
 ### 3.2 No more restart
 
 `__RECORDED_WORDS__` is read once at Vite start. Make the plugin serve a **virtual module**
@@ -190,11 +258,22 @@ via `server.watcher` on `app/public/audio/**`, so a clip written by the splitter
 the next round without a restart. `words.ts hasWordRecording` and the weetjes probe import
 it; production builds keep getting a static list at build time as they do today.
 
+*(as built)* The module exports `Set`s that the plugin **refills in place** over a custom HMR
+event, as well as invalidating the module. Invalidation alone only helps the *next* page load;
+the event reaches the page that is open now with no module re-execution, no HMR boundary to
+arrange and — the thing that matters mid-session — no reload, because what is on screen at
+that moment is the report for the take just recorded. `server.watcher.add` is given a plain
+directory: chokidar 4 dropped glob support, so a `/**` suffix would name a directory that does
+not exist.
+
 ### 3.3 The studio uses it
 
 - After a take: **one button, "Knip en beluister"** — upload if needed, split, show the
   report with §2.1's verdict controls, no terminal. Progress lines from the splitter are
   shown as they arrive.
+  *(as built)* When the middleware is there, the folder picker is not offered at all — there
+  is nothing left to pick. Without it the screen is exactly what it was: pick a folder, copy
+  the command, *Rapport laden*.
 - **"Speel een proefronde met deze clips"** opens `/#/proberen` in a new tab.
 - **Takes list** on the setup screen (from `/__studio/takes`): re-open any report; *Knip
   opnieuw* for a take whose report is missing.
@@ -276,8 +355,16 @@ Unit / tool:
 4. `folderFor(kind)` covers all three kinds (§2.8).
 5. Plugin route validation: `..`, unknown folder, and absolute paths are refused (§3.1).
 
-E2E (`tests/e2e/studio.spec.ts`, extending the existing three studio tests; Chromium, with
-the fake microphone the current tests use):
+E2E (extending the existing three studio tests; Chromium, with the fake microphone the current
+tests use):
+
+*(as built)* Split across four spec files rather than one, because Playwright only accepts
+`launchOptions` at the top level of a file and each meter test needs a different microphone:
+`recording-studio.spec.ts` (a calm tone — Chromium's default fake device clips on every word,
+which the new counter is right to flag and which would make a cue-sheet test measure the
+meter), `studio-clipping.spec.ts` (hot), `studio-silence.spec.ts` (silent) and
+`studio-hum.spec.ts` (50 Hz). Playback is spied rather than heard: what the tests assert is
+which URL was requested, in what order, and what the screen did about it.
 
 6. Grid: a cell with a clip plays it (media `play` spy on the URL), highlights, stops when
    another is tapped; `Alles afspelen` visits every recorded id in order.

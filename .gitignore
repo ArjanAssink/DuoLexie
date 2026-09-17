@@ -23,3 +23,4 @@ recordings/clips/
 # ever gets the mp3s split out of them
 recordings/*
 !recordings/README.md
+app/tests/e2e/fixtures/generated/

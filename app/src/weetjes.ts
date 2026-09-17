@@ -1,5 +1,6 @@
 import weetjesJson from '@shared/curriculum/weetjes.json'
 import type { Weetje, WeetjeCurriculum } from '@shared/src/types'
+import { hasRecording } from './audio/recorded'
 
 /** Every card in the file, including the ones that are not cleared to be shown. */
 export const allWeetjes: Weetje[] = (weetjesJson as WeetjeCurriculum).weetjes
@@ -91,12 +92,11 @@ export function narrationLines(weetje: Weetje, part: WeetjePart): string[] {
 }
 
 /**
- * Clip ids with a recorded take in public/audio/weetjes/, as of this build (vite.config.ts).
- * The studio uses it to show what still needs recording; playback probes the URL anyway, so
- * a clip that lands after Vite started still plays without a restart.
+ * Clip ids with a recorded take in public/audio/weetjes/, via `audio/recorded.ts`. The
+ * studio uses it to show what still needs recording; playback probes the URL anyway, so a
+ * clip that lands mid-session plays either way — but the studio's own grid would have gone on
+ * showing it as missing until Vite restarted, which it no longer does (§3.2).
  */
-const recorded = new Set<string>(__RECORDED_WEETJES__)
-
 export function hasWeetjeRecording(id: string, part: WeetjePart): boolean {
-  return recorded.has(`${id}-${part}`)
+  return hasRecording('weetjes', `${id}-${part}`)
 }

@@ -12,12 +12,25 @@
  * not; `pauses` is what lets the splitter put the two clocks back together.
  */
 
+import type { ClipKind } from '../audio/recorded'
+
 /**
  * Which set a take reads. `weetjes` cues are whole sentences rather than single words
  * (docs/weetjes.md §7, docs/recording-pipeline-v2.md) — the id is `<card>-fact|doe|reveal`
  * and the teleprompter shows the sentence behind it, not the id.
  */
-export type TakeKind = 'klanken' | 'woorden' | 'weetjes'
+/**
+ * A take records one kind of clip, and the kinds are the app's kinds.
+ *
+ * Defined in `audio/recorded.ts` and re-exported here, not declared twice: that module is the
+ * seam docs/recording-studio-v3.md asks this change to leave for `docs/private-audio.md`,
+ * which moves every clip out of `public/` and behind the API. A second copy of "which folder
+ * does this kind live in" is exactly what made a Weetjes report play from `/audio/words/`
+ * and hear nothing (§2.8).
+ */
+export type { AudioFolder } from '../audio/recorded'
+export { folderFor } from '../audio/recorded'
+export type TakeKind = ClipKind
 
 export interface Cue {
   id: string
@@ -56,6 +69,14 @@ export interface CueSheet {
   beeps: BeepPlan
   cues: Cue[]
   pauses: Pause[]
+  /**
+   * The take these clips are replacing, when *Deze opnieuw opnemen* started this one.
+   *
+   * The splitter lifts a retake by the gain it gave that take instead of measuring this one
+   * (docs/recording-studio-v3.md §2.6): three words measured alone do not land where the
+   * twenty they have to sit among are.
+   */
+  retakeOf?: string
 }
 
 /** 3 · 2 · 1 and a higher one at zero. */
@@ -166,6 +187,7 @@ export function buildCueSheet(fields: {
   leadInMs: number
   cues: Cue[]
   pauses: Pause[]
+  retakeOf?: string | null
 }): CueSheet {
   return {
     version: 1,
@@ -176,5 +198,6 @@ export function buildCueSheet(fields: {
     beeps: beepPlan(fields.leadInMs),
     cues: fields.cues,
     pauses: fields.pauses,
+    ...(fields.retakeOf ? { retakeOf: fields.retakeOf } : {}),
   }
 }

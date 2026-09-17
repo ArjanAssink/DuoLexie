@@ -45,12 +45,12 @@ export default defineConfig({
       // pointerId-isolation logic it exercises is plain React/DOM event handling with no
       // engine-specific behaviour, so Chromium-only coverage is a test-tooling limitation,
       // not a gap in coverage of what actually differs on her real device.
-      testIgnore: ['**/recording-studio.spec.ts', '**/pointer-isolation.spec.ts'],
+      testIgnore: ['**/recording-studio.spec.ts', '**/studio-*.spec.ts', '**/pointer-isolation.spec.ts'],
       use: { ...devices['iPad Pro 11'] },
     },
     {
       name: 'iphone',
-      testIgnore: ['**/recording-studio.spec.ts', '**/pointer-isolation.spec.ts'],
+      testIgnore: ['**/recording-studio.spec.ts', '**/studio-*.spec.ts', '**/pointer-isolation.spec.ts'],
       use: { ...devices['iPhone 13'] },
     },
   ],

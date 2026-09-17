@@ -1,11 +1,29 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { allSounds } from '../curriculum'
 import { wordsInRecordingOrder } from '../data/path'
 import { dealableWeetjes, narrationLines, type WeetjePart } from '../weetjes'
-import { DEFAULT_PACE_MS, PACE_RANGE, takeBasename, type TakeKind } from './cueSheet'
-import { micConstraints, openTakeGraph, peakDbfs, supportedRecorderOptions } from './takeAudio'
+import { clipSrc } from '../audio/recorded'
+import {
+  DEFAULT_PACE_MS, PACE_RANGE, folderFor, takeBasename, type AudioFolder, type TakeKind,
+} from './cueSheet'
+import { ClipGrid } from './ClipGrid'
+import {
+  FLOOR_TEXT, LEVEL_TEXT, TARGET_ZONE, floorVerdict, hasHum, levelVerdict, meterFraction,
+} from './levels'
+import {
+  createPeakMeter, measureSilence, micConstraints, openTakeGraph, supportedRecorderOptions,
+  type SilenceReading,
+} from './takeAudio'
 import { Teleprompter, type Take } from './Teleprompter'
 import { TakeReview, type SplitReport } from './TakeReview'
+import {
+  MISSING, clipState, isMissing, mergeStores, readLocalVerdicts, withVerdict, writeLocalVerdicts,
+  clearLocalVerdicts, type ClipProbe, type Verdict, type VerdictStore,
+} from './verdicts'
+import {
+  archiveClip, fetchReport, fetchTakes, fetchVerdicts, saveVerdicts, splitTake, studioAvailable,
+  uploadTake, type SplitLine, type TakeInfo,
+} from './studioApi'
 
 /** Words worth recording first — the shortest ones (docs/hardop-lezen-rework.md §8). */
 const STARTER_SET_SIZE = 20
@@ -22,6 +40,11 @@ const SET_KIND: Record<SetChoice, TakeKind> = {
 
 /** The three parts of a card, each its own cue and its own mp3 (docs/weetjes.md §7). */
 const WEETJE_PARTS: WeetjePart[] = ['fact', 'doe', 'reveal']
+
+const CHECKLIST_KEY = 'duolexie-studio-checklist-dismissed'
+
+/** Enough to be quick on localhost, few enough not to queue the dev server behind itself. */
+const PROBE_CONCURRENCY = 12
 
 /**
  * The Weetjes set: every reviewed card, three cues each, in path order.
@@ -46,76 +69,171 @@ function weetjeCues(): { ids: string[]; labels: Record<string, string> } {
 }
 
 /**
- * Dev-only recording studio (/opnemen), rebuilt around one continuous take
- * (docs/recording-pipeline-v2.md).
+ * Verdicts, wherever they happen to live (§2.1).
  *
- * The old studio recorded one clip per click: forty-five starts, forty-five stops, every one
- * of them a mouse or key press on the same desk as the microphone. That is the first of the
- * four things in §1 that made the first batch sound clacky, and no amount of post-processing
- * takes a click back out of a 300ms clip. So the recording is hands-free now: a teleprompter
- * shows one word at a time while a single MediaRecorder runs, and everything that used to be
- * a click is a timer instead.
+ * `localStorage` until the dev middleware exists, `recordings/verdicts.json` once it does —
+ * and the first load with the middleware present folds one into the other and clears the
+ * browser copy, so the move happens without anyone being asked about it. Writes go to both
+ * for the rest of the session: disk is the shared truth, and the local copy is what survives
+ * `vite build && vite preview`, where there is no middleware at all.
+ */
+function useVerdicts() {
+  const [store, setStore] = useState<VerdictStore>(() => readLocalVerdicts())
+  const remote = useRef(false)
+
+  useEffect(() => {
+    let live = true
+    void (async () => {
+      if (!(await studioAvailable())) return
+      const disk = await fetchVerdicts()
+      if (!live || disk === null) return
+      remote.current = true
+      const local = readLocalVerdicts()
+      const merged = mergeStores(disk, local)
+      setStore(merged)
+      if (Object.keys(local).length > 0) {
+        // one-time migration: write the union back and stop keeping two copies in step
+        if (await saveVerdicts(merged)) clearLocalVerdicts()
+      }
+    })()
+    return () => { live = false }
+  }, [])
+
+  const persist = useCallback((next: VerdictStore) => {
+    setStore(next)
+    if (remote.current) void saveVerdicts(next)
+    else writeLocalVerdicts(next)
+  }, [])
+
+  return { store, persist, remote }
+}
+
+/**
+ * Dev-only recording studio (/opnemen).
  *
- * This screen is the setup and the loop around it — which set, how fast, which microphone,
- * where the take goes — plus, after `tools/split-take.mjs` has run, the report that says
- * which of the clips are worth a listen and the one button that re-records them (§5).
+ * Two jobs, and they are the same loop seen from two ends. Before a take it is a setup
+ * screen: which set, how fast, which microphone, is the room quiet, is the level right. After
+ * one it is where the clips are listened to and judged — because the splitter can hear levels
+ * and silence but not whether a word was read well, and until this screen existed that
+ * judgement lived in Arjan's head between one evening and the next.
+ *
+ * With `vite dev` from this repo it also drives the splitter directly (§3): record, *Knip en
+ * beluister*, judge with `G`/`A`, re-record the ❌ set. Without it — a preview build, a
+ * different server — everything still works through the File System Access picker and the
+ * terminal, one step at a time.
  */
 export function RecordingStudio() {
   const [choice, setChoice] = useState<SetChoice>('woorden-startset')
   const [missingOnly, setMissingOnly] = useState(false)
   const [paceMs, setPaceMs] = useState(DEFAULT_PACE_MS.woorden)
   const [stage, setStage] = useState<Stage>('setup')
-  const [recorded, setRecorded] = useState<Record<string, boolean>>({})
+  const [probes, setProbes] = useState<Record<AudioFolder, Record<string, ClipProbe>>>({
+    sounds: {}, words: {}, weetjes: {},
+  })
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [deviceId, setDeviceId] = useState<string | null>(null)
-  const [level, setLevel] = useState<number | null>(null)
+  const [level, setLevel] = useState<{ peak: number; hold: number } | null>(null)
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savedAs, setSavedAs] = useState<string | null>(null)
   const [report, setReport] = useState<SplitReport | null>(null)
-  const [retakeIds, setRetakeIds] = useState<string[] | null>(null)
+  const [retake, setRetake] = useState<{ ids: string[]; from: string | null } | null>(null)
   const [testClip, setTestClip] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
+  const [silence, setSilence] = useState<SilenceReading | null>(null)
+  const [measuring, setMeasuring] = useState(false)
+  const [checklist, setChecklist] = useState(() => {
+    try { return sessionStorage.getItem(CHECKLIST_KEY) !== '1' } catch { return true }
+  })
+  const [hasStudio, setHasStudio] = useState(false)
+  const [takes, setTakes] = useState<TakeInfo[]>([])
+  const [splitting, setSplitting] = useState(false)
+  const [progress, setProgress] = useState<string[]>([])
 
+  const { store, persist } = useVerdicts()
   const kind = SET_KIND[choice]
-  const folder = kind === 'klanken' ? 'sounds' : kind === 'weetjes' ? 'weetjes' : 'words'
+  const folder = folderFor(kind)
   const pathWords = useMemo(() => wordsInRecordingOrder(), [])
   const weetjes = useMemo(() => weetjeCues(), [])
 
-  const fullSet = useMemo(() => {
-    if (choice === 'klanken') return allSounds
-    if (choice === 'weetjes') return weetjes.ids
-    const ids = pathWords.map((w) => w.id)
-    return choice === 'woorden-startset' ? ids.slice(0, STARTER_SET_SIZE) : ids
-  }, [choice, pathWords, weetjes])
+  const sets = useMemo((): Record<SetChoice, { ids: string[]; kind: TakeKind; folder: AudioFolder }> => {
+    const words = pathWords.map((w) => w.id)
+    const set = (ids: string[], setKind: TakeKind) => ({ ids, kind: setKind, folder: folderFor(setKind) })
+    return {
+      klanken: set(allSounds, 'klanken'),
+      'woorden-startset': set(words.slice(0, STARTER_SET_SIZE), 'woorden'),
+      woorden: set(words, 'woorden'),
+      weetjes: set(weetjes.ids, 'weetjes'),
+    }
+  }, [pathWords, weetjes])
+
+  const fullSet = sets[choice].ids
+  const folderProbes = probes[folder]
 
   /** What the next take will actually prompt: the set, narrowed by the gaps-only switch. */
   const ids = useMemo(() => {
-    if (retakeIds) return retakeIds
-    return missingOnly ? fullSet.filter((id) => !recorded[id]) : fullSet
-  }, [fullSet, missingOnly, recorded, retakeIds])
+    if (retake) return retake.ids
+    if (!missingOnly) return fullSet
+    return fullSet.filter((id) => isMissing(store, folder, id, folderProbes[id] ?? MISSING))
+  }, [fullSet, missingOnly, retake, store, folder, folderProbes])
+
+  const missingCount = fullSet.filter((id) => isMissing(store, folder, id, folderProbes[id] ?? MISSING)).length
 
   useEffect(() => setPaceMs(DEFAULT_PACE_MS[kind]), [kind])
 
-  useEffect(() => {
-    // which ids already have an mp3 (the dev server serves an HTML fallback for missing
-    // files, so the content type has to be checked too)
-    let live = true
-    for (const id of fullSet) {
-      void fetch(`/audio/${folder}/${id}.mp3`, { method: 'HEAD' }).then((r) => {
-        const isAudio = r.ok && (r.headers.get('content-type') ?? '').startsWith('audio')
-        if (live) setRecorded((s) => (s[id] === isAudio ? s : { ...s, [id]: isAudio }))
-      }).catch(() => {})
+  useEffect(() => { void studioAvailable().then(setHasStudio) }, [])
+  useEffect(() => { if (hasStudio) void fetchTakes().then(setTakes) }, [hasStudio, report])
+
+  /**
+   * What is on disk, and when it was written.
+   *
+   * Every set, not only the one selected, so each set button can say `12 goed van 20` without
+   * being clicked — the point of the counts is to see where the work stands at a glance. The
+   * `Last-Modified` is what makes a verdict belong to a file rather than to an id: when a
+   * retake lands, the timestamp changes and the old opinion is dropped (§2.1).
+   */
+  const refreshProbes = useCallback(async () => {
+    const wanted: { kind: TakeKind; folder: AudioFolder; id: string }[] = []
+    const seen = new Set<string>()
+    for (const set of Object.values(sets)) {
+      for (const id of set.ids) {
+        const key = `${set.folder}/${id}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        wanted.push({ kind: set.kind, folder: set.folder, id })
+      }
     }
-    return () => { live = false }
-  }, [fullSet, folder])
+
+    const found: Record<AudioFolder, Record<string, ClipProbe>> = { sounds: {}, words: {}, weetjes: {} }
+    let cursor = 0
+    const worker = async () => {
+      for (let i = cursor++; i < wanted.length; i = cursor++) {
+        const { kind: probeKind, folder: f, id } = wanted[i]
+        try {
+          // through clipSrc like every other clip URL: when docs/private-audio.md moves the
+          // clips behind /api/audio/{kind}/{id}, the probe has to move with them
+          const res = await fetch(clipSrc(probeKind, id), { method: 'HEAD' })
+          // the dev server answers a missing public file with the SPA's index.html, so the
+          // status alone says nothing — the content type is what distinguishes them
+          const isAudio = res.ok && (res.headers.get('content-type') ?? '').startsWith('audio')
+          found[f][id] = { present: isAudio, lastModified: isAudio ? res.headers.get('last-modified') : null }
+        } catch {
+          found[f][id] = MISSING
+        }
+      }
+    }
+    await Promise.all(Array.from({ length: PROBE_CONCURRENCY }, worker))
+    setProbes(found)
+  }, [sets])
+
+  useEffect(() => { void refreshProbes() }, [refreshProbes])
 
   /**
    * Live level meter and device list.
    *
    * Worth the code: a three-minute take is a long thing to throw away, and the two ways to
-   * lose one are silent (wrong input selected) or clipped (gain too high). Both are visible
-   * here in two seconds, before committing to the take.
+   * lose one are silent (wrong input selected) and clipped (gain too high). Both are visible
+   * here in two seconds, in words rather than as a bar to interpret (§2.3).
    */
   useEffect(() => {
     if (stage !== 'setup') return
@@ -139,10 +257,11 @@ export function RecordingStudio() {
       const all = await navigator.mediaDevices.enumerateDevices()
       if (!cancelled) setDevices(all.filter((d) => d.kind === 'audioinput'))
       graph = openTakeGraph(stream)
-      const buffer = new Float32Array(graph.analyser.fftSize)
+      const read = createPeakMeter(graph.analyser)
       const tick = () => {
         if (cancelled || !graph) return
-        setLevel(peakDbfs(graph.analyser, buffer))
+        const { peak, hold } = read()
+        setLevel({ peak, hold })
         raf = requestAnimationFrame(tick)
       }
       tick()
@@ -175,10 +294,10 @@ export function RecordingStudio() {
     }
   }
 
-  async function write(name: string, data: Blob | string) {
+  const writeThroughPicker = useCallback(async (name: string, data: Blob | string) => {
     if (!dirHandle) {
-      // no picker (or he cancelled it): hand the file to the browser's downloads instead of
-      // losing a take that has already been recorded
+      // no picker (or he cancelled it): hand the file to the browser's downloads rather than
+      // lose a take that has already been recorded
       const url = URL.createObjectURL(typeof data === 'string' ? new Blob([data], { type: 'application/json' }) : data)
       const a = document.createElement('a')
       a.href = url
@@ -191,30 +310,65 @@ export function RecordingStudio() {
     const writable = await file.createWritable()
     await writable.write(data)
     await writable.close()
-  }
+  }, [dirHandle])
 
   const onTakeDone = useCallback(async (take: Take) => {
     const base = takeBasename(take.sheet.kind, new Date(take.sheet.startedAt))
     try {
-      await write(`${base}.webm`, take.blob)
-      await write(`${base}.json`, `${JSON.stringify(take.sheet, null, 2)}\n`)
+      if (await studioAvailable()) {
+        if (!(await uploadTake(base, take.blob, take.sheet))) throw new Error('de dev-server nam de take niet aan')
+      } else {
+        await writeThroughPicker(`${base}.webm`, take.blob)
+        await writeThroughPicker(`${base}.json`, `${JSON.stringify(take.sheet, null, 2)}\n`)
+      }
       setSavedAs(base)
       setStage('saved')
-      setRetakeIds(null)
+      setRetake(null)
+      setProgress([])
     } catch (err) {
       setError(`Opslaan mislukt: ${(err as Error).message}`)
       setStage('setup')
     }
-    // `write` closes over dirHandle, which is set before a take can start
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirHandle])
+  }, [writeThroughPicker])
 
-  /** Read the report the splitter left next to the take, and switch to the review list. */
-  async function loadReport() {
-    if (!dirHandle || !savedAs) return
+  /** One button for the whole middle of the loop: split, then show what came out (§3.3). */
+  const cutAndListen = useCallback(async (basename: string) => {
+    setSplitting(true)
+    setProgress([])
+    setError(null)
+    const onLine = (line: SplitLine) => {
+      if (line.type === 'progress' || line.type === 'output') {
+        setProgress((lines) => [...lines, line.line])
+      } else if (line.type === 'error') {
+        setError(line.error)
+      }
+    }
+    const result = await splitTake(basename, null, onLine)
+    setSplitting(false)
+    if (result) {
+      setReport(result)
+      // the clips the splitter just wrote are new files: re-probe, so their verdicts reset
+      // and the grid counts them
+      await refreshProbes()
+    } else if (!error) {
+      setError('Knippen is niet gelukt — kijk in de regels hierboven wat er misging.')
+    }
+  }, [error, refreshProbes])
+
+  /** Read the report the splitter left next to the take, without the middleware. */
+  async function loadReportFromFolder() {
+    if (!savedAs) return
+    if (hasStudio) {
+      const found = await fetchReport(savedAs)
+      if (found) { setReport(found); await refreshProbes() }
+      else setError(`Nog geen rapport voor ${savedAs} — knip de take eerst.`)
+      return
+    }
+    if (!dirHandle) return
     try {
       const handle = await dirHandle.getFileHandle(`${savedAs}.report.json`)
       setReport(JSON.parse(await (await handle.getFile()).text()) as SplitReport)
+      await refreshProbes()
       setError(null)
     } catch {
       setError(`Nog geen ${savedAs}.report.json in de map — draai eerst het split-commando hieronder.`)
@@ -242,6 +396,34 @@ export function RecordingStudio() {
     }
   }
 
+  /** Two seconds of not speaking, and what the room sounds like when nobody is (§2.4). */
+  async function measureTheSilence() {
+    setMeasuring(true)
+    setSilence(null)
+    try {
+      setSilence(await measureSilence(deviceId, 2000))
+    } catch (err) {
+      setError(`Stiltemeting mislukt: ${(err as Error).message}`)
+    } finally {
+      setMeasuring(false)
+    }
+  }
+
+  /**
+   * A verdict, and the one side effect that makes rejecting worth doing (§2.1).
+   *
+   * With the dev middleware, rejecting also *moves* the mp3 to `recordings/afgekeurd/`. Moved,
+   * never deleted: a retake can come out worse than what it replaced, and at that point the
+   * only thing that can tell you so is the clip you threw away.
+   */
+  const onVerdict = useCallback(async (clipFolder: AudioFolder, id: string, verdict: Verdict | null) => {
+    const probe = probes[clipFolder][id] ?? MISSING
+    persist(withVerdict(store, clipFolder, id, verdict, probe))
+    if (verdict === 'afgekeurd' && hasStudio && probe.present) {
+      if (await archiveClip(clipFolder, id)) await refreshProbes()
+    }
+  }, [probes, persist, store, hasStudio, refreshProbes])
+
   if (stage === 'recording') {
     return (
       <div className="studio">
@@ -251,6 +433,7 @@ export function RecordingStudio() {
           kind={kind}
           paceMs={paceMs}
           deviceId={deviceId}
+          retakeOf={retake?.from ?? null}
           onDone={onTakeDone}
           onError={(message) => { setError(message); setStage('setup') }}
         />
@@ -258,8 +441,9 @@ export function RecordingStudio() {
     )
   }
 
-  const doneCount = fullSet.filter((id) => recorded[id]).length
-  const hot = level !== null && level > -3
+  const verdict = levelVerdict(level?.hold ?? null)
+  const zoneLeft = meterFraction(TARGET_ZONE.low) * 100
+  const zoneWidth = (meterFraction(TARGET_ZONE.high) - meterFraction(TARGET_ZONE.low)) * 100
 
   return (
     <div className="studio">
@@ -269,65 +453,112 @@ export function RecordingStudio() {
 
       {stage === 'saved' && savedAs && (
         <div className="studio-next">
-          <p>
-            Take opgeslagen als <code>{savedAs}.webm</code> + <code>{savedAs}.json</code>.
-            Knip hem nu op:
-          </p>
-          <pre>node tools/split-take.mjs recordings/{savedAs}.webm</pre>
-          <p className="studio-hint">
-            Daarna: <b>herstart de dev-server</b> — <code>vite.config.ts</code> leest
-            <code> public/audio/words/</code> één keer bij het starten, dus nieuwe mp3's
-            worden pas daarna in een leesronde gebruikt. En check de clips een keer op haar
-            échte iPad: tien <code>&lt;audio&gt;</code>-elementen per ronde is een openstaand
-            punt in <code>docs/code-review-backlog.md</code> dat pas met echte opnames scherp
-            wordt.
-          </p>
-          <p className="review-actions">
-            <button className="btn-primary" onClick={loadReport}>Rapport laden</button>
-            <button className="btn-primary" onClick={() => { setStage('setup'); setReport(null) }}>
-              Nieuwe take
-            </button>
-          </p>
+          <p>Take opgeslagen als <code>{savedAs}.webm</code> + <code>{savedAs}.json</code>.</p>
+          {hasStudio ? (
+            <p className="review-actions">
+              <button className="btn-primary" disabled={splitting} onClick={() => void cutAndListen(savedAs)}>
+                {splitting ? '✂️ bezig met knippen…' : '✂️ Knip en beluister'}
+              </button>
+              <button className="btn-primary" onClick={() => { setStage('setup'); setReport(null) }}>
+                Nieuwe take
+              </button>
+              <a className="studio-link" href="/#/proberen" target="_blank" rel="noreferrer">
+                Speel een proefronde met deze clips ↗
+              </a>
+            </p>
+          ) : (
+            <>
+              <p>Knip hem nu op:</p>
+              <pre>node tools/split-take.mjs recordings/{savedAs}.webm</pre>
+              <p className="review-actions">
+                <button className="btn-primary" onClick={() => void loadReportFromFolder()}>Rapport laden</button>
+                <button className="btn-primary" onClick={() => { setStage('setup'); setReport(null) }}>
+                  Nieuwe take
+                </button>
+              </p>
+            </>
+          )}
+          {progress.length > 0 && (
+            <pre className="studio-progress">{progress.join('\n')}</pre>
+          )}
         </div>
       )}
 
       {report && (
         <TakeReview
           report={report}
-          onRetake={(pick) => { setRetakeIds(pick); setReport(null); setStage('setup') }}
+          labels={report.kind === 'weetjes' ? weetjes.labels : undefined}
+          store={store}
+          probes={probes[folderFor(report.kind)]}
+          onVerdict={(id, v) => void onVerdict(folderFor(report.kind), id, v)}
+          onRetake={(pick) => {
+            setRetake({ ids: pick, from: savedAs })
+            setReport(null)
+            setStage('setup')
+          }}
         />
       )}
 
       {stage === 'setup' && (
         <>
-          <div className="studio-modes">
-            {([
-              ['klanken', `Klanken (${allSounds.length})`],
-              ['woorden-startset', `Woorden, startset (${Math.min(STARTER_SET_SIZE, pathWords.length)})`],
-              ['woorden', `Woorden, alle (${pathWords.length})`],
-              ['weetjes', `Weetjes (${weetjes.ids.length} cues)`],
-            ] as [SetChoice, string][]).map(([value, label]) => (
+          {checklist && (
+            <div className="studio-checklist">
+              <b>Voor je begint</b>
+              <ul>
+                <li>15–20 cm van de mic, iets naast je mond</li>
+                <li>plopkap ervoor</li>
+                <li>telefoon stil, ventilator en laptopfan uit</li>
+                <li>dezelfde plek en afstand als de vorige keer</li>
+              </ul>
               <button
-                key={value}
-                className={`btn-primary${choice === value ? '' : ' studio-mode-off'}`}
-                onClick={() => { setChoice(value); setRetakeIds(null) }}
+                className="studio-link"
+                onClick={() => {
+                  setChecklist(false)
+                  try { sessionStorage.setItem(CHECKLIST_KEY, '1') } catch { /* private mode */ }
+                }}
               >
-                {label}
+                oké, verbergen
               </button>
-            ))}
+            </div>
+          )}
+
+          <div className="studio-modes">
+            {(Object.keys(sets) as SetChoice[]).map((value) => {
+              const set = sets[value]
+              // ✅ only, not "has a file": the 45 klanken on disk are the old clacky batch
+              // and nobody has approved one of them, so "0 goed van 45" is exactly what this
+              // set's state is and exactly what the button should say
+              const good = set.ids.filter(
+                (id) => clipState(store, set.folder, id, probes[set.folder][id] ?? MISSING) === 'goed',
+              ).length
+              const name = value === 'klanken' ? 'Klanken'
+                : value === 'woorden-startset' ? 'Woorden, startset'
+                : value === 'woorden' ? 'Woorden, alle'
+                : 'Weetjes'
+              return (
+                <button
+                  key={value}
+                  className={`btn-primary${choice === value ? '' : ' studio-mode-off'}`}
+                  onClick={() => { setChoice(value); setRetake(null) }}
+                >
+                  {name}
+                  <small>{good} goed van {set.ids.length}</small>
+                </button>
+              )
+            })}
           </div>
 
           <p>
             <label className="studio-starter">
               <input type="checkbox" checked={missingOnly} onChange={(e) => setMissingOnly(e.target.checked)} />
-              {' '}alleen ontbrekende ({fullSet.length - doneCount} van {fullSet.length})
+              {' '}alleen ontbrekende ({missingCount} van {fullSet.length})
             </label>
           </p>
 
-          {retakeIds && (
+          {retake && (
             <p className="studio-retake">
-              Opnieuw opnemen: <b>{retakeIds.join(' · ')}</b>{' '}
-              <button className="studio-link" onClick={() => setRetakeIds(null)}>(hele set toch)</button>
+              Opnieuw opnemen: <b>{retake.ids.join(' · ')}</b>{' '}
+              <button className="studio-link" onClick={() => setRetake(null)}>(hele set toch)</button>
             </p>
           )}
 
@@ -358,34 +589,59 @@ export function RecordingStudio() {
           </p>
 
           <div className="studio-meter" aria-label="microfoonniveau">
-            <i
-              className={hot ? 'studio-meter-hot' : undefined}
-              style={{ width: `${Math.max(0, Math.min(100, (((level ?? -60) + 60) / 60) * 100))}%` }}
-            />
-            <b>{level === null || level === -Infinity ? '—' : `${level.toFixed(0)} dBFS`}</b>
+            <div className="studio-meter-bar">
+              <span className="studio-meter-zone" style={{ left: `${zoneLeft}%`, width: `${zoneWidth}%` }} />
+              <i style={{ width: `${meterFraction(level?.peak ?? null) * 100}%` }} />
+              <b className="studio-meter-hold" style={{ left: `${meterFraction(level?.hold ?? null) * 100}%` }} />
+            </div>
+            <b className="studio-meter-db">
+              {level && Number.isFinite(level.hold) ? `${level.hold.toFixed(0)} dBFS` : '—'}
+            </b>
           </div>
+          <p className={`studio-level-verdict studio-level-${verdict}`}>{LEVEL_TEXT[verdict]}</p>
 
           <p className="review-actions">
             <button className="btn-primary" disabled={testing} onClick={testThreeSeconds}>
               {testing ? '● opnemen…' : 'Test 3 seconden'}
             </button>
+            <button className="btn-primary" disabled={measuring} onClick={() => void measureTheSilence()}>
+              {measuring ? '● meten…' : 'Meet de stilte (2 s)'}
+            </button>
             {testClip && <audio controls src={testClip} />}
           </p>
 
-          <p>
-            {!dirHandle ? (
-              <button className="btn-primary" onClick={pickFolder}>Kies map (recordings/)</button>
-            ) : (
-              <b>Map gekozen ✓ — takes komen in recordings/, niet in app/public/</b>
-            )}
-          </p>
+          {silence && (
+            <p className="studio-silence">
+              Ruisvloer <b>{silence.floorDbfs.toFixed(0)} dBFS</b> —{' '}
+              {FLOOR_TEXT[floorVerdict(silence.floorDbfs)]}
+              {hasHum(silence.hz50Db, silence.hz100Db) && (
+                <>
+                  {' · '}
+                  <b className="studio-hum">
+                    brom — kabel, USB-voeding, dimmer? (50 Hz +{silence.hz50Db.toFixed(0)} dB,
+                    100 Hz +{silence.hz100Db.toFixed(0)} dB)
+                  </b>
+                </>
+              )}
+            </p>
+          )}
+
+          {!hasStudio && (
+            <p>
+              {!dirHandle ? (
+                <button className="btn-primary" onClick={pickFolder}>Kies map (recordings/)</button>
+              ) : (
+                <b>Map gekozen ✓ — takes komen in recordings/, niet in app/public/</b>
+              )}
+            </p>
+          )}
 
           <p className="review-actions">
             <button
               className="btn-primary"
               disabled={ids.length === 0}
               style={{ opacity: ids.length ? 1 : 0.4 }}
-              onClick={() => { setError(null); setSavedAs(null); setStage('recording') }}
+              onClick={() => { setError(null); setSavedAs(null); setReport(null); setStage('recording') }}
             >
               🔴 Start take ({ids.length} {kind})
             </button>
@@ -400,24 +656,54 @@ export function RecordingStudio() {
             ) : (
               <>Lees elk woord één keer, rustig, zodra het verschijnt. </>
             )}
-            Handen van het bureau —
-            klikken en toetsen komen mee de opname in. Gaat er één mis: <b>spatie</b>, en hij
-            komt achteraan terug.
+            Handen van het bureau — klikken en toetsen komen mee de opname in. Gaat er één mis:{' '}
+            <b>spatie</b>, en hij komt achteraan terug.
           </p>
 
-          <div className="studio-grid">
-            {fullSet.map((id) => (
-              <span
-                key={id}
-                className={`studio-cell${ids.includes(id) ? ' studio-cell-active' : ''}${
-                  kind === 'weetjes' ? ' studio-cell-wide' : ''
-                }`}
-              >
-                <span className="studio-cell-id">{id}</span>
-                <span className="studio-cell-status">{recorded[id] ? '✅' : '⬜'}</span>
-              </span>
-            ))}
-          </div>
+          <ClipGrid
+            ids={fullSet}
+            activeIds={ids}
+            kind={kind}
+            labels={kind === 'weetjes' ? weetjes.labels : undefined}
+            probes={folderProbes}
+            store={store}
+            onVerdict={(id, v) => void onVerdict(folder, id, v)}
+          />
+
+          {hasStudio && takes.length > 0 && (
+            <div className="studio-takes">
+              <h2>Takes in recordings/</h2>
+              <ul>
+                {takes.slice(0, 10).map((take) => (
+                  <li key={take.basename}>
+                    <code>{take.basename}</code>{' '}
+                    <span className="studio-takes-meta">
+                      {take.cues} cues · {(take.bytes / 1_000_000).toFixed(1)} MB
+                    </span>{' '}
+                    {take.hasReport ? (
+                      <button
+                        className="studio-link"
+                        onClick={() => void (async () => {
+                          const found = await fetchReport(take.basename)
+                          if (found) { setSavedAs(take.basename); setStage('saved'); setReport(found) }
+                        })()}
+                      >
+                        rapport openen
+                      </button>
+                    ) : (
+                      <button
+                        className="studio-link"
+                        disabled={splitting}
+                        onClick={() => { setSavedAs(take.basename); setStage('saved'); void cutAndListen(take.basename) }}
+                      >
+                        knip opnieuw
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </div>
