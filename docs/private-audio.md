@@ -317,9 +317,55 @@ and `docs/media/**` (screen recordings of the UI, no voice).
 studio v3 PR has merged and before the branch for this spec is cut. A branch cut before the
 rewrite and merged after it puts the blobs back.
 
+**It has to be run by Arjan, from his own machine.** A Claude Code session cannot: the
+sandbox's permission layer refuses `git filter-repo` and `git push --force` as destructive
+git, and the session's git relay answers `HTTP 403` to a branch deletion even though ordinary
+pushes succeed. That is the right place for the block to sit — the rewrite invalidates every
+other clone, so the person who owns them should be the one to trigger it.
+
+### The runbook
+
+Verified against the repository at `aaa3ba3` (17-09-2026): 109 blobs, 0.8 MB, across five
+commits — `93cb0eb`, `1eac8dc`, `430f4db`, `14693b0`, `4d97bbf`. Nothing else in history
+matches an audio extension except the two keepers named above.
+
+```bash
+# 0. Preconditions: no open PRs, no agent mid-branch, no extra worktrees.
+cd /home/arjanassink/Projects/DuoLexie
+git worktree list                      # only this checkout; git worktree remove the others
+git fetch origin --prune
+git checkout main && git pull --ff-only origin main    # must land on aaa3ba3 or later
+
+# 1. Delete every stale branch FIRST — all merged or redundant, and it keeps the
+#    rewrite from chewing through the orphan branch's 19k files.
+for b in claude/onboarding-welkom-shots claude/weetjes-gem-timeout \
+         claude/ci-always-deploy claude/hardop-swipe-vertical \
+         claude/recording-pipeline-v2 claude/reward-celebration \
+         claude/word-flashing-game-rework-hlusz1 worktree-flitsen-deck-20; do
+  git push origin --delete "$b"
+done
+git fetch origin --prune               # main should now be the only remote branch
+
+# 2. The rewrite.
+pip install git-filter-repo            # or: brew install git-filter-repo
+git log --all --oneline -- app/public/audio/sounds app/dist | wc -l   # expect 5
+git filter-repo --invert-paths --path app/public/audio/sounds --path app/dist --force
+git log --all --oneline -- app/public/audio/sounds app/dist | wc -l   # must be 0
+git log --all --diff-filter=A --name-only --format= -- '*.mp3' '*.wav' | sort -u
+#   ^ must print only app/tests/e2e/fixtures/silent.mp3
+
+# 3. Push it back. filter-repo drops the remote on purpose, so re-add it.
+git remote add origin https://github.com/ArjanAssink/DuoLexie.git
+git push --force origin main
+git reflog expire --expire=now --all && git gc --prune=now --aggressive
+```
+
+Then: file the GitHub support request below, and re-clone anywhere else this repo lives.
+
 Afterwards, GitHub still holds unreachable objects and `refs/pull/*/head`; Arjan files a
 request at https://support.github.com/request (*Remove cached views / sensitive data*)
-naming the pre-purge `main` SHA. Anything cloned before the purge is out there regardless —
+naming the pre-purge `main` SHA — `aaa3ba321812fb82b4d9e46db6a2d052fc8b3588` — and asking for
+unreachable objects and `refs/pull/*/head` to be purged. Anything cloned before the purge is out there regardless —
 this reduces the blast radius, it does not undo the past.
 
 Consequences, for anyone with a clone from before the rewrite:
