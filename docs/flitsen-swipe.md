@@ -10,10 +10,11 @@ It is written to be implemented by a fresh session that has not seen the convers
 it. Everything needed is here or in the files it names. Where it says *must*, that is an
 acceptance criterion; where it says *suggested*, use judgement.
 
-**Status:** plan written by Claude Fable 5.1 (session
-[012C52p53S3dATWRG7puuGvK](https://claude.ai/code/session_012C52p53S3dATWRG7puuGvK)); built
-in the same session. Deviations found while building are marked *(as built)* in the sections
-they belong to.
+**Status:** **built.** Plan written and built by Claude Fable 5.1 in one session
+([012C52p53S3dATWRG7puuGvK](https://claude.ai/code/session_012C52p53S3dATWRG7puuGvK)).
+Deviations found while building are marked *(as built)* in the sections they belong to; the
+two that matter are in §3.1 (a latent measuring bug on `main` that this change had to fix)
+and §3.3 (the tap is handled in `pointerup`, not `click`).
 
 ---
 
@@ -97,7 +98,17 @@ if (sign === Math.sign(stackDx)) land() else returnToDeck()
 ```
 
 `stackDx` is the already-measured `dx` state (discard left minus deck left; positive in the
-current layout, but the code must not assume that). Half the gap: on an iPhone 13 the stacks
+current layout, but the code must not assume that).
+
+*(As built: "already-measured" turned out to be false. The measuring `useLayoutEffect` had
+`[]` deps, but the component returns `null` until the deck is built, so at mount there was no
+arena to measure, the `ResizeObserver` was never attached, and `dx` stayed 0 for the whole
+round — the tap flight has been flipping in place at its static position between the two
+stacks since the port, and nobody noticed because the card still appeared on the discard
+pile when the timer fired. The carry divides by that gap, so it could not work at all until
+this was fixed: the effect now re-runs when the arena appears. The tap flight now actually
+flies to the discard pile, which is a visible change on `main`'s behaviour, not just a
+prerequisite.)* Half the gap: on an iPhone 13 the stacks
 are ~150px apart so ~75px commits; on a desktop ~244px so ~122px. The card's *centre* being
 past the midpoint between the stacks is the natural "it's on the other pile now" rule, and it
 scales with the layout instead of being a magic number. A flick towards the discard pile of
@@ -159,6 +170,16 @@ activation (Enter/Space) and the e2e suite's `click()` are untouched. The rule:
 - `pointercancel`: a `held` card returns; nothing commits. A second pointer while one is
   active is ignored, as in Hardop lezen.
 
+*(As built: the two `pointerup` rules above are wrong, and the first run of the e2e suite
+said so — every tap stopped working. Once the pointer is captured on the stack, the browser
+retargets the `pointerup` to the stack, and the `click` that follows goes to the common
+ancestor of the pointerdown and pointerup targets, which is the stack too: the button's
+`onClick` never fires. So a tap is flipped **in `onPointerUp` itself** when nothing lifted,
+and the button's `onClick` only acts on a click with `detail === 0`, which is what Enter or
+Space on the focused button produces — keyboard activation keeps working, and a pointer
+click, wherever the browser delivers it, can never flip a second card. There is no
+`swallowClick` ref.)*
+
 Why the stack and not the button: when the **last** card is lifted, the deck shows zero and
 the `.kk-face-back` button is replaced by the `✓ Leeg!` placeholder. If the button held the
 pointer capture, unmounting it would end the gesture halfway across the arena. The stack div
@@ -198,6 +219,11 @@ never finds it (§10).
 In the `flitsen` block of `theme.css`:
 
 - `.kk-stack.kk-deck { touch-action: none; cursor: grab; }` and `.kk-deck.holding { cursor: grabbing; }`.
+  *(As built: also `.kk-deck .kk-face-back { touch-action: none; }`. The generic button rule
+  sets `touch-action: manipulation`, and `touch-action` is read from the element the finger
+  actually lands on — the button — not from the stack that owns the gesture. `manipulation`
+  leaves panning to the browser, which on iOS is a `pointercancel` a few px into every
+  carry.)*
 - `.kk-held .kk-fly-inner { animation: none; }` — the inner is driven by the inline
   `rotateY`, and must not also run `kkFly`. Same for `.kk-landing` and `.kk-returning`, which
   carry `transition: transform <ms> <curve>` on both the outer and the inner.
@@ -248,6 +274,8 @@ Run everything from `app/`. Unit: `npm test`. E2E: `npx playwright test --projec
     unchanged, `.kk-fly` is zero after `RETURN_MS`, and the *next* tap still flips a card
     (the swallowed click must not have swallowed the wrong one).
   - *a tap after a drag still flips exactly one card*: covered inside the previous test.
+  - *(as built)* *a flick towards the other stack lands the card before it gets there*: 40px
+    in two quick steps, well short of the midpoint, lands.
 - `tests/e2e/pointer-isolation.spec.ts`, one Flitsen case using the same CDP helper: touch
   down on the deck, move past the midpoint, `touchCancel` → no card on the discard pile, the
   deck count unchanged, `.kk-fly` zero after the return. This file is already Chromium-only,

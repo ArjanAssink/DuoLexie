@@ -17,6 +17,7 @@ import { installNarration } from './fixtures/narration'
  */
 
 const LEZEN = '/#/les/fase1-m-s-k-r-t-l5'
+const FLITSEN = '/#/les/fase1-a-e-o-u-i-l1'
 const THUMB_ID = 0
 const FINGER_ID = 1
 
@@ -140,4 +141,35 @@ test('a cancelled gesture past the swipe threshold resets instead of grading', a
   // idle drift — now on the same axis the drag uses, which is why this reads it at rest,
   // after the 900ms above, rather than straight off the cancel.
   expect(Math.abs(await translateY(page))).toBeLessThan(5)
+})
+
+/**
+ * Flitsen's carry (docs/flitsen-swipe.md §3.3) has the same guards, and the same failure
+ * mode if it lost them: a card that the browser took away from her mid-carry must go back
+ * onto the deck, not count as turned over.
+ */
+test('Flitsen: a cancelled carry past the midpoint puts the card back on the deck', async ({
+  page,
+  context,
+}) => {
+  await page.goto(FLITSEN)
+  await expect(page.locator('.kk-arena')).toBeVisible()
+  const deck = page.locator('.kk-stack-wrap').nth(0)
+  const before = parseInt(await deck.locator('.kk-count').innerText(), 10)
+  const d = (await deck.locator('.kk-stack').boundingBox())!
+  const t = (await page.locator('.kk-stack-wrap').nth(1).locator('.kk-stack').boundingBox())!
+  const cdp = await context.newCDPSession(page)
+
+  await touch(cdp, 'touchStart', [{ id: THUMB_ID, x: d.x + d.width / 2, y: d.y + d.height / 2 }])
+  await page.waitForTimeout(60)
+  // most of the way to the other stack, well past the midpoint that would commit
+  await touch(cdp, 'touchMove', [{ id: THUMB_ID, x: t.x + t.width / 2, y: t.y + t.height / 2 }])
+  await page.waitForTimeout(60)
+  await expect(page.locator('.kk-fly.kk-held')).toHaveCount(1)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] })
+  await page.waitForTimeout(600)
+
+  await expect(page.locator('.kk-fly')).toHaveCount(0)
+  await expect(page.locator('.kk-stack-wrap').nth(1).locator('.kk-face-front')).toHaveCount(0)
+  expect(parseInt(await deck.locator('.kk-count').innerText(), 10), 'nothing counted').toBe(before)
 })
