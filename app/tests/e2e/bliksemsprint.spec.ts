@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
 
-/** fase1-u1-l2 is the Tijdrit (speed drill) node — the only game that grades. */
-const TIJDRIT = '/#/les/fase1-u1-l2'
+/**
+ * The Tijdrit (speed drill) node of fase1's first unit — the only game that grades.
+ * Unit ids are stable/sounds-derived, not positional (data/path.ts A3) — this is
+ * "fase1" + the unit's sounds ("a-e-o-u-i") + "-l2", not the old fase1-u1-l2.
+ */
+const TIJDRIT = '/#/les/fase1-a-e-o-u-i-l2'
 
 async function startRound(page: import('@playwright/test').Page) {
   await page.goto(TIJDRIT)
@@ -47,11 +51,12 @@ test('the celebration never covers the flash card or the grade buttons', async (
     const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect()
     const hits = (a: DOMRect, b: DOMRect) =>
       !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)
+    const bsEl = document.querySelector('.bs') as HTMLElement
     const band = box('.bs-band')
     return {
       overCard: hits(band, box('.flash-card')),
       overButtons: hits(band, box('.grade-buttons')),
-      passesClicks: getComputedStyle(document.querySelector('.bs')!).pointerEvents,
+      passesClicks: getComputedStyle(bsEl).pointerEvents,
     }
   })
 

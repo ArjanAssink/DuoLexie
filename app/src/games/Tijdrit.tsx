@@ -119,7 +119,7 @@ export function Tijdrit({ lesson, onComplete, onQuit }: Props) {
         <div className="progress-track">
           <div
             className="progress-fill"
-            style={{ width: `${(secondsLeft / ROUND_SECONDS) * 100}%`, background: 'var(--accent)' }}
+            style={{ transform: `scaleX(${secondsLeft / ROUND_SECONDS})`, background: 'var(--accent)' }}
           />
         </div>
         <div className="timer-big">{secondsLeft}</div>

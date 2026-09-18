@@ -1,24 +1,26 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AvatarView } from '../components/AvatarView'
-import { GemIcon } from '../components/Icons'
-import { useProgress } from '../state/progress'
-import {
-  useAvatar,
-  SKIN_COLORS,
-  EYE_COLORS,
-  HAIR_COLORS,
-  HAIRSTYLES,
-  HAIRSTYLE_LABELS,
-} from '../state/avatar'
+import { AvatarPickers } from '../components/AvatarPickers'
+import { WipNote } from '../components/WipNote'
+import { BookIcon, GemIcon } from '../components/Icons'
+import { MAX_PLAYER_NAME, normalizePlayerName, useProgress } from '../state/progress'
+import { useAvatar } from '../state/avatar'
 
 export function AvatarScreen() {
   const navigate = useNavigate()
   const gems = useProgress((s) => s.gems)
+  const playerName = useProgress((s) => s.settings.playerName)
+  const setPlayerName = useProgress((s) => s.setPlayerName)
   const config = useAvatar((s) => s.config)
-  const setSkinColor = useAvatar((s) => s.setSkinColor)
-  const setEyeColor = useAvatar((s) => s.setEyeColor)
-  const setHairColor = useAvatar((s) => s.setHairColor)
-  const setHairstyle = useAvatar((s) => s.setHairstyle)
+  const collectedWeetjes = useProgress((s) => s.collectedWeetjes)
+  const autoRead = useProgress((s) => s.settings.autoRead)
+  const toggleAutoRead = useProgress((s) => s.toggleAutoRead)
+
+  // Saved on blur rather than on every keystroke: this field is a correction, not the
+  // delight moment the welkom-flow's live bubble is, and writing per keystroke would push a
+  // persist to IndexedDB for every letter.
+  const [draftName, setDraftName] = useState(playerName)
 
   return (
     <div className="avatar-screen">
@@ -40,69 +42,46 @@ export function AvatarScreen() {
         Naar de winkel
       </button>
 
-      <section className="avatar-picker">
-        <h2>Kapsel</h2>
-        <div className="hairstyle-row">
-          {HAIRSTYLES.map((style) => (
-            <button
-              key={style}
-              className={`hairstyle-btn ${config.hairstyle === style ? 'selected' : ''}`}
-              aria-label={HAIRSTYLE_LABELS[style]}
-              aria-pressed={config.hairstyle === style}
-              onClick={() => setHairstyle(style)}
-            >
-              <AvatarView config={{ ...config, hairstyle: style }} crop="topbar" />
-            </button>
-          ))}
-        </div>
-      </section>
+      {/* docs/weetjes.md §8 — the way back into the Weetjesboek from anywhere she can reach
+          her profile, with the count on it so a full book is visible from here. */}
+      <button className="btn-primary weetjesboek-cta" onClick={() => navigate('/weetjes')}>
+        <BookIcon fill="#FFFFFF" size={22} /> Mijn weetjes ({collectedWeetjes.length})
+      </button>
 
-      <section className="avatar-picker">
-        <h2>Huidskleur</h2>
-        <div className="swatch-row">
-          {SKIN_COLORS.map((color) => (
-            <button
-              key={color}
-              className={`swatch ${config.skinColor === color ? 'selected' : ''}`}
-              style={{ background: color }}
-              aria-label={`Huidskleur kiezen`}
-              aria-pressed={config.skinColor === color}
-              onClick={() => setSkinColor(color)}
-            />
-          ))}
-        </div>
-      </section>
+      <AvatarPickers />
 
-      <section className="avatar-picker">
-        <h2>Oogkleur</h2>
-        <div className="swatch-row">
-          {EYE_COLORS.map((color) => (
-            <button
-              key={color}
-              className={`swatch ${config.eyeColor === color ? 'selected' : ''}`}
-              style={{ background: color }}
-              aria-label={`Oogkleur kiezen`}
-              aria-pressed={config.eyeColor === color}
-              onClick={() => setEyeColor(color)}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="avatar-picker">
-        <h2>Haarkleur</h2>
-        <div className="swatch-row">
-          {HAIR_COLORS.map((color) => (
-            <button
-              key={color}
-              className={`swatch ${config.hairColor === color ? 'selected' : ''}`}
-              style={{ background: color }}
-              aria-label={`Haarkleur kiezen`}
-              aria-pressed={config.hairColor === color}
-              onClick={() => setHairColor(color)}
-            />
-          ))}
-        </div>
+      <section className="avatar-picker about-section">
+        <h2>Over DuoLexie</h2>
+        <label className="about-name">
+          <span>Je naam</span>
+          <input
+            className="welkom-name-input"
+            type="text"
+            value={draftName}
+            placeholder="Je naam"
+            autoComplete="given-name"
+            autoCapitalize="words"
+            enterKeyHint="done"
+            inputMode="text"
+            maxLength={MAX_PLAYER_NAME}
+            onChange={(e) => setDraftName(e.target.value)}
+            onBlur={() => {
+              // Normalize the field too, not just the store: leaving "  Lotte " on screen
+              // after saving "Lotte" would read as if the spaces had been kept.
+              const clean = normalizePlayerName(draftName)
+              setDraftName(clean)
+              setPlayerName(clean)
+            }}
+          />
+        </label>
+        <label className="about-toggle">
+          <input type="checkbox" checked={autoRead} onChange={toggleAutoRead} />
+          <span>Weetjes automatisch voorlezen</span>
+        </label>
+        <WipNote />
+        <button className="about-intro-btn" onClick={() => navigate('/welkom')}>
+          Introductie opnieuw bekijken
+        </button>
       </section>
     </div>
   )

@@ -1,34 +1,78 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import type { ComponentType } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import confetti from 'canvas-confetti'
-import type { AnswerRecord } from '@shared/src/types'
+import type { AnswerRecord, GameType, Lesson, WordResult } from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
 import { Tijdrit } from '../games/Tijdrit'
 import { HardopLezen } from '../games/HardopLezen'
+import { Weetjes } from '../games/Weetjes'
 import { haptic, playEffect } from '../audio/audio'
-import { Frida } from '../components/Frida'
+import { RewardScreen, type DisplayReward } from './RewardScreen'
 
 export interface GameResult {
   answers: AnswerRecord[]
   /** klanken per minuut for Tijdrit */
   score?: number
+  /** Hardop lezen only — one entry per word she graded */
+  wordResults?: WordResult[]
 }
 
-interface Reward {
-  gems: number
-  xp: number
-  perfect: boolean
-  newRecord: boolean
-  score?: number
+interface GameProps {
+  lesson: Lesson
+  onComplete: (result: GameResult) => void
+  onQuit: () => void
+}
+
+/**
+ * Placeholder for a GameType with no real component yet (`welke-klank`, `woordbouwer`) — an
+ * honest "not built" screen, not the previous fallback of silently rendering whichever game
+ * happened to sit last in a ternary chain.
+ */
+function NotImplementedGame({ onQuit }: GameProps) {
+  return (
+    <div className="game-screen">
+      <div className="game-header">
+        <button className="quit" onClick={onQuit}>
+          ✕
+        </button>
+      </div>
+      <div className="game-stage">
+        <h2>Dit spel bestaat nog niet</h2>
+        <button className="btn-primary" onClick={onQuit}>
+          Terug naar het pad
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * docs/backend-readiness.md A6 — a `Record<GameType, ...>` instead of a ternary chain, so
+ * adding a GameType without adding it here is a compile error, not a silently-wrong game
+ * at runtime.
+ */
+const GAMES: Record<GameType, ComponentType<GameProps>> = {
+  flitsen: Flitsen,
+  tijdrit: Tijdrit,
+  'hardop-lezen': HardopLezen,
+  weetjes: Weetjes,
+  'welke-klank': NotImplementedGame,
+  woordbouwer: NotImplementedGame,
 }
 
 export function GameScreen() {
   const { lessonId } = useParams()
   const navigate = useNavigate()
   const completeLesson = useProgress((s) => s.completeLesson)
-  const [reward, setReward] = useState<Reward | null>(null)
+  const [reward, setReward] = useState<DisplayReward | null>(null)
+  /**
+   * Every "credit this lesson once" guarantee used to live inside the game components, so
+   * any game that fired onComplete twice — or once after unmount — double-credited gems, XP
+   * and the session log. Guard it here too, where the crediting actually happens.
+   */
+  const credited = useRef(false)
 
   const lesson = lessonId ? lessonById(lessonId) : undefined
   if (!lesson) {
@@ -37,50 +81,40 @@ export function GameScreen() {
   }
 
   function handleComplete(result: GameResult) {
-    if (!lesson) return
-    const perfect = result.answers.length > 0 && result.answers.every((a) => a.correct)
-    const gems = 10 + (perfect ? 5 : 0) + (lesson.kind === 'eindbaas' ? 10 : 0)
-    const xp = 10 + result.answers.filter((a) => a.correct).length
-    const { newRecord } = completeLesson({
-      lessonId: lesson.id,
+    if (!lesson || credited.current) return
+    credited.current = true
+    // completeLesson computes gems/xp/perfect/newRecord (engine/reward.ts) — nothing here
+    // recomputes any of it, so there's nowhere for the credited and displayed numbers to
+    // silently disagree the way they used to.
+    const reward = completeLesson({
+      lesson,
       answers: result.answers,
-      gems,
-      xp,
       score: result.score,
+      wordResults: result.wordResults,
     })
-    setReward({ gems: gems + (newRecord ? 10 : 0), xp, perfect, newRecord, score: result.score })
+    setReward({
+      ...reward,
+      // a Weetje round is celebrated differently, because it has nothing to grade
+      kind: lesson.kind,
+      score: result.score,
+      wordResults: result.wordResults,
+      // the stat card's denominator for every game that is not scored per word
+      answers: result.answers,
+    })
     playEffect('fanfare')
-    haptic(newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
-    confetti({ particleCount: newRecord ? 220 : 120, spread: 85, origin: { y: 0.7 } })
+    haptic(reward.newRecord ? [15, 60, 15, 60, 25] : [15, 60, 15])
+    // The confetti used to fire here, and its sizing formula with it. Both now live in the
+    // reward screen's hero beat (screens/rewardTimeline.ts confettiCount,
+    // docs/reward-celebration.md §6): fired from here it landed a beat before the screen it
+    // was celebrating had even mounted, and it could not be skipped or switched off with
+    // the rest of the sequence. The fanfare and the haptics stay — they belong to the
+    // moment the round ends, not to the celebration that follows it.
   }
 
   if (reward) {
-    return (
-      <div className="reward-screen">
-        <Frida
-          expression={reward.newRecord ? 'head-celebrating' : 'happy'}
-          className="frida"
-          alt="Frida is blij"
-        />
-        {reward.newRecord && <div className="record-banner">NIEUW RECORD!</div>}
-        <h1>{reward.perfect ? 'Perfect!' : 'Goed gedaan!'}</h1>
-        {reward.score !== undefined && (
-          <div className="reward-line">⚡ {reward.score} klanken per minuut</div>
-        )}
-        <div className="reward-line">💎 +{reward.gems}</div>
-        <div className="reward-line">✨ +{reward.xp} XP</div>
-        <button className="btn-primary" onClick={() => navigate('/')}>
-          Verder
-        </button>
-      </div>
-    )
+    return <RewardScreen reward={reward} onDone={() => navigate('/')} />
   }
 
-  const Game =
-    lesson.gameType === 'tijdrit'
-      ? Tijdrit
-      : lesson.gameType === 'hardop-lezen'
-        ? HardopLezen
-        : Flitsen
+  const Game = GAMES[lesson.gameType]
   return <Game lesson={lesson} onComplete={handleComplete} onQuit={() => navigate('/')} />
 }

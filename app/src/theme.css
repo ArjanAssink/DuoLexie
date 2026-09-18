@@ -444,10 +444,15 @@ button:disabled { cursor: default; }
   overflow: hidden;
 }
 .progress-fill {
+  width: 100%;
   height: 100%;
   border-radius: 8px;
   background: var(--teal);
-  transition: width 0.4s ease;
+  /* transform, not width: animating width forces layout every frame (impeccable
+     detect flagged this) — scaleX from a fixed 100% width is the same visual
+     result composited on the GPU instead, the pattern .fuse-fill already uses */
+  transform-origin: left center;
+  transition: transform 0.4s ease;
 }
 .timer-big {
   font-size: 26px;
@@ -491,11 +496,119 @@ button:disabled { cursor: default; }
 }
 .grade-buttons button { flex: 1; max-width: 220px; }
 
-/* ---------- hardop lezen (swipe card) ---------- */
+/* ---------- hardop lezen (read -> listen -> sort) ---------- */
+/* docs/hardop-lezen-rework.md — the round is ten cards; each one deals in, burns a fuse
+   while she reads it, is spoken, and is then sorted onto one of two visible piles. */
+
+.hardop-stage { gap: clamp(12px, 2.2vh, 22px); }
+
+/* ten discrete cards read better as pips than as one continuous bar */
+.round-pips {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.pip {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: var(--hairline);
+}
+.pip-done { background: var(--teal); }
+.pip-now {
+  background: var(--teal-ring);
+  animation: pipPulse 1.4s ease-in-out infinite;
+}
+@keyframes pipPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+}
+
+/* Frida and the Goed! pocket share the top row: a good word flies up to her, and she is
+   standing right beside where it lands. */
+.top-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(86vw, 380px);
+  align-self: center;
+  /* Above the Bliksemsprint overlay (.bs is z-index 30). The band is measured to stop at
+     this row, but its minimum height can still reach a few px into it on a short phone —
+     and a celebration that hides the pocket the card is flying into would be covering the
+     very thing it is celebrating. Purely a paint order: .bs is pointer-events: none. */
+  position: relative;
+  z-index: 31;
+}
+
+/* Frida says what phase she's in, so the screen needs no written instructions */
+.coach {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  /* the bubble is the part that must not push the pocket off the row */
+  min-width: 0;
+}
+.coach-bubble { min-width: 0; }
+.coach-frida { width: clamp(44px, 12vw, 58px); height: auto; }
+.coach-bubble {
+  position: relative;
+  margin: 0;
+  background: #fff;
+  border-radius: 16px;
+  padding: 9px 14px;
+  font-weight: 800;
+  font-size: clamp(14px, 2vh, 17px);
+  color: var(--text);
+  box-shadow: 0 3px 0 var(--hairline);
+}
+.coach-bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-left: 0;
+  border-right-color: #fff;
+}
+
+/* The piles' labels, turned into directions. They hold their row whether or not they are
+   showing: chevrons that came and went would shift the card mid-gesture. */
+.chevrons {
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.chevrons.pointing { opacity: 1; }
+.chevrons svg { width: 24px; height: 14px; display: block; }
+.chevrons-up { color: var(--teal); }
+.chevrons-down { color: var(--orange); }
+.chevrons-down svg { transform: rotate(180deg); }
+.chevrons.pointing svg { animation: chevronDrift 1.4s ease-in-out infinite; }
+.chevrons.pointing svg:nth-child(2) { animation-delay: 0.22s; }
+@keyframes chevronDrift {
+  0%, 100% { transform: translateY(4px); opacity: 0.35; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+/* the down pair drifts the other way, and has to keep its 180° flip while it does */
+.chevrons-down.pointing svg { animation-name: chevronDriftDown; }
+@keyframes chevronDriftDown {
+  0%, 100% { transform: translateY(-4px) rotate(180deg); opacity: 0.35; }
+  50% { transform: translateY(4px) rotate(180deg); opacity: 1; }
+}
+
 .swipe-arena {
   position: relative;
-  width: min(80vw, 320px);
-  height: min(50vw, 34vh, 220px);
+  width: min(80vw, 340px);
+  height: min(50vw, 30vh, 210px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -503,45 +616,443 @@ button:disabled { cursor: default; }
 .word-card {
   position: absolute;
   inset: 0;
+  z-index: 1;
   background: white;
-  border-radius: 22px;
+  border-radius: 24px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(32px, 12vw, 64px);
+  flex-direction: column;
+  padding: 14px;
   color: var(--text);
   box-shadow: 0 8px 0 var(--hairline);
-  cursor: grab;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
   will-change: transform;
 }
-.word-card:active { cursor: grabbing; }
-.swipe-stamp {
-  position: absolute;
-  top: 10px;
+.word-text {
+  flex: 1;
+  display: grid;
+  place-items: center;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 20px;
+  font-size: clamp(40px, 13vw, 72px);
+  line-height: 1;
+}
+/* The deck this card came off, so dealing in has somewhere to come from.
+   z-index and pointer-events are both load-bearing, not decoration: ::after is generated
+   as the arena's *last* child, so at equal z-index it paints on top of the card and hit-
+   tests before it — which silently ate every drag until the card was lifted above it. */
+.swipe-arena::before,
+.swipe-arena::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 24px;
+  background: #fff;
+  opacity: 0.55;
+  box-shadow: 0 6px 0 var(--hairline);
+}
+.swipe-arena::before { transform: translateY(12px) scale(0.94); }
+.swipe-arena::after { transform: translateY(6px) scale(0.97); }
+/* The deck thins out towards the end of the round — but only the deeper card goes. Hiding
+   both left a card-shaped hole in the middle of the screen while the last card was flying
+   to its pile, which is the least appealing moment to have one. */
+.swipe-arena.last-cards::before { display: none; }
+
+/* phase: reading — she reads, the fuse drains, nothing is gradeable yet */
+.word-card.dealing { animation: cardDeal 260ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes cardDeal {
+  from { transform: translateY(-26px) scale(0.86); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.fuse {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: visible;
+}
+.fuse-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--teal);
+  transform-origin: left center;
+  animation: fuseDrain linear both;
+}
+@keyframes fuseDrain {
+  from { transform: scaleX(1); background: var(--teal); }
+  70% { background: var(--orange); }
+  to { transform: scaleX(0); background: var(--red-orange); }
+}
+/* last couple of seconds: pressure via a glow, never a ticking sound */
+.fuse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: fuseUrgent 800ms ease-in-out var(--fuse-urgent-delay, 8s) 3 both;
+}
+@keyframes fuseUrgent {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226, 84, 47, 0); }
+  50% { box-shadow: 0 0 0 5px rgba(226, 84, 47, 0.26); }
+}
+
+/* phase: listening — the word plays, the card is inert */
+.listen-strip {
+  height: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+}
+.listen-strip span {
+  width: 5px;
+  border-radius: 999px;
+  background: var(--teal);
+  animation: listenBar 620ms ease-in-out infinite;
+}
+.listen-strip span:nth-child(2) { animation-delay: 140ms; }
+.listen-strip span:nth-child(3) { animation-delay: 280ms; }
+@keyframes listenBar {
+  0%, 100% { height: 3px; }
+  50% { height: 10px; }
+}
+
+/* phase: judging — the card lifts and drifts, asking to be picked up */
+.word-card.liftable {
+  box-shadow: 0 14px 0 var(--hairline);
+  cursor: grab;
+}
+.word-card.liftable:active { cursor: grabbing; }
+.word-card.floating { animation: cardFloat 3s ease-in-out infinite; }
+@keyframes cardFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+/* Layer 1 of teaching the swipe (docs/hardop-lezen-swipe-v2.md §4.1): left alone for a
+   moment, the card shows her the gesture — up to the pocket, then down to the tray — with a
+   finger-shaped dot riding along. Once, per card, and only until she has swiped five herself. */
+.word-card.ghosting { animation: cardGhostSwipe 1700ms ease-in-out both; }
+@keyframes cardGhostSwipe {
+  0%, 11.8% { transform: translateY(0); }
+  47% { transform: translateY(-40px); }
+  58.8%, 62% { transform: translateY(0); }
+  82.4% { transform: translateY(24px); }
+  100% { transform: translateY(0); }
+}
+
+/* Layer 3 (§4.3): she tapped a pile, so the card performs the swipe on her behalf before it
+   flies. Demonstration and flight are one CSS chain rather than two JS timers — see the
+   comment in runCommit() about quit-mid-animation.spec.ts and the fake clock. */
+@keyframes demoSwipeUp {
+  0%, 21% { transform: translateY(0) scale(1); }
+  84%, 100% { transform: translateY(-120px) scale(1.06); }
+}
+@keyframes demoSwipeDown {
+  0%, 21% { transform: translateY(0) scale(1); }
+  84%, 100% { transform: translateY(120px) scale(0.96); }
+}
+
+/* phase: flying — the card travels to the pile she chose and is absorbed into it */
+.word-card.flying {
+  z-index: 3;
+  pointer-events: none;
+}
+.word-card.flying.fly-up { animation: cardFlyUp 420ms cubic-bezier(0.35, 0.1, 0.6, 1) forwards; }
+.word-card.flying.fly-down { animation: cardFlyDown 420ms cubic-bezier(0.5, 0, 0.75, 0.9) forwards; }
+.word-card.flying.taught.fly-up {
+  animation:
+    demoSwipeUp 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both,
+    cardFlyUp 420ms cubic-bezier(0.35, 0.1, 0.6, 1) 950ms forwards;
+}
+.word-card.flying.taught.fly-down {
+  animation:
+    demoSwipeDown 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both,
+    cardFlyDown 420ms cubic-bezier(0.5, 0, 0.75, 0.9) 950ms forwards;
+}
+/* Up keeps a small arc — a lob towards Frida. */
+@keyframes cardFlyUp {
+  0% {
+    transform: translate(0, var(--fly-from-y, 0)) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  55% {
+    transform: translate(calc(var(--fly-x) * 0.55), calc(var(--fly-y) * 0.55 - 14px))
+      rotate(calc(var(--fly-rot) * 0.6)) scale(0.72);
+    opacity: 1;
+  }
+  85% { opacity: 1; }
+  100% {
+    transform: translate(var(--fly-x), var(--fly-y)) rotate(var(--fly-rot)) scale(0.3);
+    opacity: 0;
+  }
+}
+/* Down does not: a card dropped into a tray has no business bouncing upward first. */
+@keyframes cardFlyDown {
+  0% {
+    transform: translate(0, var(--fly-from-y, 0)) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  85% { opacity: 1; }
+  100% {
+    transform: translate(var(--fly-x), var(--fly-y)) rotate(var(--fly-rot)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* The verdict stamps live inside the card so they travel with it. Vertical now: GOED! above
+   the word, NOG EVEN below, each fading in as she drags that way. */
+.swipe-stamp {
+  position: absolute;
+  left: 50%;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(14px, 3.8vw, 18px);
   letter-spacing: 1px;
-  padding: 6px 14px;
+  padding: 4px 10px;
   border-radius: 10px;
   border: 3px solid;
+  background: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
   pointer-events: none;
-  z-index: 2;
+  z-index: 4;
+  /* The base state. A stamp is faded in either by her drag (inline opacity) or by the
+     taught tap's own animation; with no base, the stamp for the direction she is *not*
+     going would sit there fully opaque. */
+  opacity: 0;
 }
-.swipe-stamp-right { right: 4px; color: var(--teal); border-color: var(--teal); transform: rotate(8deg); }
-.swipe-stamp-left { left: 4px; color: var(--red-orange); border-color: var(--red-orange); transform: rotate(-8deg); }
-.swipe-hint {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
-  text-align: center;
-  max-width: 280px;
-  margin: 0;
+/* Hard against the card's edges, not tucked in beside the word. The card is only ~195px
+   tall on an iPhone and the word fills the middle of it; a stamp with room to clear both
+   the word and the audio badge does not exist. Covering the word she is judging is the
+   worse of the two, so the stamps take the edges and the badge (z-index 6, above them)
+   clips a corner of GOED! when the two meet. */
+.swipe-stamp-goed {
+  top: 16px;
+  color: var(--teal);
+  border-color: var(--teal);
+  transform: translateX(-50%) rotate(-3deg);
+}
+.swipe-stamp-nog-even {
+  bottom: 16px;
+  color: var(--red-orange);
+  border-color: var(--red-orange);
+  transform: translateX(-50%) rotate(3deg);
+}
+/* During a taught tap the drag is zero, so the stamp is faded in by the demonstration's
+   own clock instead of by her finger. */
+.stamp-demo { animation: stampDemo 950ms ease-out both; }
+@keyframes stampDemo {
+  0%, 21% { opacity: 0; }
+  84%, 100% { opacity: 1; }
+}
+
+/* "A finger is here" — no art needed, and it reads the same at any age. */
+.touch-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 2px solid rgba(66, 40, 26, 0.35);
+  box-shadow: 0 2px 8px rgba(66, 40, 26, 0.2);
+  pointer-events: none;
+  z-index: 5;
+}
+.dot-ghost { animation: dotGhostSwipe 1700ms ease-in-out both; }
+@keyframes dotGhostSwipe {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  11.8% { opacity: 1; transform: translateY(0) scale(1); }
+  47% { opacity: 1; transform: translateY(-40px) scale(1); }
+  58.8% { opacity: 0; transform: translateY(0) scale(1); }
+  65% { opacity: 1; transform: translateY(6px) scale(1); }
+  82.4% { opacity: 1; transform: translateY(24px) scale(1); }
+  100% { opacity: 0; transform: translateY(0) scale(1); }
+}
+.dot-demo-up { animation: dotDemoUp 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both; }
+@keyframes dotDemoUp {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  21% { opacity: 1; transform: translateY(0) scale(1); }
+  84% { opacity: 1; transform: translateY(-120px) scale(1); }
+  100% { opacity: 0; transform: translateY(-120px) scale(1.15); }
+}
+.dot-demo-down { animation: dotDemoDown 950ms cubic-bezier(0.3, 0.8, 0.4, 1) both; }
+@keyframes dotDemoDown {
+  0% { opacity: 0; transform: translateY(0) scale(0.8); }
+  21% { opacity: 1; transform: translateY(0) scale(1); }
+  84% { opacity: 1; transform: translateY(120px) scale(1); }
+  100% { opacity: 0; transform: translateY(120px) scale(1.15); }
+}
+
+/* The audio control is a badge in the card's own top-right corner. It used to be a button
+   under the card; the tray needs that vertical room on an iPhone, and the control belongs
+   to the word anyway. Class kept so the e2e selectors stay put. */
+.reveal-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 6;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--teal);
+  box-shadow: 0 3px 0 var(--teal-shadow);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 17px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+}
+.reveal-btn:disabled { opacity: 0.45; cursor: default; }
+.reveal-label { white-space: nowrap; font-size: 15px; }
+
+/* The two piles are no longer a row of equals. The Goed! pocket sits up beside Frida, the
+   Nog even tray lies flat under the card — the two directions the card can go. */
+.pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.2s ease, transform 0.18s ease;
+}
+.pile.ready { opacity: 1; }
+.pile.targeted { transform: scale(1.08); }
+.pile-tray {
+  position: relative;
+  border-radius: 18px;
+}
+/* an empty pile still has to read as "somewhere cards land" */
+.pile-tray::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 30px;
+  margin: -15px 0 0 -22px;
+  border-radius: 6px;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+
+/* the pocket: small, high, and right next to Frida, because up means "to her" */
+.pocket .pile-tray {
+  width: clamp(88px, 25vw, 104px);
+  height: clamp(56px, 15vw, 64px);
+  background: var(--teal);
+  box-shadow: 0 6px 0 var(--teal-shadow);
+}
+
+/* the oefenbakje: the card's own width, and lower than it is tall, so putting a word down
+   into it is a small drop rather than a throw */
+.tray {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+  align-self: center;
+  width: min(80vw, 340px);
+  height: 64px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: var(--orange);
+  box-shadow: 0 6px 0 var(--orange-shadow);
+}
+.tray .pile-tray { width: 56px; height: 40px; }
+.tray .pile-tray::before { border-color: rgba(255, 255, 255, 0.6); }
+.pile.bumped .pile-tray { animation: pileSquash 220ms ease-out; }
+@keyframes pileSquash {
+  0% { transform: scaleY(0.92) scaleX(1.04); }
+  100% { transform: scaleY(1) scaleX(1); }
+}
+.pile-mini {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 30px;
+  margin: -15px 0 0 -22px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(66, 40, 26, 0.25);
+}
+.pile-count {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 900;
+  font-size: 15px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 0 var(--hairline);
+}
+.pile.bumped .pile-count { animation: countBump 220ms ease-out; }
+@keyframes countBump {
+  0% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+.pile-label { font-weight: 900; font-size: 14px; }
+.pocket .pile-label { color: var(--teal-shadow); }
+/* inside the orange bar rather than under it, so the tray reads as one object */
+.tray .pile-label { color: #fff; font-size: clamp(15px, 4.4vw, 18px); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The mechanism works without any of the motion: no float, no heartbeat, no demonstration
+     of the swipe, and the flight becomes a plain fade into the pile. The chevrons stay —
+     they are the only part of the teaching that is information rather than movement — but
+     they stop drifting. */
+  .pip-now,
+  .word-card.dealing,
+  .word-card.floating,
+  .word-card.ghosting,
+  .chevrons.pointing svg,
+  .fuse::after,
+  .listen-strip span,
+  .pile.bumped .pile-tray,
+  .pile.bumped .pile-count {
+    animation: none;
+  }
+  .chevrons { transition: none; }
+  .chevrons-down.pointing svg { transform: rotate(180deg); }
+  .listen-strip span { height: 8px; }
+  /* One rule for every flight variant: the taught tap never starts here (the component
+     checks prefers-reduced-motion before choosing to teach), so there is no demonstration
+     left to fade out of. */
+  .word-card.flying,
+  .word-card.flying.fly-up,
+  .word-card.flying.fly-down,
+  .word-card.flying.taught.fly-up,
+  .word-card.flying.taught.fly-down {
+    animation: cardFade 150ms linear forwards;
+  }
+  @keyframes cardFade {
+    to { opacity: 0; }
+  }
+  .pile.targeted { transform: none; }
 }
 
 /* ---------- flitsen (flip-through deck, ported from CardFlash) ---------- */
@@ -803,29 +1314,440 @@ button:disabled { cursor: default; }
 .shop-item.unaffordable { opacity: 0.5; }
 
 /* ---------- reward ---------- */
+/*
+ * The celebration after a round (docs/reward-celebration.md). Every visual here is driven
+ * from one attribute — `data-beat` on the root — which is what makes "tap to skip" a single
+ * attribute change instead of a dozen separately unwound animations, and what keeps the
+ * whole choreography readable in one place. JS advances the attribute and the bar's
+ * progress; it sets no other style.
+ *
+ * Two rules the whole block obeys:
+ *   - nothing animates width/height/top/left. The bar fill is `scaleX` on an inner element,
+ *     the hero is `scale` + `translateY`, everything else is opacity.
+ *   - the *final* state is the default, and earlier beats are written as what they take
+ *     away. So the state that reduced motion mounts in, and the state a tap jumps to, needs
+ *     no rules of its own and cannot drift from the one the sequence ends on.
+ */
 .reward-screen {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* `safe` keeps the top of a long screen reachable once it scrolls; browsers that don't
+     know the keyword drop the second declaration and keep plain centring. */
   justify-content: center;
+  justify-content: safe center;
   flex: 1;
-  gap: 18px;
+  gap: 16px;
   text-align: center;
-  padding: 0 16px;
+  padding: 12px 16px;
+  /* The gate: a 2.2x Frida and a band 160% of the width both overhang the screen, and
+     neither may ever reach a scrollbar — at 375px that would be a page that slides sideways
+     under her thumb. */
+  overflow: hidden;
+
+  --tier-color: var(--orange);
+  --tier-fill: #FDEBD5;
+  --tier-border: var(--orange);
+  /* How far Frida and the headline are thrown down into the middle of the screen for the
+     hero, in px from their final places. The layout never reflows — everything is laid out
+     in its final position from the first frame and the hero is transform only — so these
+     two numbers are the entire difference between the hero and the end state. */
+  --hero-lift: 134px;
+  --title-drop: 273px;
 }
-.reward-screen .frida { width: 180px; animation: bounce 1.2s infinite; }
-.reward-screen h1 { font-size: 34px; margin: 0; color: var(--orange); }
+/* Once the strip is up, a round with a lot of nog-even chips may be taller than the screen.
+   It scrolls from here on; the hero, which is the thing that overhangs, is long over. */
+.reward-screen[data-beat="strip"],
+.reward-screen[data-beat="done"] { overflow-y: auto; }
+
+/* everything except the streak sits above it */
+.reward-screen > :not(.reward-streak) { position: relative; z-index: 1; }
+
+.reward-screen[data-tier="geoefend"] {
+  --tier-color: var(--orange); --tier-fill: #FDEBD5; --tier-border: var(--orange);
+}
+.reward-screen[data-tier="goed"] {
+  --tier-color: var(--teal); --tier-fill: var(--teal-pill); --tier-border: var(--teal);
+}
+.reward-screen[data-tier="super"] {
+  --tier-color: var(--teal-shadow); --tier-fill: var(--teal-pill); --tier-border: var(--gold);
+}
+.reward-screen[data-tier="perfect"] {
+  --tier-color: var(--gold-shadow); --tier-fill: #FFF1B8; --tier-border: var(--gold);
+}
+
+/* ----- the streak band ----- */
+/* Two skewed bands sweeping across behind Frida. They are 160% of the width and hang off
+   both edges so the -8deg skew never leaves a triangular gap at a corner; the root's
+   overflow is what stops that width from being scrollable. */
+.reward-streak {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.streak-band {
+  position: absolute;
+  left: -30%;
+  width: 160%;
+  display: block;
+  transform: skewY(-8deg);
+}
+.streak-band-teal { top: 24%; height: 104px; background: var(--teal-pill); }
+.streak-band-gold { top: 41%; height: 68px; background: rgba(247, 197, 49, 0.32); }
+
+@keyframes streakIn {
+  from { opacity: 0; transform: skewY(-8deg) translateX(-130%); }
+  to { opacity: 1; transform: skewY(-8deg) translateX(0); }
+}
+@keyframes streakOut {
+  from { opacity: 1; transform: skewY(-8deg) translateX(0); }
+  to { opacity: 0; transform: skewY(-8deg) translateX(130%); }
+}
+.reward-screen[data-beat="hero"] .streak-band {
+  animation: streakIn 620ms var(--hero-at) cubic-bezier(.22,.9,.35,1) both;
+}
+.reward-screen[data-beat="hero"] .streak-band-gold { animation-delay: calc(var(--hero-at) + 90ms); }
+.reward-screen[data-beat="settle"] .streak-band {
+  animation: streakOut 460ms cubic-bezier(.5,0,.75,0) both;
+}
+.reward-screen[data-beat="settle"] .streak-band-gold { animation-delay: 70ms; }
+/* the band belongs to the hero; from the card beat on there is nothing to sweep */
+.reward-screen:is([data-beat="card"], [data-beat="strip"], [data-beat="done"]) .reward-streak {
+  display: none;
+}
+
+/* ----- Frida ----- */
+/* Three layers, because two animations on one element do not compose — the later one simply
+   wins the whole `transform`. The box holds the layout, the scaler does the hero's growth,
+   and the image itself does the wobble and the idle float. */
+.reward-hero {
+  width: 180px;
+  height: 180px;
+  flex: 0 0 auto;
+}
+.frida-scale { width: 180px; height: 180px; }
+.reward-screen .frida { width: 180px; display: block; }
+
+@keyframes heroIn {
+  0% { opacity: 0; transform: translateY(var(--hero-lift)) scale(0.4); }
+  55% { opacity: 1; transform: translateY(var(--hero-lift)) scale(2.42); }
+  100% { opacity: 1; transform: translateY(var(--hero-lift)) scale(2.2); }
+}
+@keyframes heroWobble {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-3deg); }
+  75% { transform: rotate(3deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes settleFrida {
+  from { transform: translateY(var(--hero-lift)) scale(2.2); }
+  to { transform: none; }
+}
+.reward-screen[data-beat="hero"] .frida-scale {
+  animation: heroIn 780ms var(--hero-at) cubic-bezier(.2,1.1,.4,1) both;
+}
+.reward-screen[data-beat="hero"] .frida {
+  animation: heroWobble 620ms calc(var(--hero-at) + 500ms) ease-in-out 2 both;
+}
+.reward-screen[data-beat="settle"] .frida-scale {
+  animation: settleFrida var(--settle-ms) cubic-bezier(.22,.9,.35,1) both;
+}
+/* The quiet room (§5): under 50% she still gets the whole ceremony, at the same length and
+   in the same places — it just arrives rather than bursts. No overshoot, no wobble, and (in
+   the markup) no streak and no confetti. Confetti over a two-out-of-ten round reads as being
+   laughed at; a hero that simply grows in reads as being met. */
+@keyframes heroInQuiet {
+  from { opacity: 0; transform: translateY(var(--hero-lift)) scale(0.85); }
+  to { opacity: 1; transform: translateY(var(--hero-lift)) scale(2.2); }
+}
+.reward-screen[data-quiet="true"][data-beat="hero"] .frida-scale {
+  animation: heroInQuiet 780ms var(--hero-at) cubic-bezier(.22,.9,.35,1) both;
+}
+.reward-screen[data-quiet="true"][data-beat="hero"] .frida { animation: none; }
+/* The only infinite animation in the app besides the welkom-flow's, which is why it has
+   always needed its own reduced-motion override rather than relying on the one at the top
+   of this file — that one cannot cascade into a descendant's own animation. */
+.reward-screen[data-beat="done"] .frida { animation: fridaFloat 3s ease-in-out infinite; }
+
+/* ----- sparkles ----- */
+/* Four of them, twinkling around her while the sequence runs and gone by the time it ends:
+   `fridaFloat` has to be the only thing still moving in the final state, or "tap to skip
+   leaves nothing mid-animation" stops being checkable. */
+.reward-sparkle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  background: var(--gold);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+.reward-sparkle-1 { top: -14px; left: -26px; }
+.reward-sparkle-2 { top: 18px; right: -30px; width: 13px; height: 13px; }
+.reward-sparkle-3 { bottom: 24px; left: -34px; width: 14px; height: 14px; }
+.reward-sparkle-4 { bottom: -8px; right: -18px; }
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.reward-screen:is([data-beat="hero"], [data-beat="settle"], [data-beat="card"]) .reward-sparkle {
+  animation: sparkle 1500ms calc(var(--hero-at) + 260ms) ease-in-out infinite;
+}
+.reward-screen .reward-sparkle-2 { animation-delay: 620ms; }
+.reward-screen .reward-sparkle-3 { animation-delay: 980ms; }
+.reward-screen .reward-sparkle-4 { animation-delay: 1340ms; }
+
+/* ----- headline ----- */
+.reward-title { display: flex; flex-direction: column; gap: 6px; }
+.reward-screen h1 {
+  font-family: var(--font-display);
+  font-size: 34px;
+  margin: 0;
+  color: var(--orange);
+  line-height: 1.1;
+}
+.reward-subline { margin: 0; font-size: 17px; font-weight: 700; color: var(--muted); }
+
+/* 52px during the hero is scale(1.53) of the final 34px, so the size change is a transform
+   like everything else rather than a font-size animation. */
+@keyframes heroTitleIn {
+  from { opacity: 0; transform: translateY(calc(var(--title-drop) + 26px)) scale(1.25); }
+  to { opacity: 1; transform: translateY(var(--title-drop)) scale(1.53); }
+}
+@keyframes settleTitle {
+  from { transform: translateY(var(--title-drop)) scale(1.53); }
+  to { transform: none; }
+}
+.reward-screen[data-beat="hero"] .reward-title {
+  animation: heroTitleIn 520ms calc(var(--hero-at) + 200ms) cubic-bezier(.22,.9,.35,1) both;
+}
+.reward-screen[data-beat="hero"] h1 { color: var(--gold-shadow); }
+.reward-screen[data-beat="settle"] .reward-title {
+  animation: settleTitle var(--settle-ms) cubic-bezier(.22,.9,.35,1) both;
+}
+/* the subline is the settle's own arrival, so it has nothing to say during the hero */
+.reward-screen[data-beat="hero"] :is(.reward-subline, .record-banner) { opacity: 0; }
+.reward-screen[data-beat="settle"] :is(.reward-subline, .record-banner) {
+  animation: stripIn 420ms 180ms ease-out both;
+}
+
+/* ----- the stat card ----- */
+.reward-card {
+  width: 100%;
+  min-width: 260px;
+  max-width: 340px;
+  background: #fff;
+  border: 2px solid var(--tier-border);
+  border-radius: 18px;
+  padding-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.3s ease-out;
+}
+.reward-card-label {
+  background: var(--tier-fill);
+  padding: 7px 14px;
+  transition: background-color 0.3s ease-out;
+}
+.reward-card-tier {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tier-color);
+  transition: color 0.3s ease-out;
+  animation: tierBump 320ms cubic-bezier(.34,1.56,.64,1) both;
+}
+/* The label is keyed on the tier in React, so each upgrade is a new element and replays
+   this — the bump is the beat that makes "Goed -> Super" land as an event. */
+@keyframes tierBump {
+  from { transform: scale(1.25); }
+  to { transform: scale(1); }
+}
+
+.reward-bar {
+  height: 18px;
+  margin: 14px 16px 10px;
+  border-radius: 999px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+/* The one thing on this screen whose size changes, and it does it with scaleX on an inner
+   element rather than width, so it never triggers layout. The value itself is set inline
+   from the same eased progress the number beside it is rounded from. */
+.reward-bar-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tier-color);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: background-color 0.3s ease-out;
+}
+.reward-pct {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--tier-color);
+  transition: color 0.3s ease-out;
+  /* the digits change every frame; tabular figures stop the card twitching as they do */
+  font-variant-numeric: tabular-nums;
+}
+.reward-tally { margin-top: 6px; font-size: 14px; font-weight: 700; color: var(--muted); }
+
+@keyframes rewardCardIn {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.reward-screen:is([data-beat="hero"], [data-beat="settle"]) .reward-card { opacity: 0; }
+.reward-screen[data-beat="card"] .reward-card {
+  animation: rewardCardIn 420ms cubic-bezier(.34,1.56,.64,1) both;
+}
+
+/* ----- the reward strip, the chips, and Verder ----- */
+.reward-strip { display: flex; gap: 22px; align-items: baseline; }
 .reward-screen .reward-line { font-size: 22px; font-weight: 900; }
+.reward-score { font-size: 17px; font-weight: 800; color: var(--muted); }
+.reward-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 320px;
+}
+.word-chip {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--hairline);
+  background: #fff;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 17px;
+  cursor: pointer;
+}
+.word-chip:active { transform: translateY(2px); }
+
+@keyframes stripIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reward-screen:is([data-beat="hero"], [data-beat="settle"], [data-beat="card"])
+  :is(.reward-strip, .reward-score, .reward-chips) { opacity: 0; }
+.reward-screen[data-beat="strip"] :is(.reward-strip, .reward-score, .reward-chips) {
+  animation: stripIn 380ms ease-out both;
+}
+.reward-screen[data-beat="strip"] .reward-score { animation-delay: 80ms; }
+.reward-screen[data-beat="strip"] .reward-chips { animation-delay: 160ms; }
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reward-verder { min-width: 200px; }
+/* In the DOM and wired up from the first frame, only not hit-testable — which is exactly
+   what makes an impatient tap land on the screen's skip instead of dying on a dead button
+   (docs/reward-celebration.md §2). */
+.reward-screen:not([data-beat="done"]) .reward-verder { visibility: hidden; }
+.reward-screen[data-beat="done"] .reward-verder {
+  animation: riseIn 340ms cubic-bezier(.22,.9,.35,1) both;
+}
+
 .record-banner {
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: 34px;
   font-weight: 800;
   color: var(--gold-shadow);
   animation: pulse 0.8s infinite;
 }
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-14px); }
+
+/* announced once, at the end — a screen reader should not read out a count-up frame by frame */
+.reward-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * An iPhone SE is 667pt tall and the whole celebration has to fit on it without scrolling,
+ * chips and all (§3) — a Verder she has to scroll to find is a dead end at the one moment
+ * the screen is asking her to carry on. Measured at 375x667 with four chips the comfortable
+ * rhythm above runs 47px over, so short screens get a tighter one.
+ *
+ * Frida comes down to 150px here, which is the part that was not in the plan. The first
+ * version kept her at 180 and took the 47px out of gaps, padding and type — and it fit, with
+ * 15px to spare on Chromium and 4px *under* on CI's WebKit profiles, whose text metrics run
+ * about 11px taller over a screen this long. A layout that fits by four pixels on one engine
+ * does not fit; it is waiting for a longer word. Thirty px off the hero buys the margin that
+ * makes it true on both, and a 150px Frida on a 667px screen is still plainly the hero.
+ */
+@media (max-height: 700px) {
+  .reward-screen { gap: 10px; padding: 8px 16px; }
+  .reward-hero, .frida-scale { width: 150px; height: 150px; }
+  .reward-screen .frida { width: 150px; }
+  .reward-title { gap: 4px; }
+  .reward-card { padding-bottom: 10px; }
+  .reward-bar { margin: 8px 16px 6px; }
+  .reward-pct { font-size: 34px; }
+  .word-chip { font-size: 16px; padding: 6px 11px; }
+}
+
+/*
+ * Tap-to-skip, as a hard guarantee rather than an inventory.
+ *
+ * `skip()` sets data-beat="done", which already removes every beat-scoped animation above.
+ * What it cannot remove on its own are the animations the *final* beat starts — Verder's
+ * riseIn, the tier label's bump, the screen's own enter fade — and the gate is that a tap
+ * leaves nothing mid-animation, not that it leaves three known things mid-animation. So:
+ * everything off, then the one thing that is meant to keep going back on. `!important`
+ * because the beat-scoped rules above are deliberately more specific than a `*` selector,
+ * and a blanket rule is the point here — a new keyframe added later is covered by it
+ * without anyone having to remember to.
+ */
+.reward-screen[data-skipped="true"],
+.reward-screen[data-skipped="true"] * { animation: none !important; }
+.reward-screen[data-skipped="true"] .frida {
+  animation: fridaFloat 3s ease-in-out infinite !important;
+}
+/* Transitions count too, and a skip is exactly when they fire: the tier jumps from whatever
+   the bar had reached straight to the final one, so five colours all start crossfading at
+   once. Named rather than blanketed — `transition` is also what gives Verder its press,
+   and that button is about to be used. */
+.reward-screen[data-skipped="true"]
+  :is(.reward-card, .reward-card-label, .reward-card-tier, .reward-bar-fill, .reward-pct) {
+  transition: none;
+}
+
+/*
+ * Reduced motion. The JS side mounts the screen straight in `done` with the numbers final
+ * (screens/useCelebration.ts), and this is the belt to that braces: a browser that reports
+ * the preference to CSS but where the matchMedia check somehow fails still gets a screen on
+ * which nothing moves. Every keyframe this block introduces is listed.
+ */
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * `!important`, and not out of laziness. Every animation above is scoped by a beat
+   * (`.reward-screen[data-beat="done"] .frida`, and so on), which outweighs any plain
+   * descendant selector this block could write — the first version of it was outranked and
+   * left Frida floating and Verder rising for someone who had asked for neither. A
+   * preference is also the one place where "no exceptions" is the correct reading, so the
+   * blunt instrument is the right one: it outranks the skip rules above as well.
+   */
+  .reward-screen,
+  .reward-screen * { animation: none !important; }
+  .reward-screen :is(.reward-card, .reward-card-label, .reward-card-tier, .reward-bar-fill,
+    .reward-pct) { transition: none !important; }
+  /* a band sweeping across is the one thing here with no still version worth showing */
+  .reward-streak { display: none; }
 }
 
 /* ---------- recording studio ---------- */
@@ -853,8 +1775,197 @@ button:disabled { cursor: default; }
   background: none; cursor: pointer; font-family: inherit;
 }
 .studio-cell-active { border-color: #E83E5A; border-width: 2px; }
+.studio-modes { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.studio-modes .btn-primary { text-align: center; line-height: 1.2; }
+.studio-modes small { display: block; font-size: 12px; font-weight: 700; opacity: 0.85; }
+.studio-mode-off { background: var(--locked); box-shadow: 0 5px 0 var(--locked-shadow); color: var(--muted); }
+.studio-starter { font-size: 14px; font-weight: 700; color: var(--text); cursor: pointer; }
 .studio-cell-id { font-weight: 800; font-size: 18px; }
 .studio-cell-status { font-size: 13px; }
+.studio-error { color: var(--red-orange, #c0392b); font-weight: 700; }
+.studio-hint { color: var(--muted); font-size: 14px; max-width: 62ch; }
+.studio-retake { font-size: 15px; }
+.studio-link { background: none; border: 0; padding: 0; font: inherit; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.studio-next pre {
+  background: var(--locked, #eee); padding: 10px 12px; border-radius: 8px;
+  overflow-x: auto; font-size: 14px;
+}
+/* Peak meter with a target zone (docs/recording-studio-v3.md §2.3). The two ways to lose a
+   three-minute take are silent and clipped; both are visible here in two seconds, and the
+   green band says where to aim rather than leaving a number to be interpreted. */
+.studio-meter { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
+.studio-meter-bar {
+  position: relative; flex: 1; max-width: 420px; height: 18px;
+  background: var(--hairline); border-radius: 9px; overflow: hidden;
+}
+.studio-meter-bar i {
+  display: block; height: 100%; min-width: 2px; border-radius: 9px;
+  background: linear-gradient(90deg, #4caf50, #ffc107 82%, #e53935);
+  transition: width 60ms linear;
+}
+/* the band the peaks should land in, drawn under the bar so the level reads over it */
+.studio-meter-zone {
+  position: absolute; inset-block: 0; z-index: 0;
+  background: rgba(76, 175, 80, 0.28);
+  border-inline: 1px solid rgba(76, 175, 80, 0.75);
+}
+.studio-meter-bar i { position: relative; z-index: 1; }
+/* peak hold: a word peaks for a few milliseconds, which is gone before an eye arrives.
+   Absolute, and *after* the z-index rule above — an earlier `position: absolute` here would
+   be overridden by a later `position: relative` of equal specificity and the marker would
+   quietly drop back into the flow. */
+.studio-meter-hold {
+  position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: var(--text); transition: left 120ms linear;
+}
+.studio-meter-db { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+.studio-level-verdict { font-size: 14px; font-weight: 700; margin: 0 0 12px; }
+.studio-level-goed { color: #2e7d32; }
+.studio-level-te-zacht, .studio-level-geen-signaal { color: var(--muted); }
+.studio-level-te-hard { color: #ef6c00; }
+.studio-level-oversturing { color: #c0392b; }
+
+.studio-silence { font-size: 14px; }
+.studio-hum { color: #c0392b; }
+
+/* Human factors beat any filter, and none of them survive being remembered (§2.7). */
+.studio-checklist {
+  border: 1px solid var(--hairline); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 14px; max-width: 62ch; font-size: 14px;
+}
+.studio-checklist ul { margin: 6px 0; padding-left: 20px; }
+.studio-checklist li { margin: 2px 0; }
+
+/* `.studio-next pre` also matches this element and is more specific, which left the
+   splitter's output as pale grey on pale tan — legible in the stylesheet and not on screen */
+.studio-next pre.studio-progress, .studio-progress {
+  background: #1e1e1e; color: #d6d6d6; padding: 10px 12px; border-radius: 8px;
+  font-size: 12.5px; line-height: 1.5; max-height: 220px; overflow: auto; white-space: pre-wrap;
+}
+.studio-takes { margin-top: 22px; }
+.studio-takes ul { list-style: none; padding: 0; font-size: 14px; }
+.studio-takes li { padding: 4px 0; border-bottom: 1px solid var(--hairline); }
+.studio-takes-meta { color: var(--muted); }
+
+/* ---------- the set grid, as the place clips are judged (§2.1) ---------- */
+.clipgrid-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 14px 0 8px; }
+.clipgrid-bar .btn-primary { font-size: 15px; padding: 7px 14px; }
+.clipgrid-counts { display: flex; gap: 12px; font-size: 14px; color: var(--muted); margin-left: auto; }
+.clipgrid-hint { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.studio-grid-wide { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+
+.studio-cell { position: relative; padding: 0; overflow: visible; }
+.studio-cell-face {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%;
+  padding: 6px 4px; background: none; border: 0; border-radius: 8px;
+  font-family: inherit; color: inherit; cursor: pointer;
+}
+.studio-cell-face:disabled { cursor: default; opacity: 0.55; }
+.studio-cell-face:focus-visible { outline: 3px solid #E83E5A; outline-offset: 1px; }
+.studio-cell-sub { font-size: 11px; color: var(--muted); }
+.studio-cell-wide .studio-cell-id { font-size: 14px; font-weight: 700; line-height: 1.25; text-align: center; }
+/* what a cell is, at a glance: the four states of §2.1 in the order it gives them */
+.studio-cell[data-state='goed'] { background: rgba(76, 175, 80, 0.12); }
+.studio-cell[data-state='afgekeurd'] { background: rgba(229, 57, 53, 0.12); }
+.studio-cell[data-state='onbeoordeeld'] { background: rgba(255, 193, 7, 0.12); }
+.studio-cell-playing { box-shadow: 0 0 0 2px #E83E5A inset; }
+
+/* the two judgement buttons, out of the way until the cell is being looked at */
+.studio-cell-judge {
+  position: absolute; inset-inline: 0; bottom: -2px;
+  display: flex; justify-content: center; gap: 4px;
+  opacity: 0; transition: opacity 90ms;
+}
+.studio-cell:hover .studio-cell-judge,
+.studio-cell:focus-within .studio-cell-judge { opacity: 1; }
+.studio-judge {
+  border: 1px solid var(--hairline); border-radius: 6px; background: var(--bg);
+  font: inherit; font-size: 12px; line-height: 1; padding: 2px 6px; cursor: pointer;
+}
+.studio-judge:disabled { opacity: 0.4; cursor: default; }
+.studio-judge-on { background: #E83E5A; color: #fff; border-color: #E83E5A; }
+@media (prefers-reduced-motion: reduce) {
+  .studio-cell-judge { transition: none; }
+}
+
+/* ---------- teleprompter ---------- */
+/* Nothing here is interactive during a take and nothing needs to be: every click lands on the
+   same desk as the microphone. One word, a bar that drains, and a position. */
+.tp { text-align: center; padding: 40px 20px; }
+.tp-progress { font-size: 15px; font-weight: 700; color: var(--muted); }
+.tp-pending { color: #e53935; }
+.tp .big-sound { font-size: min(22vw, 140px); margin: 24px 0 12px; }
+.tp-count { color: var(--muted); }
+.tp-paused { color: var(--muted); font-size: min(10vw, 56px) !important; }
+.tp-word-flagged { color: #e53935; }
+.tp-bar { height: 8px; background: var(--hairline); border-radius: 4px; overflow: hidden; max-width: 480px; margin: 0 auto; }
+.tp-bar i { display: block; height: 100%; background: #E83E5A; transform-origin: left; animation: tp-drain linear forwards; }
+@keyframes tp-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .tp-bar i { animation: none; transform: scaleX(1); }
+}
+/* Level, peak-hold and clip counter during the take (§2.2). Small and below the word: a
+   slipped mic or one shouted word is not subtle while it happens, it just had nowhere to
+   show. Anything bigger would compete with the thing being read. */
+.tp-meter {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin-top: 26px; font-size: 13px; flex-wrap: wrap;
+}
+.tp-meter-bar {
+  position: relative; width: min(280px, 60vw); height: 10px;
+  background: var(--hairline); border-radius: 5px; overflow: hidden;
+}
+.tp-meter-bar i {
+  display: block; height: 100%; min-width: 2px;
+  background: linear-gradient(90deg, #4caf50, #ffc107 82%, #e53935);
+  transition: width 60ms linear;
+}
+.tp-meter-bar i { position: relative; z-index: 1; }
+.tp-meter-hold {
+  position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: var(--text); transition: left 120ms linear;
+}
+.tp-meter-db { font-variant-numeric: tabular-nums; color: var(--muted); }
+.tp-meter-clip { color: #e53935; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .tp-meter-bar i, .tp-meter-hold { transition: none; }
+}
+
+.tp-keys { color: var(--muted); font-size: 14px; margin-top: 28px; }
+.tp-stop { background: none; border: 0; font: inherit; color: var(--muted); text-decoration: underline; cursor: pointer; }
+
+/* ---------- take review ---------- */
+.review { margin-top: 18px; }
+.review-warning { color: var(--red-orange, #c0392b); font-weight: 700; }
+.review-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.review-actions .btn-primary { font-size: 16px; padding: 8px 16px; }
+.review-list { list-style: none; padding: 0; margin: 12px 0; }
+.review-note { font-size: 14px; color: var(--muted); }
+.review-row-playing { box-shadow: 0 0 0 2px #E83E5A inset; }
+.review-sub { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.review-judge { display: flex; align-items: center; gap: 4px; }
+.review-state { font-size: 14px; }
+.review-row[data-state='goed'] { background: rgba(76, 175, 80, 0.10); }
+.review-row[data-state='afgekeurd'] { background: rgba(229, 57, 53, 0.10); }
+/* Flex-wrap rather than a grid with fixed columns.
+   The app shell is 480px wide on every screen, so a `@media (max-width:)` here would be
+   asking the *viewport* about a container that is narrow regardless — which is how the
+   verdict buttons ended up rendered outside the card on a 1180px window. Wrapping needs to
+   know nothing about either. */
+.review-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
+  padding: 6px 8px; border-bottom: 1px solid var(--hairline);
+  font-variant-numeric: tabular-nums;
+}
+.review-row .review-id { flex: 1 1 5em; min-width: 5em; }
+.review-meta { display: flex; gap: 10px; align-items: baseline; margin-left: auto; }
+.review-row-flagged { background: #fff4f4; }
+.review-play { background: none; border: 0; font-size: 18px; cursor: pointer; }
+.review-id { font-weight: 800; }
+.review-status, .review-dur, .review-peak, .review-heard { font-size: 13px; color: var(--muted); }
+.review-heard { flex-basis: 100%; }
+.review-row-flagged .review-status { color: #c0392b; font-weight: 700; }
+
 
 /* ---------- Bliksemsprint: 3-op-een-rij celebration ---------- */
 /* Prototype + tunable dials: art/avatar animation/frida-lightning-dash.html
@@ -1010,3 +2121,594 @@ button:disabled { cursor: default; }
   /* the badge still lands, it just doesn't spring */
   .bs-badge { animation: none; opacity: 1; transform: translate(-50%,-50%) scale(1); }
 }
+
+/* ---------- onboarding: the welkom-flow (docs/onboarding-welkom.md) ---------- */
+
+/*
+ * Height, and why it is dvh.
+ *
+ * `.app` is min-height: 100vh, which on iOS Safari is the viewport *with the URL bar hidden*
+ * — taller than what is actually on screen. A step laid out to fill it therefore puts its
+ * CTA below the fold before the software keyboard is even up. While the flow is mounted the
+ * card is sized in dvh instead, so "the bottom of the step" and "the bottom of the screen"
+ * are the same place. The attribute is set by OnboardingScreen on <html> (it also drives the
+ * desktop backdrop further down, which has to paint on <body>).
+ *
+ * A fixed `height`, not a `min-height`: the step's middle section is the scroller and the CTA
+ * sits under it in normal flow, and neither can be held to the screen unless the box they are
+ * in has a definite height to divide up. With only a minimum, a long step (step 1 on a 664px
+ * phone) simply grows the card and pushes the CTA and the footer below the fold — which is
+ * exactly what it did before this was tightened.
+ */
+html[data-welkom] .app { height: 100dvh; min-height: 100dvh; }
+
+.welkom {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 22px calc(14px + env(safe-area-inset-bottom));
+  /* The step is a column with the CTA last in *normal flow* — never position: fixed, which
+     is what breaks when the keyboard reduces the visual viewport. */
+  min-height: 0;
+}
+
+.welkom-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Only as tall as the dots; .welkom-back's own 44px grows the row on steps 2 and 3, so
+     step 1 does not pay for a tap target it has no button for. */
+  min-height: 20px;
+  flex: 0 0 auto;
+}
+.welkom-back {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--muted);
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  margin-left: -10px;
+}
+.welkom-dots { display: flex; gap: 8px; }
+.welkom-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--locked);
+  transition: background 0.2s ease;
+}
+.welkom-dot.on { background: var(--teal); }
+
+/*
+ * The scrolling middle. Steps 1 and 2 are built to fit a phone screen outright and step 3's
+ * pickers are meant to scroll — but this scrolls on every step regardless, because that is
+ * what keeps the CTA below it reachable no matter what shrinks the viewport: a short
+ * landscape phone, a large font setting, or the software keyboard on step 2. The CTA is in
+ * normal flow under a scroller rather than pinned over one, so nothing overlaps the last
+ * picker either.
+ */
+.welkom-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* the pickers' focus rings and the swatches' shadows must not be clipped by the scroller */
+  padding: 2px;
+  margin: -2px;
+}
+
+.welkom-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+.welkom-cta { width: 100%; max-width: 340px; text-align: center; }
+
+/* "Liever geen naam" — a text link, deliberately not a second button competing with Verder */
+.welkom-skip {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--muted);
+  text-decoration: underline;
+  padding: 12px 16px;
+  min-height: 44px;
+}
+
+.welkom h1 {
+  margin: 0;
+  font-size: clamp(28px, 7vw, 36px);
+  font-weight: 800;
+  line-height: 1.1;
+}
+.welkom-kicker {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 2.5px;
+  color: var(--teal);
+  text-transform: uppercase;
+}
+.welkom-intro { margin: 0; font-size: 14.5px; line-height: 1.42; }
+.welkom-sub { margin: 0; font-size: 14px; color: var(--muted); }
+
+.welkom-bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.welkom-bullets li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.welkom-bullets svg { flex: 0 0 auto; }
+
+.wip-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  text-align: center;
+}
+.wip-note a { color: var(--teal); font-weight: 800; }
+
+/* ---------- Frida with a speech bubble ---------- */
+.frida-says {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.frida-says-art { height: auto; flex: 0 0 auto; }
+/* .coach-bubble's tail points left, at Frida — so she is always the element before it. */
+.coach-bubble--large {
+  font-family: var(--font-display);
+  font-size: clamp(17px, 4.4vw, 21px);
+  padding: 12px 18px;
+  border-radius: 20px;
+}
+/* Step 1: Frida is the hero, so she and the bubble share the width rather than the bubble
+   taking whatever is left of a 150px dog. */
+.frida-says-hero { justify-content: center; }
+/* Step 3: the pickers are the subject, so Frida gets out of their way. */
+.frida-says-corner { justify-content: flex-end; }
+
+/* She must be alive before anything is touched — a slow idle float, nothing more. */
+@keyframes fridaFloat {
+  0%, 100% { transform: translateY(-4px); }
+  50% { transform: translateY(4px); }
+}
+.welkom .frida-says-art { animation: fridaFloat 3s ease-in-out infinite; }
+
+/* Same spring the game cards use, 300ms after Frida has landed. */
+@keyframes bubblePop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+.welkom .coach-bubble {
+  transform-origin: left center;
+  animation: bubblePop 0.3s cubic-bezier(.2, 1.3, .4, 1) both;
+  animation-delay: 0.3s;
+}
+
+/* ---------- step 2: the name ---------- */
+.welkom-name-form { display: flex; flex-direction: column; gap: 8px; }
+.welkom-name-input {
+  font-family: var(--font-ui);
+  /* 20px, not 17px: below 16px iOS Safari zooms the page on focus and user-scalable=no
+     does not stop it. Anything that lets that happen mid-onboarding is a bad first minute. */
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  background: #fff;
+  border: 2px solid var(--hairline);
+  border-radius: 16px;
+  padding: 14px 16px;
+  width: 100%;
+  /* .app turns selection off app-wide to feel installed; a text field is the exception. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+.welkom-name-input:focus {
+  outline: none;
+  border-color: var(--teal-pill-border);
+  box-shadow: 0 0 0 3px var(--teal-pill);
+}
+.welkom-name-input::placeholder { color: var(--muted); font-weight: 700; }
+.welkom-helper { font-size: 13px; color: var(--muted); }
+
+/* ---------- the closing beat ---------- */
+.welkom-klaar {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* ---------- Profiel -> Over DuoLexie ---------- */
+.about-section { display: flex; flex-direction: column; gap: 12px; }
+.about-name { display: flex; flex-direction: column; gap: 6px; }
+.about-name > span {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.about-intro-btn {
+  align-self: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--teal);
+  border: 2px solid var(--teal-pill-border);
+  background: var(--teal-pill);
+  border-radius: 16px;
+  padding: 12px 20px;
+  min-height: 44px;
+}
+
+/* ---------- the leerpad greeting ---------- */
+.path-greeting {
+  margin: 0 0 -6px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+/* ---------- desktop: the card as a landing page ---------- */
+@media (min-width: 540px) {
+  html[data-welkom] .app { height: min(calc(100dvh - 48px), 820px); min-height: 0; }
+  /*
+   * The card is far taller than steps 1 and 2 need, and left alone they sit at the top of a
+   * mostly-empty 820px card. `safe` is the point of this: step 3 genuinely overflows, and
+   * safe centring falls back to flex-start rather than centring content half of which can
+   * then never be scrolled to.
+   */
+  .welkom-body { justify-content: safe center; }
+}
+@media (min-width: 900px) {
+  /* The floating card already reads as a phone screenshot; this puts it on a page rather
+     than on a flat slab. Painted on body because it has to fill the viewport, not the card. */
+  html[data-welkom] body {
+    background:
+      radial-gradient(circle at 50% 42%, var(--bg) 0%, var(--bg-desktop) 62%);
+  }
+  html[data-welkom] body::before {
+    content: '';
+    position: fixed;
+    left: -60px;
+    bottom: -80px;
+    width: 700px;
+    height: 700px;
+    background: url('/avatar/frida-sass.svg') left bottom / contain no-repeat;
+    opacity: 0.06;
+    pointer-events: none;
+    z-index: 0;
+  }
+  html[data-welkom] .app { position: relative; z-index: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welkom .frida-says-art,
+  .welkom .coach-bubble { animation: none; }
+}
+
+/* ---------- weetjes (luister -> doe -> bewaar) ---------- */
+/* docs/weetjes.md §6 — the typography here is an acceptance criterion, not a preference:
+   the sentence is what she is being asked to take in, so it is 22px or more, left-aligned,
+   and given 1.6 line-height. The .app.font-dyslexie spacing sits on top of all of it. */
+
+.weetje-stage {
+  gap: 14px;
+  justify-content: center;
+  /* the stage is the whole viewport minus the header on an iPhone; the card shrinks into
+     what is left rather than pushing Verder off the bottom (§10.11) */
+  min-height: 0;
+}
+
+.weetje-book {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 8px;
+  border-radius: 14px;
+  background: #FFF6DC;
+}
+.weetje-book-count {
+  font-weight: 900;
+  font-size: 15px;
+  color: var(--gold-icon);
+  font-variant-numeric: tabular-nums;
+}
+.weetje-book.bumped { animation: weetjeBookBump 260ms ease-out; }
+@keyframes weetjeBookBump {
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.weetje-card {
+  position: relative;
+  width: min(86vw, 400px);
+  background: #fff;
+  border-radius: 24px;
+  padding: 18px 18px 74px;
+  box-shadow: 0 8px 0 var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  touch-action: none;
+  will-change: transform;
+}
+.weetje-card.swipeable { cursor: grab; }
+.weetje-card.swipeable:active { cursor: grabbing; }
+
+.weetje-tile {
+  font-size: clamp(34px, 9vw, 44px);
+  line-height: 1;
+}
+
+.weetje-text {
+  margin: 0;
+  /* §6: never centred for more than one line, never justified */
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: clamp(22px, 5.4vw, 26px);
+  line-height: 1.6;
+  font-weight: 600;
+  color: var(--text);
+}
+.weetje-text strong { font-weight: 900; color: var(--teal-shadow); }
+.weetje-reveal strong.weetje-praise { color: var(--orange-shadow); }
+/* the fact stays visible behind the reveal in the Weetjesboek, one step quieter */
+.weetjesboek-open .weetje-fact { font-size: clamp(19px, 4.6vw, 22px); opacity: 0.75; }
+
+/* One control, one size, one place — bottom centre of the card on every single beat (§6). */
+.weetje-speak {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--teal);
+  box-shadow: 0 4px 0 var(--teal-shadow);
+  color: #fff;
+  font-size: 26px;
+  display: grid;
+  place-items: center;
+}
+.weetje-speak:active { transform: translateX(-50%) translateY(3px); box-shadow: 0 1px 0 var(--teal-shadow); }
+.weetje-speak.speaking { animation: weetjeSpeakPulse 900ms ease-in-out infinite; }
+@keyframes weetjeSpeakPulse {
+  0%, 100% { box-shadow: 0 4px 0 var(--teal-shadow), 0 0 0 0 var(--teal-ring); }
+  50% { box-shadow: 0 4px 0 var(--teal-shadow), 0 0 0 10px rgba(191, 228, 224, 0.5); }
+}
+
+/* Waar above, Niet waar below — the two directions the card can go, in the places the
+   Goed!/Nog even pockets occupy in Hardop lezen (§9). */
+.weetje-label {
+  min-height: 56px;
+  width: min(86vw, 400px);
+  border-radius: 18px;
+  font-weight: 900;
+  font-size: clamp(18px, 4.8vw, 20px);
+  color: #fff;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.weetje-label-waar { background: var(--teal); box-shadow: 0 5px 0 var(--teal-shadow); }
+.weetje-label-niet { background: var(--orange); box-shadow: 0 5px 0 var(--orange-shadow); }
+.weetje-label.targeted { transform: scale(1.06); }
+
+/* The taught tap: the card travels the way her finger would have, then commits (§2). */
+.weetje-card.demo-up { animation: weetjeDemoUp 700ms cubic-bezier(.3,.9,.4,1) both; }
+.weetje-card.demo-down { animation: weetjeDemoDown 700ms cubic-bezier(.3,.9,.4,1) both; }
+@keyframes weetjeDemoUp {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-8px) scale(1.02); }
+  100% { transform: translateY(-110px) scale(1.05); }
+}
+@keyframes weetjeDemoDown {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(8px) scale(0.99); }
+  100% { transform: translateY(110px) scale(0.95); }
+}
+
+/* Into the book, top right: shrink and go, 450ms, transform only (§9). */
+.weetje-card.flying { animation: weetjeFly 450ms cubic-bezier(.4,0,.7,.9) both; }
+@keyframes weetjeFly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(28vw, -42vh) scale(0.15); opacity: 0.1; }
+}
+
+.weetje-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(86vw, 400px);
+}
+.weetje-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* §2: three, stacked, full width, never under 56px — a nine-year-old's thumb on a phone */
+  min-height: 56px;
+  padding: 10px 16px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--hairline);
+  font-size: clamp(19px, 4.8vw, 22px);
+  font-weight: 800;
+  color: var(--text);
+  text-align: left;
+}
+.weetje-option:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--hairline); }
+.weetje-option.chosen { background: var(--teal-pill); box-shadow: 0 4px 0 var(--teal-pill-border); }
+.weetje-option:disabled { opacity: 0.75; }
+/* No photographs of real people, ever (§13) — one big initial in a coloured circle instead. */
+.weetje-initial {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  color: #fff;
+}
+.weetje-initial.initial-0 { background: var(--teal); }
+.weetje-initial.initial-1 { background: var(--orange); }
+.weetje-initial.initial-2 { background: var(--gem-blue); }
+
+.weetje-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(86vw, 400px);
+}
+.weetje-frida { width: 54px; flex: 0 0 auto; }
+.weetje-kept {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--gold-icon);
+  min-height: 1em;
+}
+.weetje-verder { padding: 14px 22px; font-size: 18px; }
+
+/* ---------- weetjesboek ---------- */
+.weetjesboek-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 0 16px 30px;
+  animation: screenEnter 0.3s cubic-bezier(.22,.9,.35,1) both;
+}
+.weetjesboek-count { font-weight: 900; color: var(--gold-icon); }
+.weetjesboek-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 0;
+  text-align: center;
+  font-size: 18px;
+}
+.weetjesboek-frida { width: 120px; }
+.weetjesboek-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+.weetjesboek-card {
+  min-height: 96px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  text-align: center;
+}
+.weetjesboek-tile { font-size: 30px; line-height: 1; }
+.weetjesboek-snippet { font-size: 13px; font-weight: 800; color: var(--text); }
+/* Face down, not absent: the empty half of the book is the collecting motive (§8). */
+.weetjesboek-card.facedown {
+  background: var(--locked);
+  box-shadow: 0 4px 0 var(--locked-shadow);
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+}
+.weetjesboek-open {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(66, 40, 26, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+}
+.weetjesboek-nav { display: flex; align-items: center; gap: 14px; }
+.weetjesboek-step {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 0 var(--hairline);
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--text);
+}
+.weetjesboek-step:disabled { opacity: 0.4; }
+.weetjesboek-cta { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+.about-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.about-toggle input { width: 22px; height: 22px; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* §9: no flight, no bump, no pulsing speaker — and nothing that runs forever. The swipe
+     still decides the card; only the things that move for their own sake go. */
+  .weetje-card.demo-up,
+  .weetje-card.demo-down,
+  .weetje-card.flying,
+  .weetje-book.bumped,
+  .weetje-speak.speaking,
+  .weetjesboek-screen {
+    animation: none;
+  }
+}
+
+/* A Weetjes cue is a sentence, not a word: the teleprompter has to fit one on screen and
+   still be readable from a metre away (docs/weetjes.md §7). */
+.tp-word.tp-sentence {
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.4;
+  max-width: 18ch;
+  text-align: center;
+}
+.studio-cell.studio-cell-wide { grid-column: span 2; }
+
+/* The Weetje node is gold whatever its state: it is a breather after the unit's hardest
+   thing, not another thing to unlock (docs/weetjes.md §5). Locked keeps the beige coin —
+   a gold coin she cannot press yet would read as a bug rather than as a promise. */
+.coin-item[data-kind='weetje'].active .coin {
+  background: var(--gold);
+  box-shadow: 0 7px 0 var(--gold-shadow);
+}
+.coin-item[data-kind='weetje'].active .coin:active {
+  box-shadow: 0 3px 0 var(--gold-shadow);
+}
+.coin-item[data-kind='weetje'].active .coin-label { color: var(--gold-shadow); }

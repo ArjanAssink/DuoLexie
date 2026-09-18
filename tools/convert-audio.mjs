@@ -1,5 +1,18 @@
 #!/usr/bin/env node
 /**
+ * SUPERSEDED by tools/split-take.mjs — see docs/recording-pipeline-v2.md.
+ *
+ * This converts one clip per file, which means one `silenceremove` cut with no padding and
+ * one `loudnorm` per 300ms clip. Those are two of the four things that made the first batch
+ * of klanken sound clacky (§1 of that doc): the cut lands on the sample the level crossed
+ * the threshold, which clips quiet final consonants and leaves a step where the fade-in only
+ * partly covers; and loudnorm measures almost nothing on a clip that short, so clips end up
+ * at visibly different levels with the room noise pulled up on the quiet ones.
+ *
+ * It stays for now because the 45 klanken in app/public/audio/sounds were recorded and
+ * converted with it and have not been redone. Delete this file once they have been
+ * re-recorded through the studio's teleprompter and split with split-take.mjs.
+ *
  * Convert recorded .webm clips to normalized mono MP3s for the app.
  * Requires ffmpeg (brew install ffmpeg).
  * Raw .webm takes are moved to a sibling raw-webm/ folder (not deleted),

@@ -2303,6 +2303,1189 @@
         "e"
       ],
       "reviewed": false
+    },
+    {
+      "id": "stok",
+      "text": "stok",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "o",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kast",
+      "text": "kast",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "a",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "brug",
+      "text": "brug",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "r",
+        "u",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "trap",
+      "text": "trap",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "r",
+        "a",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "klas",
+      "text": "klas",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "l",
+        "a",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vlag",
+      "text": "vlag",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "l",
+        "a",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stap",
+      "text": "stap",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "a",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slot",
+      "text": "slot",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "l",
+        "o",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "drop",
+      "text": "drop",
+      "category": "kort",
+      "klanken": [
+        "d",
+        "r",
+        "o",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "plas",
+      "text": "plas",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "l",
+        "a",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "snor",
+      "text": "snor",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "n",
+        "o",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "klok",
+      "text": "klok",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "l",
+        "o",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "blok",
+      "text": "blok",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "l",
+        "o",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stem",
+      "text": "stem",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "e",
+        "m"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "spel",
+      "text": "spel",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "p",
+        "e",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stof",
+      "text": "stof",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "o",
+        "f"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "glas",
+      "text": "glas",
+      "category": "kort",
+      "klanken": [
+        "g",
+        "l",
+        "a",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "gras",
+      "text": "gras",
+      "category": "kort",
+      "klanken": [
+        "g",
+        "r",
+        "a",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vlek",
+      "text": "vlek",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "l",
+        "e",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "prik",
+      "text": "prik",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "r",
+        "i",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "krab",
+      "text": "krab",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "r",
+        "a",
+        "b"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kruk",
+      "text": "kruk",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "r",
+        "u",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "spin",
+      "text": "spin",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "p",
+        "i",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kind",
+      "text": "kind",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "i",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hond",
+      "text": "hond",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "o",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hand",
+      "text": "hand",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "land",
+      "text": "land",
+      "category": "kort",
+      "klanken": [
+        "l",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "wind",
+      "text": "wind",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "i",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "mond",
+      "text": "mond",
+      "category": "kort",
+      "klanken": [
+        "m",
+        "o",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "tand",
+      "text": "tand",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zand",
+      "text": "zand",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "rand",
+      "text": "rand",
+      "category": "kort",
+      "klanken": [
+        "r",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "bord",
+      "text": "bord",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "o",
+        "r",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "worm",
+      "text": "worm",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "o",
+        "r",
+        "m"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "park",
+      "text": "park",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "a",
+        "r",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "werk",
+      "text": "werk",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "e",
+        "r",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "berg",
+      "text": "berg",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "e",
+        "r",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "blad",
+      "text": "blad",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "l",
+        "a",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "grap",
+      "text": "grap",
+      "category": "kort",
+      "klanken": [
+        "g",
+        "r",
+        "a",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "klap",
+      "text": "klap",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "l",
+        "a",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "knop",
+      "text": "knop",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "n",
+        "o",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "plek",
+      "text": "plek",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "l",
+        "e",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slak",
+      "text": "slak",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "l",
+        "a",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stad",
+      "text": "stad",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "a",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stip",
+      "text": "stip",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "i",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vlug",
+      "text": "vlug",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "l",
+        "u",
+        "g"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zwak",
+      "text": "zwak",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "w",
+        "a",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "fles",
+      "text": "fles",
+      "category": "kort",
+      "klanken": [
+        "f",
+        "l",
+        "e",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "plat",
+      "text": "plat",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "l",
+        "a",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "snel",
+      "text": "snel",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "n",
+        "e",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stil",
+      "text": "stil",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "i",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slim",
+      "text": "slim",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "l",
+        "i",
+        "m"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "smal",
+      "text": "smal",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "m",
+        "a",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "storm",
+      "text": "storm",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "o",
+        "r",
+        "m"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sport",
+      "text": "sport",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "p",
+        "o",
+        "r",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sterk",
+      "text": "sterk",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "e",
+        "r",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "plant",
+      "text": "plant",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "l",
+        "a",
+        "n",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "klant",
+      "text": "klant",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "l",
+        "a",
+        "n",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "brand",
+      "text": "brand",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "r",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "grond",
+      "text": "grond",
+      "category": "kort",
+      "klanken": [
+        "g",
+        "r",
+        "o",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "krant",
+      "text": "krant",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "r",
+        "a",
+        "n",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "trots",
+      "text": "trots",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "r",
+        "o",
+        "t",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "prins",
+      "text": "prins",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "r",
+        "i",
+        "n",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "borst",
+      "text": "borst",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "o",
+        "r",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "worst",
+      "text": "worst",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "o",
+        "r",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dorst",
+      "text": "dorst",
+      "category": "kort",
+      "klanken": [
+        "d",
+        "o",
+        "r",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "korst",
+      "text": "korst",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "o",
+        "r",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "klomp",
+      "text": "klomp",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "l",
+        "o",
+        "m",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stomp",
+      "text": "stomp",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "o",
+        "m",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kramp",
+      "text": "kramp",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "r",
+        "a",
+        "m",
+        "p"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zwart",
+      "text": "zwart",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "w",
+        "a",
+        "r",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "markt",
+      "text": "markt",
+      "category": "kort",
+      "klanken": [
+        "m",
+        "a",
+        "r",
+        "k",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vorst",
+      "text": "vorst",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "o",
+        "r",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "strik",
+      "text": "strik",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "r",
+        "i",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "winst",
+      "text": "winst",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "i",
+        "n",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "helft",
+      "text": "helft",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "e",
+        "l",
+        "f",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "strand",
+      "text": "strand",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "t",
+        "r",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "sprint",
+      "text": "sprint",
+      "category": "kort",
+      "klanken": [
+        "s",
+        "p",
+        "r",
+        "i",
+        "n",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "winter",
+      "text": "winter",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "i",
+        "n",
+        "t",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kelder",
+      "text": "kelder",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "e",
+        "l",
+        "d",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "gordel",
+      "text": "gordel",
+      "category": "kort",
+      "klanken": [
+        "g",
+        "o",
+        "r",
+        "d",
+        "e",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "wortel",
+      "text": "wortel",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "o",
+        "r",
+        "t",
+        "e",
+        "l"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "morgen",
+      "text": "morgen",
+      "category": "kort",
+      "klanken": [
+        "m",
+        "o",
+        "r",
+        "g",
+        "e",
+        "n"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zandbak",
+      "text": "zandbak",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "a",
+        "n",
+        "d",
+        "b",
+        "a",
+        "k"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "handvat",
+      "text": "handvat",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "a",
+        "n",
+        "d",
+        "v",
+        "a",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "postbus",
+      "text": "postbus",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "o",
+        "s",
+        "t",
+        "b",
+        "u",
+        "s"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zwembad",
+      "text": "zwembad",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "w",
+        "e",
+        "m",
+        "b",
+        "a",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vlinder",
+      "text": "vlinder",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "l",
+        "i",
+        "n",
+        "d",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hamster",
+      "text": "hamster",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "a",
+        "m",
+        "s",
+        "t",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "monster",
+      "text": "monster",
+      "category": "kort",
+      "klanken": [
+        "m",
+        "o",
+        "n",
+        "s",
+        "t",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "venster",
+      "text": "venster",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "e",
+        "n",
+        "s",
+        "t",
+        "e",
+        "r"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "verband",
+      "text": "verband",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "e",
+        "r",
+        "b",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hersens",
+      "text": "hersens",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "e",
+        "r",
+        "s",
+        "e",
+        "n",
+        "s"
+      ],
+      "reviewed": false
     }
   ]
 }

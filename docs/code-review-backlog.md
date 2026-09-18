@@ -20,8 +20,10 @@ lesson ids / no store migration" item shares a persisted-blob migration with tha
 3. Pick the first unchecked `[ ]` item and work it. **Reproduce the bug first** — most of
    these items include a concrete repro; run it and watch it fail before you change
    anything, so you know your fix actually fixed it.
-4. After each item: `npx tsc --noEmit -p app`, `npm run build` (from `app/`), and
-   `npx playwright test --project=desktop` (from `app/`) before committing. Then commit
+4. After each item: `npm run build` (from `app/` — not `npx tsc --noEmit -p app`; that form
+   checks nothing, since `app/tsconfig.json` is solution-style and needs `-b` to walk its
+   references, see `backend-readiness.md` A6) and `npx playwright test --project=desktop`
+   (from `app/`) before committing. Then commit
    that one item, update its checkbox + note in this file in the same commit, and push —
    the live site redeploys automatically via GitHub Actions (Azure Static Web Apps) a
    couple of minutes after a push to `main`.
@@ -45,7 +47,73 @@ StrictMode's double-invocation of effects can mask them in dev.
 
 ## Priority order
 
-- [ ] **Quitting mid-animation still completes the lesson** — `games/KlankKaarten.tsx:96`
+- [ ] **Does WebKit cope with ten `<audio>` elements in one round?** Unconfirmed, and it needs
+  a real device — but worth checking before the word recordings land, because it is the point
+  at which production starts doing what the tests now do. `audio.ts`'s `loadWordClip` caches
+  one `<audio>` element per word, so a ten-card Hardop lezen round holds ten of them. WebKit
+  is historically strict about media-element and decoder limits, and iOS Safari more so than
+  desktop.
+  **Why it is on the list:** switching the e2e narration onto the clip path (serving a real
+  mp3 per word, rather than browser speech) was the first time the suite created ten media
+  elements per round, and CI's WebKit profiles then began losing the page outright mid-round —
+  a different pair of ten-card tests each run. That is equally consistent with plain resource
+  contention on a two-core runner, which is why `retries: 2` on CI is the mitigation for now
+  rather than a fix. If a real iPad shows the same thing, the fix is small: reuse one element
+  and set `src`, instead of caching an element per word. Note that switching `src` mid-play
+  rejects the previous `play()`, which `playWithFallback` treats as a cue to fall back to
+  speech — so that change needs the overlapping-playback case thought through, not just the
+  cache swapped out.
+
+- [x] **Quitting mid-animation still completes the lesson** — fixed in both games, plus a
+  guard where the crediting actually happens. `games/Flitsen.tsx` now cancels its pending
+  flight timeouts and refuses to fire afterwards; `games/HardopLezen.tsx` checks a
+  `cancelled` ref after each await in `commit()`; and `GameScreen.handleComplete` carries its
+  own `credited` ref, so "credit once" no longer depends on every game getting it right.
+  Re-ran the original repro: gems/xp/sessions/completedLessons all stay at 0 where they
+  previously went to 10/10/1/1.
+
+  **Went through three rounds before this was actually solid, and the last one was the
+  important one.** (1) Setting `cancelled` only in the effect *cleanup* latched it true
+  immediately, because StrictMode runs mount → cleanup → remount in dev — no lesson could
+  ever complete on the dev server. Fixed by resetting it on mount too; the regression test
+  ("finishing normally still credits exactly once") caught it, the production-build repro
+  alone hadn't, since StrictMode doesn't double-invoke there. (2) CI then failed on iPad *and*
+  iPhone with the lesson credited anyway, gems 0→10 again — on WebKit specifically, under
+  real timing. (3) The actual defect: cancellation lived **only** in the unmount effect's
+  cleanup, which runs once react-router's `navigate()` actually unmounts the component —
+  not guaranteed to happen before an already-due timer/await resolves. Quitting close enough
+  to a flight's natural deadline could let the timer win the race against the navigation.
+  Fixed at the root: both games now cancel **synchronously on the click itself**, before
+  `onQuit()`/navigation even starts — a `quit()` wrapper sets `cancelled.current = true` (and
+  clears Flitsen's pending timers) first, then calls the real handler. This can't lose the
+  race, because it's the first thing that runs. The unmount-effect cleanup stays as a backstop
+  for any other unmount path, not the primary mechanism anymore.
+
+  Local Chromium testing repeatedly failed to catch (2) and (3) — there's no WebKit on this
+  machine, so every one of these needed a real CI round-trip to surface. `tests/e2e/quit-mid-
+  animation.spec.ts` also needed three rounds of its own: guessed fixed delays (60ms, 80ms) to
+  land "mid-animation" raced real timing on WebKit exactly like the app did; polling for the
+  observable state (`.kk-fly` present, opacity `0`) and clicking as fast as possible still
+  lost on CI's WebKit runners, where Playwright's own actionability round-trips ate the whole
+  ~400ms window and the `.quit` click hit a detached node (three consecutive red pushes on
+  main: 43a46e6, b3dc39c, 20fe921). Now deterministic: the tests install Playwright's fake
+  clock (`page.clock`), pause it right before the last flip/swipe so the pending
+  timer/await *cannot* fire, click ✕, then advance the clock past the deadline and assert
+  nothing was credited. No window to hit, nothing to poll. Verified to fail (gems 0→10,
+  sessions 0→1) with the cancellation stripped from both games. **A trap worth knowing if you
+  touch these:** advancing the fake clock is not by itself enough to let the orphaned
+  continuation finish. Hardop lezen's chain is not all timers — after the flight it awaits
+  `playWord()`, which parks on a real media event, and only then schedules its last two
+  waits in resumed real time. With the 500ms real-time tail the Flitsen test can afford, the
+  Hardop lezen test passed *even with the cancellation stripped out of the game entirely*:
+  the wrongful credit landed after the assertions had run. It waits 2500ms now, and was
+  re-verified in both directions. A test that cannot fail is worse than no test. Caveat: under a frozen clock
+  navigation always completes before the timer, so the test proves "quit cancels the pending
+  completion" but can't separately distinguish the synchronous `quit()` cancel from the
+  unmount-cleanup backstop — (3) stays a code-reading guarantee. *(Original finding below,
+  for context.)*
+
+  Was: `games/KlankKaarten.tsx:96`
   schedules the card flight with `setTimeout(..., FLY_MS)` and never cancels it on unmount.
   Tap ✕ during the last card's 420ms flight and the orphaned callback still fires
   `onComplete` → `completeLesson` persists gems/XP and marks the lesson done.
@@ -59,34 +127,48 @@ StrictMode's double-invocation of effects can mask them in dev.
   idempotence guard in `GameScreen.handleComplete` itself, since today every "fire once"
   guarantee lives in the game components.
 
-- [ ] **A rejected `play()` leaves a promise that never resolves — do this before generating
-  word audio** — `audio/audio.ts:91-94` (and identically `49-52`):
-  ```js
-  await clip.play().catch(() => speakWord(text))
-  return new Promise((resolve) => { clip.onended = () => resolve() })
-  ```
-  If `play()` rejects (iOS autoplay policy, or `AbortError` from an interrupting load), the
-  fallback speaks but the returned promise still waits on `onended`, which can never fire
-  because the clip never played. `HardopLezen.commit()` has no `try/finally`, so
-  `busy.current` stays `true` forever: the card stays at `opacity: 0`, no further input is
-  accepted, and ✕ is the only escape. **Currently masked** — `public/audio/words/` is empty,
-  so `clip` is always `null` and the TTS path resolves fine. It activates the moment word
-  mp3s exist, i.e. the first time `tools/generate-word-audio.mjs` is run for real. Fix:
-  resolve on `ended` *or* `error`/rejection, add a timeout, and wrap `commit`'s body in
-  `try/finally` so `busy.current` always clears. Related: `clip.onended =` is an assignment,
-  so two overlapping plays of the same cached element orphan the first promise, and
-  restarting via `currentTime = 0` doesn't fire `ended` for the interrupted play.
+- [x] **A rejected `play()` leaves a promise that never resolves** — fixed. **Reproduced
+  first**, since this was masked by empty `public/audio/words/`: routed a real playable mp3
+  for every word request (so `loadWordClip` resolves non-null, exactly as it will once
+  `tools/generate-word-audio.mjs` is actually run) and forced `HTMLMediaElement.play()` to
+  reject with `AbortError`, simulating the iOS-autoplay-policy/interrupted-load case. Swiped
+  "nog even" (the branch that awaits `playWord` for reinforcement) — confirmed the card froze
+  at `opacity: 0` with no further input accepted, exactly as this item predicted.
 
-- [ ] **A second finger auto-grades a word** — `games/HardopLezen.tsx:52-70` tracks no
-  `pointerId`: `onPointerDown` unconditionally overwrites `startX.current`, and
-  `onPointerMove`/`onPointerUp` share one `dragging` flag across all pointers. Thumb resting
-  on the card at x=300 (`dragging=true`, `startX=300`), index finger taps at x=100 →
-  `startX` becomes 100 → any thumb movement yields `dragX ≈ 210` → releasing either finger
-  passes the 90px threshold and commits "Goed!" for a word she never swiped. Very reachable
-  for a 9-year-old resting a hand on a tablet. Fix: capture `e.pointerId` on down and ignore
-  move/up from other ids. Same item: `onPointerCancel={onPointerUp}` (line 140) means a
-  browser-cancelled gesture past the threshold also records a grade — cancel should reset
-  `dragX` to 0 instead.
+  Fix: `audio/audio.ts` gets one shared `playWithFallback(clip, fallback)` used by both
+  `playSound` and `playWord`. It resolves on `ended` *or* `error`, on an 8s timeout backstop,
+  or by awaiting the fallback when `play()` itself rejects — every path that used to leave a
+  caller waiting on an event that could never fire now resolves. It also fixes the related
+  issue for free: `addEventListener`/`removeEventListener` replace the old `clip.onended =`
+  assignment, so two overlapping calls on the same cached element can no longer silently drop
+  one call's handler. `HardopLezen.commit()` also gained a `try/finally` around a new
+  `runCommit()` (the backlog's other ask), so `busy.current` always clears regardless of what
+  runs inside — a pure backstop now that the hang itself is fixed at the source.
+
+  Re-ran the exact repro against the fix: no freeze, card advances normally. New
+  `tests/e2e/audio-fallback.spec.ts` covers it, and — to make sure the test itself has
+  teeth, not just the manual repro — it was verified to fail against the pre-fix
+  `audio.ts` before being checked in.
+
+- [x] **A second finger auto-grades a word** — fixed. **Reproduced first**, and it took two
+  attempts: a plain `dispatchEvent(new PointerEvent(...))` can't actually reproduce this —
+  Chromium's `setPointerCapture` validates against its real active-pointer table and throws
+  `"No active pointer with the given id"` for a synthetic id no real input ever established,
+  which silently prevented the exact overwrite this item describes. Switched to CDP's
+  `Input.dispatchTouchEvent`, which registers genuine pointers: thumb down, second finger
+  down elsewhere on the card, thumb nudges 15px (well under the 90px swipe threshold),
+  second finger lifts — confirmed the word got graded anyway, exactly as predicted.
+
+  Fix: an `activePointerId` ref. `onPointerDown` now ignores a second pointer while one is
+  already dragging, instead of overwriting `startX`; `onPointerMove`/`onPointerUp` ignore any
+  event whose `pointerId` doesn't match. Added a dedicated `onPointerCancel` (previously
+  aliased to `onPointerUp`, which is what let a browser-cancelled gesture past the threshold
+  record a grade) that resets `dragX` to 0 instead of committing.
+
+  New `tests/e2e/pointer-isolation.spec.ts` (3 tests, using real CDP touch points): a second
+  resting finger can't steal the drag; a genuine single-finger swipe still commits normally;
+  a cancelled gesture resets rather than grading. Verified 2 of the 3 fail against the
+  pre-fix code (the single-finger case correctly still passes — that path was never broken).
 
 - [ ] **Half the path feeds nothing to the adaptive engine** — `games/KlankKaarten.tsx:103`
   calls `onComplete({ answers: [] })`, so the `l1` ("Luister") and `l3` ("Mix") nodes — half
@@ -99,12 +181,11 @@ StrictMode's double-invocation of effects can mask them in dev.
   progress, or accept that mastery advances only on the other two game types and adjust the
   crown criteria accordingly.
 
-- [ ] **Hardop lezen inflates every timing sample** — `games/HardopLezen.tsx:77-79` pushes
-  one `AnswerRecord` per klank, all carrying the same whole-word `ms`. A 4-klank word writes
-  four ~6000ms samples, so `ewmaResponseMs` reflects word-reading time attributed to each
-  individual klank. The speed-based "Goud" gate in `masteryOf` (`< 2000ms`) becomes
-  effectively unreachable and `reviewWeight`'s slowness term saturates. Fix: divide by klank
-  count, record a single word-level record, or exclude Hardop lezen from the speed metric.
+- [x] **Hardop lezen inflates every timing sample** — fixed: each klank is now charged
+  `ms / klanken.length` instead of the whole-word time, so `ewmaResponseMs` stops drifting out
+  of reach of `masteryOf`'s 2000ms "goud" gate. Held until whole-word timing had somewhere
+  else to live, which it now does (`wordStats.ewmaMs`). Historical `soundStats` are left as
+  recorded — the inflation isn't reversible from the stored average. (commit d4b1d23)
 
 - [ ] **Side effect inside a `setState` updater** — `games/Flitsen.tsx:41-49` calls
   `clearInterval` and `finish()` (→ `onComplete` → `GameScreen.setReward`) from inside the
@@ -119,21 +200,23 @@ StrictMode's double-invocation of effects can mask them in dev.
   in the render body when a lesson id doesn't resolve. Replace with
   `<Navigate to="/" replace />`.
 
-- [ ] **Progress is keyed on positional lesson ids, with no store migration** —
-  `data/path.ts` generates ids as `fase1-u${i+1}-l${n}`, so inserting or reordering a unit in
-  `FASE_DEFS` silently remaps later ids onto the previous unit's saved `completedLessons`
-  and `records`. There's also no `version`/`migrate` on either zustand store, and zustand's
-  default merge is **shallow** — adding a key to a nested object (e.g. `settings.volume`)
-  reads back `undefined` at runtime for existing users while TypeScript insists it exists.
-  Worth fixing before Phase 3 syncs progress to Cosmos and the corruption becomes durable
-  and cross-device. Fix: stable content-derived ids (or an explicit id map) plus
-  `version` + `migrate`.
+- [x] **Progress is keyed on positional lesson ids** — fixed, together with
+  `backend-readiness.md` A3 (same persisted blob, done in one pass): `data/path.ts` now
+  derives unit ids from the sounds they introduce (`fase1-a-e-o-u-i`) instead of
+  `fase{n}-u{i+1}` array position, so a reorder/insertion in `FASE_DEFS` no longer remaps an
+  existing profile's history onto the wrong unit. `LEGACY_UNIT_ID_MAP` + a migration
+  (persist version 2 → 3) remap any `completedLessons`/`records` keys and
+  `sessions[].lessonId` built from the old scheme. Verified against a planted v2 profile with
+  old-style ids in all three locations — all remapped correctly on load, gems/xp untouched.
+  (The store-migration scaffolding half — `version`/`migrate`/`merge` existing at all — was
+  already done per commit bc6f640, noted below before this pass.)
 
-- [ ] **Streak days are computed in two different timezones** — `state/progress.ts:13-15`
-  builds `today()` from `toISOString()` (UTC) while `daysThisWeek` constructs Monday in
-  local time. In CEST a session at 01:00 Monday is stored as Sunday and drops out of the
-  week entirely; a Monday-evening and Tuesday-01:00 session both store "Monday" and count
-  once. Fix: use local-date formatting consistently on both sides.
+- [x] **Streak days are computed in two different timezones** — fixed: calendar-day
+  arithmetic now lives in `src/date.ts` (`localDay`, `addDays`) and `practiceDays` is stamped
+  with the local day, matching `daysThisWeek`. Covered by unit tests including the exact case
+  `toISOString()` got wrong (01:00 local on 15 July) plus month/year rollover, a leap year,
+  and both DST boundaries. Existing entries are left as recorded — the original local instant
+  isn't recoverable from a stored UTC day. (commit 28515df)
 
 - [ ] **The 45 klank recordings are no longer played by anything** — `playSound` in
   `audio/audio.ts:45` has **zero callers** (only its own definition and a comment). Its
@@ -142,6 +225,33 @@ StrictMode's double-invocation of effects can mask them in dev.
   recognise it" direction — which plan.md §1 says RID trains in *both* directions — is
   currently absent from the app. Decide: reintroduce a listening drill that uses them, or
   drop `playSound` + the `TTS_TEXT` map as dead code and stop shipping the clips.
+
+- [x] **Progress bar animated `width`, and the reward mascot ignored reduced motion** —
+  found via `impeccable detect app/src` (an npm-distributed static scanner for UI
+  anti-patterns; ran standalone, nothing installed into the repo or agent config). Two of
+  its four findings were real:
+  1. `.progress-fill { transition: width 0.4s ease }` (`theme.css`) forces layout every
+     frame on all three games' header progress bars. Fixed: fixed `width: 100%` plus
+     `transform: scaleX(fraction)` with `transform-origin: left` — the same technique
+     `.read-timer-fill` already used — with the three call sites (`Flitsen`, `Tijdrit`,
+     `HardopLezen`) passing `transform` instead of `width`.
+  2. `.reward-screen .frida { animation: bounce 1.2s infinite }` — the only `infinite`
+     animation in the app — kept bouncing under `prefers-reduced-motion: reduce`, because
+     `.reward-screen`'s own `animation: none` in the top-of-file reduced-motion block
+     doesn't cascade to a descendant's own `animation` property. **Gotcha hit and fixed:**
+     the first attempt added the override to that same top-of-file block, which sits
+     *before* the bounce rule in source order — equal specificity, so the later (bounce)
+     rule won regardless of the media query, and reduced motion silently did nothing.
+     Moved the override to its own `@media` block immediately after the bounce rule
+     instead, matching this file's own established pattern of small reduced-motion blocks
+     placed next to what they override (e.g. `.frida-tap.laughing` near line 317) rather
+     than one central list.
+     Verified with `page.emulateMedia({ reducedMotion: 'reduce' })`: `animationName` reads
+     `"bounce"` normally and `"none"` under reduced motion.
+  The other two findings (`cubic-bezier(.34,1.56,.64,1)` on `coinPop` and the Bliksemsprint
+  badge spring) were **not** acted on — `ux-backlog.md` names Duolingo as the explicit
+  aesthetic reference for a nine-year-old, and springy easing is that idiom, not a defect.
+  The scanner has no notion of the app's target genre.
 
 - [ ] **`generate-word-audio.mjs` can silently clobber real recordings** — the script writes
   straight into `app/public/audio/words/{id}.mp3` with no check for an existing file. The
@@ -211,5 +321,14 @@ all store updates are immutable.
   media and autoplay-policy behaviour still needs a real device check.
 - Let entrance animations finish (~800ms) before trusting a `getBoundingClientRect()`
   reading; `.coin-item`'s `coinPop` scales from 0.4 and will report a too-small box mid-flight.
+- To simulate a second real pointer/touch (multi-touch bugs), use
+  `(await context.newCDPSession(page)).send('Input.dispatchTouchEvent', ...)`, not
+  `element.dispatchEvent(new PointerEvent(...))`. The latter registers no real active
+  pointer, so anything calling `setPointerCapture` on that synthetic id throws — silently
+  hiding exactly the class of bug this is usually used to test. **`newCDPSession` only
+  exists in Chromium** — it throws immediately on the `ipad`/`iphone` (WebKit) projects, so
+  a spec built on it needs `testIgnore` there (`playwright.config.ts`, alongside
+  `recording-studio.spec.ts`'s existing exclusion). This found out the hard way: CI passed
+  locally against `--project=desktop` and then failed both WebKit projects on push.
 - Commit each item separately, so history stays readable and each change is easy to revert
   in isolation.

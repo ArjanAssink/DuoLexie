@@ -1,29 +1,93 @@
 name: Azure Static Web Apps CI/CD
 
+# A merge to main is a push to main, so that trigger was never the problem — but on
+# 2026-09-13 GitHub dropped the push event for merge commit 4e3e543 during an API outage
+# (repeated 502s; the merge itself took four attempts). The run was never created, main
+# looked healthy, and production silently stayed on the previous bundle. It only shipped
+# because an unrelated PR merged behind it half an hour later.
+#
+# No trigger configuration can make GitHub deliver an event it dropped. What the two
+# additions below give is a way to notice and a way to recover:
+#   workflow_dispatch — re-run the deploy for any ref, from the Actions tab or
+#                       `gh workflow run "Azure Static Web Apps CI/CD" --ref main`
+#   schedule          — a daily run of main, so a dropped event self-heals within a day
+#                       instead of waiting for whatever happens to be merged next. The
+#                       upload is idempotent, and on a public repo the minutes are free,
+#                       so the standing cost is one no-op run a day in exchange for
+#                       production never drifting from main unnoticed.
 on:
   push:
     branches:
       - main
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    # No `closed`: the only job that ever used it was the preview teardown, and there are
+    # no previews to tear down now. Leaving it in would fire a run on every merge in which
+    # every job skips — a permanently grey check that means nothing.
+    types: [opened, synchronize, reopened]
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    # 05:17 UTC — off the top of the hour, where scheduled jobs queue up worldwide
+    - cron: '17 5 * * *'
 
 jobs:
   test:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    # No condition: every trigger this workflow accepts should run the tests, now that the
+    # "closed" event is gone from the list above.
     runs-on: ubuntu-latest
-    name: E2E Tests (desktop/ipad/iphone)
+    name: Tests (unit, tools, e2e on desktop/ipad/iphone)
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          # Both lockfiles: the api is installed here too now, so a change to either
+          # should miss the cache.
+          cache-dependency-path: |
+            app/package-lock.json
+            api/package-lock.json
       - name: Install dependencies
         working-directory: app
         run: npm ci
+      # Cheap and first: a second, and it is the only thing enforcing react/rules-of-hooks.
+      # The script covers tools/ and api/ as well as app/, so this is the whole repo.
+      - name: Lint
+        working-directory: app
+        run: npm run lint
+      # Load-bearing, and new with this change. Neither `npm test` (vitest, esbuild) nor the
+      # e2e suite (which runs against the *dev* server) typechecks anything, so until now the
+      # only thing in CI compiling this project was Azure's Oryx build inside the deploy job.
+      # Taking that job off pull requests without this would have let a type error sail
+      # through a green PR and break the deploy on main — trading a noisy failure for a
+      # silent one. Both packages, because Oryx built both.
+      #
+      # `tsc -b` also covers app/tests now (tsconfig.test.json). Nothing used to typecheck
+      # the Playwright specs at all: they are compiled by Playwright's own loader at run
+      # time, so a type error there showed up — if at all — as a failure eight minutes into
+      # the e2e job, on whichever branch happened to execute that line.
+      - name: Build app
+        working-directory: app
+        run: npm run build
+      - name: Install api dependencies
+        working-directory: api
+        run: npm ci
+      - name: Build api
+        working-directory: api
+        run: npm run build
+      - name: Run unit tests
+        working-directory: app
+        run: npm test
+      # tools/ is plain node with no package of its own. The end-to-end split test generates
+      # a take with ffmpeg and cuts it up again; the runner has ffmpeg, the Claude sandbox may
+      # not, and that test skips rather than fails where it is missing — so this job is where
+      # it actually runs.
+      - name: Run tool tests
+        # globs rather than `--test tools/`: this runner's Node 22 reads a bare directory as a
+        # module path and dies with MODULE_NOT_FOUND before running a single test, where newer
+        # Node scans it. Spelling out the files works on both.
+        run: node --test tools/*.test.mjs tools/lib/*.test.mjs
       - name: Install Playwright browsers
         working-directory: app
         run: npx playwright install --with-deps
@@ -40,7 +104,22 @@ jobs:
 
   build_and_deploy_job:
     needs: test
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    # Production only, and never from a pull request.
+    #
+    # Pull requests used to deploy to an Azure preview environment. The Free plan allows
+    # three, and three were permanently occupied by orphans: PRs 1, 2 and 3 were merged
+    # within ten seconds of being opened, while their deploy job still sat behind an
+    # eight-minute test job, so the teardown ran first and the deploy then recreated the
+    # environment with no `closed` event left to remove it. Every pull request after that
+    # failed here with "maximum number of staging environments" — in the same workflow as
+    # the tests, which is the real cost: a check that is always red teaches you to ignore
+    # the one signal that would tell you a test broke. Nobody ever opened a preview URL on
+    # a solo repo whose PRs live for minutes, so previews go rather than the limit rising.
+    #
+    # The ref check is the other half, and it is not redundant: `workflow_dispatch` and
+    # `schedule` carry no branch restriction of their own, so without it dispatching this
+    # workflow from a feature branch would put that branch on the live site.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
@@ -61,15 +140,3 @@ jobs:
           api_location: "api" # Api source code path - optional
           output_location: "dist" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
-
-  close_pull_request_job:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    name: Close Pull Request Job
-    steps:
-      - name: Close Pull Request
-        id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_JOLLY_WAVE_019071410 }}
-          action: "close"

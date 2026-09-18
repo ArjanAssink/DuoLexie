@@ -32,11 +32,11 @@ Kies één van beide (het makkelijkst): verwijder **onze** `azure-static-web-app
 
 4. Controleer: GitHub → *Actions* tab → de deploy-run wordt groen → de app staat live op de `https://<naam>.azurestaticapps.net` URL (te vinden op de SWA *Overview* pagina).
 
-## 2. Custom domain koppelen
+## 2. Custom domain koppelen — ✅ gedaan, live op https://duolexie.assink.io
 
 1. SWA in de portal → **Custom domains** → *Add* → *Custom domain on other DNS*.
-2. Vul je (sub)domein in, bijv. `lexie.jouwdomein.nl`.
-3. Maak bij je DNS-provider een **CNAME**-record: `lexie` → `<naam>.azurestaticapps.net` (de hostname van de Overview-pagina).
+2. Vul je (sub)domein in — hier `duolexie.assink.io`.
+3. Maak bij je DNS-provider een **CNAME**-record: `duolexie` → `<naam>.azurestaticapps.net` (de hostname van de Overview-pagina).
 4. Terug in de portal: *Validate* → *Add*. SSL-certificaat wordt automatisch en gratis geregeld (kan ~15 min duren).
 
 ## 3. Cosmos DB (pas nodig in Phase 3 — accounts & sync)
@@ -66,10 +66,10 @@ aanmeld-notificatie naar jezelf. Twee resources, allebei in `rg-duolexie`.
    minuut heb je een domein als `<guid>.azurecomm.net` met afzender `DoNotReply@<guid>.azurecomm.net`.
    Dit werkt meteen en is genoeg om mee te bouwen en te testen.
 4. **Later (stap S7 in het accounts-plan), eigen domein:** *Add domain* → **Custom domain** →
-   bijv. `lexie.<jouwdomein>.nl`. Azure toont drie soorten DNS-records die je bij je
-   DNS-provider zet: een **TXT** (verificatie), een **TXT** voor **SPF**, en twee **CNAME**'s
-   voor **DKIM**. Daarna *Verify* per record. Onder **MailFrom addresses** kun je dan
-   `noreply@lexie.<jouwdomein>.nl` toevoegen. Gebruik hetzelfde (sub)domein als de site — dat
+   `duolexie.assink.io`. Azure toont drie soorten DNS-records die je bij je DNS-provider
+   zet: een **TXT** (verificatie), een **TXT** voor **SPF**, en twee **CNAME**'s voor
+   **DKIM**. Daarna *Verify* per record. Onder **MailFrom addresses** kun je dan
+   `noreply@duolexie.assink.io` toevoegen. Gebruik hetzelfde (sub)domein als de site — dat
    is wat de mail uit de spam houdt.
 
 ### 4b. Communication Service (de API-sleutel)
@@ -102,9 +102,9 @@ Portal → `swa-duolexie` → **Environment variables** → *Production* → *Ad
 | Naam | Waarde |
 |---|---|
 | `ACS_CONNECTION_STRING` | connection string uit 4b |
-| `MAIL_FROM` | `DoNotReply@<guid>.azurecomm.net` (later `noreply@lexie.<jouwdomein>.nl`) |
+| `MAIL_FROM` | `DoNotReply@<guid>.azurecomm.net` (later `noreply@duolexie.assink.io`) |
 | `NOTIFY_EMAIL` | je eigen adres — ontvangt de aanmeld-notificaties |
-| `APP_BASE_URL` | `https://lexie.<jouwdomein>.nl` (zonder slash op het eind; nu nog `https://jolly-wave-019071410.7.azurestaticapps.net`) |
+| `APP_BASE_URL` | `https://duolexie.assink.io` (zonder slash op het eind) |
 
 `COSMOS_ENDPOINT`, `COSMOS_KEY` en `JWT_SECRET` staan er al. *Save* → de SWA start de
 Functions opnieuw; controleer daarna `/api/health` (wordt uitgebreid met een `mail`-check).
@@ -133,7 +133,7 @@ plaats van verstuurd te worden:
 
 - [x] SWA aangemaakt, deploy groen, app live op azurestaticapps.net
 - [x] Dubbele workflow opgeruimd (alleen `azure-static-web-apps-jolly-wave-019071410.yml` over)
-- [ ] Custom domain + CNAME, SSL actief
+- [x] Custom domain + CNAME, SSL actief — **https://duolexie.assink.io**
 - [x] Cosmos free tier + containers + environment variables — *geverifieerd 2026-09-18 via `/api/health`: alles `ok`*
 - [ ] TTL aanzetten op container `auth` (Data Explorer → `auth` → *Scale & Settings* → **Time to Live: On (no default)**) — inlogtokens ruimen zichzelf dan op
 - [ ] Email Communication Service `ecs-duolexie` + Azure managed domain (§4a)

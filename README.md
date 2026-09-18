@@ -1,8 +1,18 @@
 # DuoLexie 🦊
 
+Speels leren lezen, klank voor klank — met Frida als gids.
+
+**Probeer het live: [duolexie.assink.io](https://duolexie.assink.io)** — nog volop in ontwikkeling.
+
+<img src="art/avatar/frida-happy.svg" alt="Frida, de DuoLexie-mascotte" width="160" />
+
 Duolingo-achtige lees-oefenapp voor kinderen met dyslexie, gebouwd rond de 45 Nederlandse klanken uit de RID-behandeling. Speels oefenen met flitskaarten (snelheid!) en luisterspellen (klank → teken), met edelstenen, records en een weekdoel.
 
 **Belangrijk:** deze app is een aanvulling op de RID-thuisoefeningen, geen vervanging.
+
+Wie de app voor het eerst opent krijgt een korte kennismaking op `/#/welkom` — Frida stelt
+zich voor, je kiest een naam (of niet) en maakt je avatar; daarna kom je altijd meteen op het
+leerpad uit. Zie [docs/onboarding-welkom.md](docs/onboarding-welkom.md).
 
 ## Structuur
 
@@ -22,13 +32,54 @@ npm run dev
 
 ## Audio opnemen
 
-De app gebruikt zelf opgenomen klankclips (val terug op browser-TTS zolang die ontbreken):
+### De stemopnames zitten niet in deze repo
 
-1. `npm run dev` en open `http://localhost:5173/#/opnemen` (alleen in dev-mode)
-2. Kies de map `app/public/audio/sounds` (File System Access API — gebruik Chrome)
-3. Neem elke klank op; bestanden worden als `{klank}.webm` opgeslagen
-4. Converteer naar mp3: `node tools/convert-audio.mjs` (vereist ffmpeg)
-5. Commit de mp3's
+De klanken, woorden en weetjes die de app voorleest zijn ingesproken door één persoon.
+Een openbare map met netjes gelabelde `kat.mp3`, `bos.mp3`, … is precies de dataset waarmee
+je een stem kloont, en alles wat ooit in git heeft gestaan blijft daar. Daarom staan de
+opnames **niet** in deze repository en niet op de openbare site, maar in een privé
+opslagbak, en levert de app ze alleen uit via de API met een kortlopend token en een
+snelheidslimiet. Zie [docs/private-audio.md](docs/private-audio.md) — ook voor wat dit
+*niet* beschermt. (Op 16 september 2026 is de git-geschiedenis herschreven om de eerste 45
+klank-opnames eruit te halen; een clone van vóór die datum moet opnieuw gecloned worden.)
+
+**Zonder opnames werkt de app volledig**: elke klank en elk woord valt terug op de
+voorleesstem van de browser. Wil je je eigen stem gebruiken, dan neem je die op met de
+studio hieronder en zet je hem in je eigen opslag (`AUDIO_STORAGE_CONNECTION`), of — als
+je het kloonrisico voor jezelf accepteert — in een **privé** fork. Zet ze nooit in een
+openbare repo; `.gitignore` en de CI van deze repo weigeren dat ook.
+
+**Licentie:** de code is MIT (zie [LICENSE](LICENSE)). De stemopnames vallen daar niet
+onder: alle rechten voorbehouden, ze mogen niet worden gekopieerd, gepubliceerd of gebruikt
+om een stem te trainen of te synthetiseren.
+
+### Zelf opnemen
+
+Opnemen gaat in **één doorlopende take** die daarna automatisch geknipt wordt —
+niet meer klik-per-clip. Dat is geen gemak maar geluidskwaliteit: elke klik zat in de opname,
+en een clip van 300ms is te kort om apart te normaliseren. Zie
+[docs/recording-pipeline-v2.md](docs/recording-pipeline-v2.md) voor het waarom.
+
+1. Zorg voor een stille kamer. `npm run dev`, open `http://localhost:5173/#/opnemen` in
+   **Chrome of Edge** (File System Access API), en kies de map `recordings/`.
+2. Kies de set (klanken / woorden-startset / alle woorden, eventueel *alleen ontbrekende*) en
+   het tempo. Check de microfoon: de meter mag niet in het rood, en "test 3 seconden" laat
+   horen of je de juiste ingang te pakken hebt.
+3. **Start take.** Na `3 · 2 · 1 · piep` verschijnt elk woord om de beurt. Lees het één keer
+   rustig voor. **Handen van het bureau** — toetsen en muisklikken komen mee de opname in.
+   - **spatie** — deze ging mis; het woord komt vanzelf achteraan terug
+   - **backspace** — de vorige ging mis (je merkte het een tel te laat)
+   - **Esc** — pauze; nog een keer Esc hervat met een nieuwe aftelling
+4. Knip de take: `node tools/split-take.mjs recordings/<take>.webm` (vereist ffmpeg). Dat
+   schrijft één mp3 per woord plus een rapport. Tot [docs/private-audio.md](docs/private-audio.md)
+   gebouwd is landen die nog in `app/public/audio/` — die map is gitignored, dus lokaal spelen
+   werkt en er kan niets per ongeluk gecommit of gedeployed worden.
+5. Luister terug op `/#/opnemen` → **Rapport laden**: gemarkeerde clips staan bovenaan, "alles
+   afluisteren" speelt de hele set achter elkaar. Vink aan wat opnieuw moet en druk op
+   *Deze opnieuw opnemen* — dat start een take met alleen die woorden.
+6. **Herstart de dev-server** (`vite.config.ts` leest `public/audio/words/` één keer bij het
+   starten). Commit de mp3's **niet** — zie hierboven; ze gaan naar de privé-opslag zodra
+   die er is. De `.webm`-takes zelf blijven in `recordings/`, gitignored.
 
 ## Deploy (Azure Static Web Apps, gratis tier)
 
@@ -47,3 +98,7 @@ De app gebruikt zelf opgenomen klankclips (val terug op browser-TTS zolang die o
 
 Zie het plan: klankspellen → woorden → zinnen, accounts met profielen (fase 3),
 ouderdashboard, stickerboek. Spraakherkenning is een later experiment.
+
+## Licentie
+
+MIT — zie [LICENSE](LICENSE).

@@ -4,7 +4,7 @@
   "private": true,
   "main": "dist/src/functions/*.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "prestart": "npm run build",
     "start": "func start"
   },

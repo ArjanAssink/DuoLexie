@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["node"],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
+    "paths": { "@shared/*": ["../shared/*"] }
+  },
+  // src/vite-env.d.ts because tests/unit imports from src/, and src/ is written against the
+  // build-time globals vite.config.ts injects (__RECORDED_WORDS__, __RECORDED_WEETJES__).
+  // Without it a unit test that touches those modules fails to typecheck here while
+  // compiling perfectly under tsconfig.app.json.
+  "include": ["tests", "playwright.config.ts", "src/vite-env.d.ts"]
+}

@@ -60,6 +60,23 @@ export const useAvatar = create<AvatarState>()(
     {
       name: 'duolexie-avatar',
       storage: createJSONStorage(() => idbStateStorage),
+      version: 1,
+      migrate: (persisted) => persisted,
+      // AvatarConfig is the likeliest object here to gain a field, and zustand's
+      // default merge is shallow — a saved config would then arrive missing the
+      // new key. Deep-fill config and equipped so that stays impossible.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AvatarState>
+        return {
+          ...current,
+          ...p,
+          config: {
+            ...current.config,
+            ...p.config,
+            equipped: { ...current.config.equipped, ...p.config?.equipped },
+          },
+        }
+      },
     },
   ),
 )

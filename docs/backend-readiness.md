@@ -49,14 +49,28 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
 
 ## Priority order
 
-- [ ] **A1 — Turn on `strict` in `app/tsconfig.app.json`.** The Vite template's flag is
-  missing entirely, so the app compiles with `strictNullChecks` off. **Verified: adding it
-  produces zero errors today** (`npx tsc -p tsconfig.app.json --noEmit --strict` → clean).
-  One line, no code changes, permanently locks in null-safety already written by hand.
-  `api/tsconfig.json` already has it. Do this first — it's free and it protects everything
-  after it.
+- [x] **A1 — Turn on `strict` in `app/tsconfig.app.json`.** Done. Re-verified against the
+  current tree (considerably larger than at `46fecbc` — wordStats, Leitner boxes, date.ts,
+  Bliksemsprint all landed since): `npx tsc -p tsconfig.app.json --noEmit --strict` was still
+  clean before the flag was added. `strict: true` added; `tsc --noEmit`, `npm run build`, and
+  `playwright test --project=desktop` (13/13) all pass unchanged.
 
-- [ ] **A2 — Emit a `SessionResult` per completed lesson; make aggregates derived.**
+- [x] **A2 — Emit a `SessionResult` per completed lesson; make aggregates derived.** Done.
+  Re-verified the claim first: still zero constructors of `SessionResult` anywhere in
+  `app/src`/`api/src`/`shared/src` before this change. `engine/recompute.ts` now holds
+  `applySession` (fold one session into an `Aggregates` snapshot) and `recomputeFrom`
+  (replay a whole log, sorted by `completedAt`) — one implementation, so the incremental
+  path can't drift from the replay path the way the `+10` bonus already has elsewhere (A4).
+  `completeLesson` builds a `SessionResult` and calls `applySession`; `sessions:
+  SessionResult[]` persists alongside the existing aggregates (persist version 2, migrated
+  from both v0 and v1). `SessionResult` gained `wordResults?` so replay can rebuild
+  `wordStats` too — it didn't exist when this file was written. `applyAnswer` gained the same
+  injectable-`now` parameter `applyWordResult` already had, since without it replay stamps
+  `lastSeenAt` with replay time instead of the session's actual time. Three Vitest cases cover
+  the equivalence guarantee (replay == incremental fold, order-independence, and concrete
+  sums/max/count assertions) — 30/30 tests pass. Verified live against a production build
+  (`vite preview`): completing a real lesson persists a well-formed `SessionResult` in
+  IndexedDB alongside correctly-derived `gems`/`xp`/`completedLessons`.
   The pivotal change. In `state/progress.ts`, add an append-only `sessions: SessionResult[]`
   and have `completeLesson` push one (generate `id` with `crypto.randomUUID()`, set
   `completedAt` to an ISO timestamp). Keep `gems`/`xp`/`soundStats`/`records` as they are —
@@ -72,37 +86,73 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
     JSON blob in IndexedDB. If it ever matters, compact sessions older than N months into a
     starting-balance snapshot — but don't pre-optimise this.
 
-- [ ] **A3 — Add `version` + `migrate` to both zustand `persist` configs.**
-  Neither `state/progress.ts` nor `state/avatar.ts` has them (verified). Any change to the
-  persisted shape silently corrupts existing progress on her device — and versioned payloads
-  are a prerequisite for server-side migration later. Note zustand's default merge is
-  **shallow**, so adding a key to a nested object (e.g. `settings.volume`) reads back
-  `undefined` at runtime while TypeScript insists it exists. Set `version: 1` now and add a
-  `migrate` that handles `undefined`→v1. Coordinate with the stable-lesson-id item in
-  `code-review-backlog.md` — same blob, do both migrations together.
+- [x] **A3 — Add `version` + `migrate` to both zustand `persist` configs.** Re-verified
+  first: the original claim no longer held — both stores already carry `version`/`migrate`/
+  `merge` (added independently by the wordStats and avatar-shop work that landed after this
+  file was written). The scaffolding half was already done. The half that wasn't — the
+  stable-lesson-id migration this item shares with `code-review-backlog.md` — is done now:
+  `data/path.ts` derives unit ids from their sounds (`fase1-a-e-o-u-i`, stable under reorder/
+  insertion) instead of array position, `LEGACY_UNIT_ID_MAP` records the former positional
+  ids for exactly one migration, and `progress.ts`'s `migrate` (now cascading through v0→v3
+  instead of one `if` per version, so an old-enough profile gets every fixup, not just the
+  one matching its stored version) remaps `completedLessons`/`records` keys and
+  `sessions[].lessonId` through it. Two e2e tests hardcoded old positional URLs
+  (`fase1-u1-l2`, `fase1-u2-l5`) and needed updating to the new ids — a direct, mechanical
+  consequence of this change, not a fix to their actual test logic. Verified live against a
+  production build: planted a v2 profile with old-style ids in all three locations, reloaded,
+  confirmed every one remapped correctly and gems/xp (not migration targets) were untouched.
 
-- [ ] **A4 — Move the reward rule into one place.** `screens/GameScreen.tsx:42` computes
-  `gems`, then line 51 displays `gems + (newRecord ? 10 : 0)`, while `state/progress.ts:84`
-  *independently* stores `s.gems + gems + (newRecord ? 10 : 0)`. **The `+10` record bonus is
-  written twice, in two files, and they agree only by coincidence** — change one and the
-  number she sees silently stops matching the number she's paid. Extract
-  `computeReward(lesson, answers, prevRecord)` into `engine/`, have the store call it, and
-  let `GameScreen` render what the store returns. Also unit-testable, unlike today.
+- [x] **A4 — Move the reward rule into one place.** Done. Re-verified the duplication first
+  (same shape post-A2, different lines): `GameScreen.tsx` computed `gems`/`xp` and separately
+  re-added the `+10` record bonus for display, while `progress.ts`'s `completeLesson`
+  independently added the same bonus to what got credited. `engine/reward.ts` now holds
+  `computeReward(lesson, answers, prevRecord, score)` as the one formula; `completeLesson`'s
+  signature changed to take `lesson` instead of precomputed `gems`/`xp` and now returns the
+  full `Reward` (gems, xp, perfect, newRecord); `GameScreen` renders exactly what it gets back
+  and computes nothing itself. Four Vitest cases pin the exact arithmetic (base reward,
+  perfect bonus, eindbaas bonus stacking, and the record-bonus boundary — tied is not a new
+  record). Verified live against a production build: displayed gems, credited gems, and the
+  session's recorded `gemsEarned` all agreed (10/10/10) after a real completed lesson.
 
-- [ ] **A5 — Give `api/` a path mapping to `shared/`.** `api/tsconfig.json` has no `paths`
-  entry and `api/src` imports nothing from `shared/` (verified) — so `shared/` is currently
-  app-only, and the `@shared` alias is a *Vite* alias, not a TypeScript one. The moment the
-  API needs `AnswerRecord`/`SessionResult` (i.e. the first sync endpoint) it will need
-  `"paths": { "@shared/*": ["../shared/*"] }` plus an `include` that reaches `../shared/src`.
-  Cheap now, annoying to retrofit mid-feature.
+- [x] **A5 — Give `api/` a path mapping to `shared/`.** Done, but not as simply as the plain
+  `"paths"` + `include` this item originally sketched — tried that first and it doesn't work:
+  `api/tsconfig.json` has a real `outDir`/`rootDir` (it emits actual JS, unlike `app`'s
+  `noEmit` build), and `include`-ing `../shared/src` directly trips `TS6059` ("File is not
+  under 'rootDir'") the instant anything actually imports from it — confirmed by writing a
+  real import and watching it fail before reaching for a fix. Used TypeScript project
+  references instead: `shared/tsconfig.json` (new, `composite: true`) is its own tiny
+  buildable project; `api/tsconfig.json` gets `"references": [{ "path": "../shared" }]` plus
+  the `paths` entry from this item's original text; `api/package.json`'s build script changed
+  from `tsc` to `tsc -b` (plain `tsc` doesn't build referenced projects — confirmed that
+  failure too, `TS6305`, before switching). Since every export in `shared/src/types.ts` is a
+  type/interface with no runtime value, `import type` from `api/` erases to *zero* emitted
+  `require()` — confirmed by writing the import and reading the compiled `.js` — so there's
+  no bundler or `tsc-alias` needed for it to resolve at runtime either. Verified with a full
+  clean rebuild from scratch (`rm -rf dist tsconfig.tsbuildinfo` in both packages): `shared`
+  builds first automatically, `api`'s own output shape is unchanged
+  (`dist/src/functions/*.js`, matching `package.json`'s `main`), zero regressions in `app`'s
+  own `tsc`/build/vitest/e2e. Added `*.tsbuildinfo` to `.gitignore` — a new build artifact
+  this introduces (`shared`'s own tsbuildinfo lands next to its tsconfig, not inside `dist/`
+  like `api`'s already-ignored one).
 
-- [ ] **A6 — Make game dispatch fail closed.** `screens/GameScreen.tsx:80-82` is a ternary
-  chain that falls through to a default component. `GameType` in `shared/src/types.ts` already
-  lists games that don't exist yet (`welke-klank`, `woordbouwer`), so adding one silently
-  renders the *wrong game* instead of failing. Replace with
-  `const GAMES: Record<GameType, ComponentType<GameProps>>` — TypeScript then makes an
-  unimplemented game a compile error. ~6 lines, and the single best extensibility fix in the
-  codebase given how fast games are being added.
+- [x] **A6 — Make game dispatch fail closed.** Done. Re-verified first: still a ternary
+  chain falling through to a default (`Flitsen`, not the original `Klankenjacht` — the game
+  it falls through to has changed twice already since this was written, which is itself a
+  small illustration of why a silent fallback is worth removing). Replaced with
+  `const GAMES: Record<GameType, ComponentType<GameProps>>`; the two not-yet-built types
+  (`welke-klank`, `woordbouwer`) map to a small `NotImplementedGame` placeholder — an honest
+  "dit spel bestaat nog niet" screen instead of silently rendering the wrong game. **Proved
+  the guarantee, not just written it**: removed the `woordbouwer` entry, confirmed
+  `npm run build` genuinely fails with `TS2741: Property 'woordbouwer' is missing`, then
+  restored it and confirmed clean.
+  **Also found while proving that**: `npx tsc --noEmit -p app` — this file's own prescribed
+  verification command — does *not* actually check anything. `app/tsconfig.json` (the `-p .`
+  target) is solution-style (`"files": []`, only `references`); without `-b` that's an empty
+  check that exits clean regardless of real errors elsewhere in the project. `npm run build`
+  (`tsc -b && vite build`) is what's actually been catching type errors this whole pass — it
+  caught an unused-import mistake during A2 that the bare `-p .` command missed at the time,
+  which should have been the tell. Future verification here should run `npm run build` (or
+  `npx tsc -b`) instead of, not alongside, the plain `-p .` form.
 
 ## Only after A1–A5: the actual backend
 
@@ -138,8 +188,10 @@ Against commit `46fecbc`, by reading the exact lines and running the compiler �
 
 ## Working conventions (same as the other backlogs)
 
-- Verify with `npx tsc --noEmit -p app`, `npm run build` and `npx playwright test
-  --project=desktop` (both from `app/`) before each commit.
+- Verify with `npm run build` (not `npx tsc --noEmit -p app` — see A6: that form doesn't
+  actually check anything, since `app/tsconfig.json` is solution-style and needs `-b` to walk
+  its references) and `npx playwright test --project=desktop` (both from `app/`) before each
+  commit.
 - Reproduce against a **production** build (`npm run build` && `npx vite preview`), not just
   the dev server — StrictMode's double-invoked effects mask some ordering bugs in dev.
 - Commit each item separately; update its checkbox and a one-line result note **in this file

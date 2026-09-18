@@ -1,8 +1,13 @@
 /**
  * Sound playback with graceful fallback:
- * 1. Family-recorded clip at /audio/sounds/{id}.mp3 (the real experience)
+ * 1. Family-recorded clip, addressed through `clipSrc` (the real experience)
  * 2. Browser speech synthesis (nl-NL) as placeholder until clips are recorded
+ *
+ * Clip URLs are built by `recorded.ts` rather than spelled out here, so that
+ * docs/private-audio.md — which moves every clip out of `public/` and behind the API — is a
+ * change to one function instead of to every player in the app.
  */
+import { clipSrc } from './recorded'
 
 const clipCache = new Map<string, HTMLAudioElement | null>()
 
@@ -13,24 +18,66 @@ const TTS_TEXT: Record<string, string> = {
   m: 'mmm', n: 'nnn', p: 'pu', r: 'rrr', s: 'sss', t: 'tu', v: 'vvv', w: 'wu', z: 'zzz',
 }
 
-function speak(soundId: string): Promise<void> {
+/**
+ * Cap on how long one utterance may keep a caller waiting.
+ *
+ * `onend`/`onerror` are the only way to know speech finished, and there are real setups
+ * where neither ever fires: a device with no nl-NL voice installed, an engine that drops the
+ * utterance silently, a backgrounded tab. That used to cost at most a delayed transition,
+ * because nothing waited on speech to *continue*. Hardop lezen now gates grading on having
+ * heard the word (games/HardopLezen.tsx `reveal`), so an utterance that never ends would
+ * leave the card permanently ungradeable — the same shape of bug as the rejected `play()`
+ * that playWithFallback's CLIP_TIMEOUT_MS guards against, and it needs the same backstop.
+ */
+const SPEECH_TIMEOUT_MS = 6000
+
+/** Runs one utterance to completion, and always resolves — see SPEECH_TIMEOUT_MS. */
+export function utter(text: string, rate: number): Promise<void> {
   return new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(TTS_TEXT[soundId] ?? soundId)
-    utterance.lang = 'nl-NL'
-    utterance.rate = 0.7
-    const voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith('nl'))
-    if (voice) utterance.voice = voice
-    utterance.onend = () => resolve()
-    utterance.onerror = () => resolve()
-    speechSynthesis.cancel()
-    speechSynthesis.speak(utterance)
+    let settled = false
+    function finish() {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve()
+    }
+    const timer = setTimeout(finish, SPEECH_TIMEOUT_MS)
+    // Wrapped because audio is never worth hanging a game over, and these calls are
+    // fire-and-forget from the games: an uncaught throw here would be a silent, permanent
+    // no-op rather than a crash.
+    try {
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = 'nl-NL'
+      utterance.rate = rate
+      const voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith('nl'))
+      if (voice) utterance.voice = voice
+      utterance.onend = finish
+      utterance.onerror = finish
+      speechSynthesis.cancel()
+      speechSynthesis.speak(utterance)
+    } catch {
+      finish()
+    }
   })
+}
+
+/** Stops anything currently being spoken — call it when a game unmounts mid-word. */
+export function stopSpeech(): void {
+  try {
+    speechSynthesis.cancel()
+  } catch {
+    // nothing to stop, or no speechSynthesis at all
+  }
+}
+
+function speak(soundId: string): Promise<void> {
+  return utter(TTS_TEXT[soundId] ?? soundId, 0.7)
 }
 
 async function loadClip(soundId: string): Promise<HTMLAudioElement | null> {
   const cached = clipCache.get(soundId)
   if (cached) return cached
-  const audio = new Audio(`/audio/sounds/${soundId}.mp3?v=${__AUDIO_VERSION__}`)
+  const audio = new Audio(clipSrc('klanken', soundId, __AUDIO_VERSION__))
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
@@ -42,38 +89,74 @@ async function loadClip(soundId: string): Promise<HTMLAudioElement | null> {
   return result
 }
 
+/**
+ * Bound on how long a clip may take before this gives up on it and resolves
+ * anyway — guards against a real element that never fires `ended` or `error`
+ * (a backgrounded tab, odd browser behaviour) hanging a caller the same way a
+ * rejected `play()` used to.
+ */
+const CLIP_TIMEOUT_MS = 8000
+
+/**
+ * Plays a clip, falling back to speech if `play()` rejects (iOS autoplay policy,
+ * or an `AbortError` from an interrupting load) — and always resolves.
+ *
+ * The bug this replaces: the old code did
+ *   `await clip.play().catch(() => speak(...)); return new Promise(r => clip.onended = r)`
+ * — when `play()` rejected, the fallback ran, but the *returned* promise still
+ * waited on the clip's `ended` event, which a clip that never played can never
+ * fire. Every caller (Hardop lezen's `commit()`) awaits this, so that hung the
+ * game forever with no way out but quitting. `.onended =` was also a plain
+ * assignment, so two overlapping calls on the same cached element silently
+ * dropped the first call's handler — the addEventListener/removeEventListener
+ * pair below can't lose one call's listener to another's.
+ */
+async function playWithFallback(
+  clip: HTMLAudioElement,
+  fallback: () => Promise<void>,
+): Promise<void> {
+  clip.currentTime = 0
+  return new Promise((resolve) => {
+    let settled = false
+    let timeout: ReturnType<typeof setTimeout>
+    function finish() {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      clip.removeEventListener('ended', finish)
+      clip.removeEventListener('error', finish)
+      resolve()
+    }
+    clip.addEventListener('ended', finish)
+    clip.addEventListener('error', finish)
+    timeout = setTimeout(finish, CLIP_TIMEOUT_MS)
+    clip.play().catch(() => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      clip.removeEventListener('ended', finish)
+      clip.removeEventListener('error', finish)
+      fallback().then(resolve)
+    })
+  })
+}
+
 export async function playSound(soundId: string): Promise<void> {
   const clip = await loadClip(soundId)
-  if (clip) {
-    clip.currentTime = 0
-    await clip.play().catch(() => speak(soundId))
-    return new Promise((resolve) => {
-      clip.onended = () => resolve()
-    })
-  }
+  if (clip) return playWithFallback(clip, () => speak(soundId))
   return speak(soundId)
 }
 
 const wordClipCache = new Map<string, HTMLAudioElement | null>()
 
 function speakWord(text: string): Promise<void> {
-  return new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'nl-NL'
-    utterance.rate = 0.85
-    const voice = speechSynthesis.getVoices().find((v) => v.lang.startsWith('nl'))
-    if (voice) utterance.voice = voice
-    utterance.onend = () => resolve()
-    utterance.onerror = () => resolve()
-    speechSynthesis.cancel()
-    speechSynthesis.speak(utterance)
-  })
+  return utter(text, 0.85)
 }
 
 async function loadWordClip(wordId: string): Promise<HTMLAudioElement | null> {
   const cached = wordClipCache.get(wordId)
   if (cached) return cached
-  const audio = new Audio(`/audio/words/${wordId}.mp3?v=${__AUDIO_VERSION__}`)
+  const audio = new Audio(clipSrc('woorden', wordId, __AUDIO_VERSION__))
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
@@ -86,22 +169,303 @@ async function loadWordClip(wordId: string): Promise<HTMLAudioElement | null> {
 /** Same fallback strategy as playSound, but for whole words (own cache, own TTS text: the literal word). */
 export async function playWord(wordId: string, text: string): Promise<void> {
   const clip = await loadWordClip(wordId)
-  if (clip) {
-    clip.currentTime = 0
-    await clip.play().catch(() => speakWord(text))
-    return new Promise((resolve) => {
-      clip.onended = () => resolve()
-    })
-  }
+  if (clip) return playWithFallback(clip, () => speakWord(text))
   return speakWord(text)
 }
 
+/** A shade under natural speed — the pace docs/weetjes.md §7 asks these sentences to be read at. */
+const WEETJE_SPEECH_RATE = 0.9
+
+const weetjeClipCache = new Map<string, HTMLAudioElement | null>()
+
+/**
+ * The Weetjes clip that is playing right now, so `stopNarration` can silence it.
+ *
+ * Words never needed this: a reading round awaits one word at a time and nothing else may
+ * start while it does. A Weetje card narrates on its own, from an effect, and she can tap
+ * 🔊 or leave the screen in the middle of it — so there has to be something to stop, and
+ * exactly one thing may ever be speaking (docs/weetjes.md §7).
+ */
+let currentWeetjeClip: HTMLAudioElement | null = null
+
+async function loadWeetjeClip(clipId: string): Promise<HTMLAudioElement | null> {
+  const cached = weetjeClipCache.get(clipId)
+  if (cached) return cached
+  const audio = new Audio(clipSrc('weetjes', clipId, __AUDIO_VERSION__))
+  const result = await new Promise<HTMLAudioElement | null>((resolve) => {
+    audio.oncanplaythrough = () => resolve(audio)
+    audio.onerror = () => resolve(null)
+    audio.load()
+  })
+  if (result) weetjeClipCache.set(clipId, result)
+  return result
+}
+
+/**
+ * Bumped by `stopNarration`, so a multi-line narration already in flight gives up instead of
+ * reading the next line over whatever started after it. Without it, tapping 🔊 halfway
+ * through "Wat betekent dys? … moeilijk …" would leave the old line queue running and two
+ * voices would finish the sentence together.
+ */
+let narrationGeneration = 0
+
+/** Speaks lines in order, `gapMs` apart, and stops dead if `stopNarration` is called. */
+async function speakLines(lines: string[], gapMs: number): Promise<void> {
+  const mine = narrationGeneration
+  for (let i = 0; i < lines.length; i++) {
+    if (narrationGeneration !== mine) return
+    if (i > 0) {
+      await new Promise((r) => setTimeout(r, gapMs))
+      if (narrationGeneration !== mine) return
+    }
+    await utter(lines[i], WEETJE_SPEECH_RATE)
+  }
+}
+
+/**
+ * One beat of a Weetje card, read aloud: Arjan's recording if there is one, browser speech
+ * at rate 0.9 otherwise (docs/weetjes.md §7). Same fallback strategy as `playWord`, and the
+ * same guarantee — it always resolves, so a beat can safely wait on it.
+ *
+ * `lines` is what the beat says: one sentence for `fact` and `reveal`, and for `doe` on a
+ * kies card the question followed by its three options, which the fallback reads `gapMs`
+ * apart so they land as three separate choices rather than one long sentence. A recording
+ * covers the whole beat in one clip and brings its own pauses, so the gap is a speech-only
+ * concern.
+ *
+ * The clip is probed rather than looked up in `__RECORDED_WEETJES__`: the manifest is a
+ * snapshot taken when Vite started, and this is the path the e2e suite drives (patching
+ * `speechSynthesis` does not take effect under Playwright's WebKit — see
+ * tests/e2e/fixtures/narration.ts).
+ *
+ * @param clipId `<card id>-fact` | `-doe` | `-reveal`
+ */
+export async function playWeetje(clipId: string, lines: string[], gapMs = 0): Promise<void> {
+  const clip = await loadWeetjeClip(clipId)
+  if (!clip) return speakLines(lines, gapMs)
+  currentWeetjeClip = clip
+  try {
+    return await playWithFallback(clip, () => speakLines(lines, gapMs))
+  } finally {
+    if (currentWeetjeClip === clip) currentWeetjeClip = null
+  }
+}
+
+/**
+ * Stops whatever is being read aloud, synchronously: the clip, the queued lines *and*
+ * speech synthesis.
+ *
+ * `stopSpeech()` alone is not enough here, because a recorded clip is an <audio> element
+ * that speechSynthesis has never heard of — quitting mid-sentence would leave Arjan's voice
+ * still playing over the path screen she has just returned to.
+ */
+export function stopNarration(): void {
+  narrationGeneration += 1
+  const clip = currentWeetjeClip
+  currentWeetjeClip = null
+  try {
+    if (clip) {
+      clip.pause()
+      // A paused element never fires `ended`, and playWithFallback is waiting on exactly
+      // that — without this the caller stays parked for the full CLIP_TIMEOUT_MS after she
+      // has already left the screen.
+      clip.dispatchEvent(new Event('ended'))
+    }
+  } catch {
+    // an element that was never really playing; nothing to stop
+  }
+  stopSpeech()
+}
+
+export type EffectKind =
+  | 'good'
+  | 'bad'
+  | 'fanfare'
+  | 'fart'
+  /** Hardop lezen: a card landing on the "goed" pile — a bright bell, not the 2-note blip */
+  | 'ding'
+  /** a card dealing in */
+  | 'swish'
+  /** the reading window ending, just before the word is spoken */
+  | 'pop'
+  /** one gem on the reward screen's count-up; `step` walks it up a major triad */
+  | 'tick'
+  /** the reward screen's streak band sweeping in under Frida — a noise sweep, no pitch */
+  | 'whoosh'
+  /** the reward screen's stat card landing — a short, blunt pluck */
+  | 'cardPop'
+  /** the stat card's label upgrading a tier; `step` raises it a whole tone per tier */
+  | 'tierUp'
+
 /** Short celebratory blip using WebAudio (no asset needed) */
 let audioCtx: AudioContext | null = null
-export function playEffect(kind: 'good' | 'bad' | 'fanfare' | 'fart'): void {
+
+/**
+ * Nudges the AudioContext out of `suspended`, which is where iOS Safari keeps it until a
+ * real user gesture. Called from the first pointerdown in a game, so the very first `ding`
+ * of a round isn't the one that gets swallowed.
+ */
+export function resumeAudio(): void {
+  try {
+    audioCtx ??= new AudioContext()
+    if (audioCtx.state === 'suspended') void audioCtx.resume()
+  } catch {
+    // audio is never worth crashing a game over
+  }
+}
+
+/**
+ * @param step for `tick`, which gem in the count-up this is, and for `tierUp`, which tier
+ *   was just reached — both use it to climb rather than repeat
+ */
+export function playEffect(kind: EffectKind, step = 0): void {
   try {
     audioCtx ??= new AudioContext()
     const ctx = audioCtx
+
+    if (kind === 'ding') {
+      // two partials an octave apart, struck together and decaying like a small bell; the
+      // short upward glide on the fundamental is what makes it read as "ding" and not "beep"
+      const now = ctx.currentTime
+      for (const [freq, level, decay] of [
+        [1046.5, 0.16, 0.62],
+        [2093, 0.06, 0.42],
+      ]) {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq * 0.94, now)
+        osc.frequency.exponentialRampToValueAtTime(freq, now + 0.03)
+        gain.gain.setValueAtTime(level, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + decay)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + decay + 0.02)
+      }
+      return
+    }
+
+    if (kind === 'swish') {
+      // filtered noise burst — a card sliding off a deck
+      const now = ctx.currentTime
+      const length = Math.floor(ctx.sampleRate * 0.09)
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length)
+      const src = ctx.createBufferSource()
+      src.buffer = buffer
+      const band = ctx.createBiquadFilter()
+      band.type = 'bandpass'
+      band.frequency.setValueAtTime(1200, now)
+      band.frequency.exponentialRampToValueAtTime(3200, now + 0.09)
+      band.Q.value = 0.8
+      const gain = ctx.createGain()
+      gain.gain.value = 0.09
+      src.connect(band).connect(gain).connect(ctx.destination)
+      src.start(now)
+      return
+    }
+
+    if (kind === 'pop') {
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(440, now)
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.06)
+      gain.gain.setValueAtTime(0.12, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.1)
+      return
+    }
+
+    if (kind === 'tick') {
+      // C5-E5-G5-C6 and up: each gem a step brighter than the last, capped so a long
+      // count-up doesn't end in a whistle
+      const now = ctx.currentTime
+      const scale = [523.25, 659.25, 784, 1046.5, 1318.5]
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.value = scale[Math.min(step, scale.length - 1)]
+      gain.gain.setValueAtTime(0.09, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.14)
+      return
+    }
+
+    if (kind === 'whoosh') {
+      // Band-passed noise with the centre frequency gliding up: the same recipe as `swish`,
+      // four times as long and sweeping much further, so it reads as a band sweeping across
+      // the screen rather than a card leaving a deck. Quieter than `ding` — it sits under
+      // Frida's entrance, it is not the entrance.
+      const now = ctx.currentTime
+      const length = Math.floor(ctx.sampleRate * 0.35)
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+      const src = ctx.createBufferSource()
+      src.buffer = buffer
+      const band = ctx.createBiquadFilter()
+      band.type = 'bandpass'
+      band.frequency.setValueAtTime(400, now)
+      band.frequency.exponentialRampToValueAtTime(2400, now + 0.35)
+      band.Q.value = 1.2
+      const gain = ctx.createGain()
+      // fades out rather than in: the sweep is loudest as it arrives, then leaves
+      gain.gain.setValueAtTime(0.11, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+      src.connect(band).connect(gain).connect(ctx.destination)
+      src.start(now)
+      return
+    }
+
+    if (kind === 'cardPop') {
+      // Like `pop` but a fifth higher and shorter — the stat card is a smaller, harder
+      // object landing than a reading window closing, and the two play close enough together
+      // in a round that they should not be the same sound.
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(660, now)
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.06)
+      gain.gain.setValueAtTime(0.13, now)
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.14)
+      return
+    }
+
+    if (kind === 'tierUp') {
+      // Two partials a fifth apart, struck like `ding` but half as long, so a run of three
+      // during one bar fill stays a run of chimes rather than a chord. `step` raises the
+      // whole thing a whole tone per tier (2^(2/12)), which is what makes a perfect round's
+      // Geoefend -> Goed -> Super -> Perfect! audibly climb.
+      const now = ctx.currentTime
+      const shift = Math.pow(2, (Math.max(0, step) * 2) / 12)
+      for (const [freq, level] of [
+        [1318.5, 0.13],
+        [1975.5, 0.05],
+      ]) {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq * shift * 0.94, now)
+        osc.frequency.exponentialRampToValueAtTime(freq * shift, now + 0.03)
+        gain.gain.setValueAtTime(level, now)
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start(now)
+        osc.stop(now + 0.27)
+      }
+      return
+    }
 
     if (kind === 'fart') {
       const now = ctx.currentTime

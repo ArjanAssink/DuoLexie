@@ -1,4 +1,4 @@
-import type { Fase, Lesson, Unit } from '@shared/src/types'
+import type { Fase, Lesson, Unit, Word } from '@shared/src/types'
 import { curriculum } from '../curriculum'
 import { wordsForPool } from '../words'
 
@@ -74,10 +74,64 @@ const FASE_DEFS: FaseDef[] = [
   },
 ]
 
-/** A "Lezen" (Hardop lezen) node only makes sense once its pool covers a handful of real words. */
-const MIN_WORDS_FOR_LEZEN = 4
+/** Cards in one Lezen round — ten different words (docs/hardop-lezen-rework.md §4). */
+export const LEZEN_ROUND_SIZE = 10
 
-function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): Lesson[] {
+/**
+ * Cards in one Flitsen round. Fixed, rather than "however many klanken this unit knows":
+ * the pool runs from five (the opening unit) to forty-five, so a pool-sized round was over
+ * in a handful of taps early on and a slog at the end. Twenty is long enough to be a round
+ * and short enough to stay a quick game. `buildFlitsDeck` repeats or samples the pool to
+ * reach it.
+ */
+export const FLITS_DECK_SIZE = 20
+
+/**
+ * A "Lezen" node needs enough readable words to fill a round without running the same
+ * words twice. Nine is the floor rather than ten: a nine-word pool still yields ten cards
+ * with a single non-adjacent repeat (`buildWordExercises`), which is a real round.
+ */
+const MIN_WORDS_FOR_LEZEN = 9
+
+/** Cards one Weetje node hands her (docs/weetjes.md §1). */
+export const WEETJE_CARD_COUNT = 2
+
+/**
+ * The sound pool a Lezen node reads from: what she has been taught, topped up with the next
+ * unit's sounds when that isn't enough to fill a round (docs/hardop-lezen-rework.md §4).
+ *
+ * Strictly, a word is readable only once every klank in it has been introduced. Where that
+ * leaves a unit short of a full round, allowing the *next* unit's sounds is a fair top-up:
+ * those words are built from the klank category she is already working in, so reading one
+ * early is a preview rather than a jump.
+ *
+ * Two conditions keep the top-up from becoming a wall:
+ *
+ * - **One unit, never two.** Two would reach sounds she has no business meeting yet.
+ * - **She must already be able to read something.** A top-up tops up; it must not conjure a
+ *   reading node entirely out of sounds she has never seen. This is what keeps a node off
+ *   the opening unit, where she knows the five vowels and nothing else: its strict pool is
+ *   empty, so every word would come from the preview. Adding the 4-to-7-letter words made
+ *   this bite for real — the opening unit's topped-up pool reached 18 words, and without
+ *   this condition it would have been handed a reading lesson of "storm" and "kruk".
+ *
+ * With the current word list the top-up is dormant: every unit from the second onwards
+ * clears a full round on its strict pool alone. It stays because a reorder of the sound
+ * order (which plan.md §3 makes parent-configurable) can thin a unit out again.
+ */
+function lezenPool(cumulative: string[], nextUnitSounds: string[]): string[] {
+  const strict = wordsForPool(cumulative).length
+  if (strict >= LEZEN_ROUND_SIZE) return cumulative
+  if (strict === 0 || nextUnitSounds.length === 0) return cumulative
+  return [...cumulative, ...nextUnitSounds]
+}
+
+function buildLessons(
+  unitId: string,
+  unitDef: UnitDef,
+  cumulative: string[],
+  nextUnitSounds: string[],
+): Lesson[] {
   const pool = cumulative
   const lessons: Lesson[] = [
     {
@@ -88,7 +142,7 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
       gameType: 'flitsen',
       newSounds: unitDef.sounds,
       soundPool: pool,
-      exerciseCount: 10,
+      exerciseCount: FLITS_DECK_SIZE,
     },
     {
       id: `${unitId}-l2`,
@@ -108,7 +162,7 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
       gameType: 'flitsen',
       newSounds: [],
       soundPool: pool,
-      exerciseCount: 12,
+      exerciseCount: FLITS_DECK_SIZE,
     },
     {
       id: `${unitId}-l4`,
@@ -122,8 +176,8 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
     },
   ]
 
-  const eligibleWords = wordsForPool(pool)
-  if (eligibleWords.length >= MIN_WORDS_FOR_LEZEN) {
+  const readingPool = lezenPool(pool, nextUnitSounds)
+  if (wordsForPool(readingPool).length >= MIN_WORDS_FOR_LEZEN) {
     lessons.push({
       id: `${unitId}-l5`,
       unitId,
@@ -131,13 +185,65 @@ function buildLessons(unitId: string, unitDef: UnitDef, cumulative: string[]): L
       title: 'Lezen',
       gameType: 'hardop-lezen',
       newSounds: [],
-      soundPool: pool,
-      exerciseCount: Math.min(8, eligibleWords.length),
+      soundPool: readingPool,
+      exerciseCount: LEZEN_ROUND_SIZE,
     })
   }
 
+  /*
+   * The Weetje node goes last, after Lezen (docs/weetjes.md §5).
+   *
+   * Deliberately after the hardest thing in the unit rather than before it: it is ninety
+   * seconds of being told she is one of many and that her brain is different, not worse,
+   * and that lands as a breather earned rather than as one more hurdle between her and the
+   * reading. Units with no Lezen node get it last anyway.
+   *
+   * Which cards it deals is not decided here — it is her collection at the moment she opens
+   * it (weetjes.ts `dealWeetjes`), so a node replayed months later is not the same two
+   * cards.
+   */
+  lessons.push({
+    id: `${unitId}-weetje`,
+    unitId,
+    kind: 'weetje',
+    title: 'Weetje',
+    gameType: 'weetjes',
+    newSounds: [],
+    soundPool: [],
+    exerciseCount: WEETJE_CARD_COUNT,
+  })
+
   return lessons
 }
+
+/**
+ * A unit's stable id — derived from the sounds it introduces, not its position in
+ * FASE_DEFS. docs/backend-readiness.md A3 / code-review-backlog.md's "positional lesson
+ * ids": the old `u${i+1}` scheme silently remapped a user's completedLessons/records onto
+ * whatever unit happened to occupy that array slot after any reorder or insertion. A unit's
+ * sound set is what actually identifies it and doesn't change under editing elsewhere in
+ * the array, so it survives exactly the edits the old scheme didn't.
+ */
+function unitSlug(unitDef: UnitDef): string {
+  return unitDef.sounds.join('-')
+}
+
+/**
+ * Maps this file's *former* positional unit ids (`fase{n}-u{i+1}`, one-time only, computed
+ * from the current FASE_DEFS order) to the new stable ids above. Used once, by
+ * state/progress.ts's persisted-state migration, to remap old completedLessons/records
+ * keys and session lessonIds so upgrading doesn't silently blank out real progress. Nothing
+ * else should use this — new code has no reason to know the old scheme ever existed.
+ */
+export const LEGACY_UNIT_ID_MAP: Record<string, string> = (() => {
+  const map: Record<string, string> = {}
+  for (const faseDef of FASE_DEFS) {
+    faseDef.units.forEach((unitDef, i) => {
+      map[`${faseDef.id}-u${i + 1}`] = `${faseDef.id}-${unitSlug(unitDef)}`
+    })
+  }
+  return map
+})()
 
 function buildPath(): Fase[] {
   const fases: Fase[] = []
@@ -148,14 +254,19 @@ function buildPath(): Fase[] {
     for (let i = 0; i < faseDef.units.length; i++) {
       const unitDef = faseDef.units[i]
       cumulative.push(...unitDef.sounds)
-      const unitId = `${faseDef.id}-u${i + 1}`
+      const unitId = `${faseDef.id}-${unitSlug(unitDef)}`
       units.push({
         id: unitId,
         faseId: faseDef.id,
         title: unitDef.title,
         sounds: unitDef.sounds,
         cumulativeSounds: [...cumulative],
-        lessons: buildLessons(unitId, unitDef, [...cumulative]),
+        lessons: buildLessons(
+          unitId,
+          unitDef,
+          [...cumulative],
+          faseDef.units[i + 1]?.sounds ?? [],
+        ),
       })
     }
     fases.push({
@@ -174,11 +285,61 @@ export const path: Fase[] = buildPath()
 
 export const allLessons: Lesson[] = path.flatMap((f) => f.units.flatMap((u) => u.lessons))
 
+/**
+ * Proefronde — a direct-launch Hardop lezen round over the whole of fase 1 (short vowels +
+ * every consonant, 38 readable words), reachable from `/#/proberen` only.
+ *
+ * Deliberately *not* in `allLessons`: it must not appear on the path, take a slot in the
+ * linear-unlock order, or wait on her progress. It exists so the read → listen → sort
+ * interaction can be tried with her before the word level is tuned to where she actually is
+ * (docs/hardop-lezen-rework.md §4).
+ */
+export const PROEFRONDE_LESSON: Lesson = {
+  id: 'proef-hardop-lezen',
+  unitId: 'proefronde',
+  kind: 'les',
+  title: 'Proefronde lezen',
+  gameType: 'hardop-lezen',
+  newSounds: [],
+  soundPool: [
+    ...(curriculum.categories.find((c) => c.id === 'kort')?.sounds ?? []),
+    ...(curriculum.categories.find((c) => c.id === 'mede')?.sounds ?? []),
+  ],
+  exerciseCount: LEZEN_ROUND_SIZE,
+}
+
 export function lessonById(id: string): Lesson | undefined {
+  if (id === PROEFRONDE_LESSON.id) return PROEFRONDE_LESSON
   return allLessons.find((l) => l.id === id)
 }
 
 /** Linear unlock: a lesson is unlocked when all earlier lessons are completed */
 export function lessonIndex(id: string): number {
   return allLessons.findIndex((l) => l.id === id)
+}
+
+/**
+ * Every word the path can serve, in the order worth recording it: shortest first, and within
+ * one length, in the order the path introduces it. The studio's word mode walks this
+ * (dev/RecordingStudio.tsx).
+ *
+ * Length leads deliberately. Walking the path node by node instead would record all of the
+ * first node's words — three letters up to six — before reaching the three-letter words that
+ * the *next* node introduces, so a session spent recording "the first twenty" would have
+ * ended up holding "strikt" and "kortst" while "pan" and "bed" went unrecorded. Shortest
+ * first means the twenty clips recorded first are the twenty simplest words she reads.
+ */
+export function wordsInRecordingOrder(): Word[] {
+  const seen = new Set<string>()
+  const out: Word[] = []
+  for (const lesson of allLessons) {
+    if (lesson.gameType !== 'hardop-lezen') continue
+    for (const word of wordsForPool(lesson.soundPool)) {
+      if (seen.has(word.id)) continue
+      seen.add(word.id)
+      out.push(word)
+    }
+  }
+  // stable sort, so words of equal length keep the path order established above
+  return out.sort((a, b) => a.text.length - b.text.length)
 }
