@@ -113,7 +113,8 @@ Do not start this until the log exists (A2) and types are shared (A5). Sketch, n
   forever without double-counting.
 - `GET /api/progress` — returns the session log (or a snapshot + tail) for a profile; client
   recomputes aggregates locally via A2's `recomputeFrom`.
-- Auth: parent email+password → JWT cookie, kid profiles + PIN, per plan.md Phase 3.
+- Auth: passwordless (magic link + code) → JWT cookie, kid profiles; designed in
+  [accounts-plan.md](accounts-plan.md), which ships *before* this sync work.
   `api/src/functions/health.ts` already proves Cosmos connectivity and that `JWT_SECRET`,
   `COSMOS_ENDPOINT`, `COSMOS_KEY` are wired — reuse that pattern for config access.
 - Outbox: queue unsynced session ids locally, flush on reconnect, clear on 2xx. The app must

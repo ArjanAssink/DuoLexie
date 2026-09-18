@@ -1,6 +1,6 @@
 # Azure setup — stap voor stap
 
-Alles hieronder past in de gratis tiers; totale maandkosten: **€0**.
+Alles hieronder past in de gratis tiers, op e-mail na (centen per maand); totale maandkosten: **≈ €0**.
 
 ## 1. Static Web App aanmaken (Phase 0)
 
@@ -53,9 +53,91 @@ Kies één van beide (het makkelijkst): verwijder **onze** `azure-static-web-app
    - `COSMOS_KEY` = *Keys* → Primary key
    - `JWT_SECRET` = een lange random string, bijv. uitvoer van `openssl rand -base64 48`
 
-## 4. Checklist
+## 4. E-mail versturen — Azure Communication Services (accounts, magic link)
 
-- [ ] SWA aangemaakt, deploy groen, app live op azurestaticapps.net
-- [ ] Dubbele workflow opgeruimd
+Nodig voor [accounts-plan.md](accounts-plan.md): de inloglink/code naar ouders en de
+aanmeld-notificatie naar jezelf. Twee resources, allebei in `rg-duolexie`.
+
+### 4a. Email Communication Service (het verzenddomein)
+
+1. *Create a resource* → zoek **Email Communication Services** → *Create*.
+2. Vul in: resource group `rg-duolexie`, naam `ecs-duolexie`, **Data location: Europe**. *Review + create*.
+3. Na aanmaken: linkermenu **Provision domains** → *Add domain* → **Azure domain**. Binnen een
+   minuut heb je een domein als `<guid>.azurecomm.net` met afzender `DoNotReply@<guid>.azurecomm.net`.
+   Dit werkt meteen en is genoeg om mee te bouwen en te testen.
+4. **Later (stap S7 in het accounts-plan), eigen domein:** *Add domain* → **Custom domain** →
+   bijv. `lexie.<jouwdomein>.nl`. Azure toont drie soorten DNS-records die je bij je
+   DNS-provider zet: een **TXT** (verificatie), een **TXT** voor **SPF**, en twee **CNAME**'s
+   voor **DKIM**. Daarna *Verify* per record. Onder **MailFrom addresses** kun je dan
+   `noreply@lexie.<jouwdomein>.nl` toevoegen. Gebruik hetzelfde (sub)domein als de site — dat
+   is wat de mail uit de spam houdt.
+
+### 4b. Communication Service (de API-sleutel)
+
+1. *Create a resource* → zoek **Communication Services** → *Create*.
+2. Vul in: resource group `rg-duolexie`, naam `acs-duolexie`, **Data location: Europe**. *Review + create*.
+3. Na aanmaken: linkermenu **Email → Domains** → *Connect domain* → kies subscription,
+   resource group, `ecs-duolexie` en het domein uit 4a.
+4. Linkermenu **Keys** → kopieer de **Connection string** (Primary). Dit is een geheim.
+
+Kosten: ongeveer $0,00025 per mail plus een fractie per MB. Geen gratis tier, maar bij een
+paar honderd mails per maand is dit centenwerk.
+
+## 5. Application Insights (aanbevolen — logs van de API)
+
+Managed Functions op een SWA hebben verder géén logboek. Zonder dit debug je "ik heb geen
+mail gekregen" blind.
+
+1. Portal → `swa-duolexie` → linkermenu **Application Insights** → *Yes* → *Create new*
+   `appi-duolexie` (zelfde resource group, regio West Europe) → *Save*.
+2. Logs bekijken: `appi-duolexie` → **Logs** → query `traces | order by timestamp desc`
+   (alles wat de API met `context.log` schrijft) en `exceptions`.
+
+Gratis tot 5 GB/maand; wij zitten daar mijlenver onder.
+
+## 6. Environment variables voor accounts
+
+Portal → `swa-duolexie` → **Environment variables** → *Production* → *Add*:
+
+| Naam | Waarde |
+|---|---|
+| `ACS_CONNECTION_STRING` | connection string uit 4b |
+| `MAIL_FROM` | `DoNotReply@<guid>.azurecomm.net` (later `noreply@lexie.<jouwdomein>.nl`) |
+| `NOTIFY_EMAIL` | je eigen adres — ontvangt de aanmeld-notificaties |
+| `APP_BASE_URL` | `https://lexie.<jouwdomein>.nl` (zonder slash op het eind; nu nog `https://jolly-wave-019071410.7.azurestaticapps.net`) |
+
+`COSMOS_ENDPOINT`, `COSMOS_KEY` en `JWT_SECRET` staan er al. *Save* → de SWA start de
+Functions opnieuw; controleer daarna `/api/health` (wordt uitgebreid met een `mail`-check).
+
+**Lokaal:** dezelfde namen in `api/local.settings.json` (staat in `.gitignore`) onder
+`"Values"`, plus `"MAIL_MODE": "console"` zodat de link en code in de terminal verschijnen in
+plaats van verstuurd te worden:
+
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "COSMOS_ENDPOINT": "https://cosmos-duolexie.documents.azure.com:443/",
+    "COSMOS_KEY": "...",
+    "JWT_SECRET": "...",
+    "MAIL_MODE": "console",
+    "MAIL_FROM": "DoNotReply@local",
+    "NOTIFY_EMAIL": "jij@voorbeeld.nl",
+    "APP_BASE_URL": "http://localhost:5173"
+  }
+}
+```
+
+## 7. Checklist
+
+- [x] SWA aangemaakt, deploy groen, app live op azurestaticapps.net
+- [x] Dubbele workflow opgeruimd (alleen `azure-static-web-apps-jolly-wave-019071410.yml` over)
 - [ ] Custom domain + CNAME, SSL actief
-- [ ] (Phase 3) Cosmos free tier + containers + environment variables
+- [x] Cosmos free tier + containers + environment variables — *geverifieerd 2026-09-18 via `/api/health`: alles `ok`*
+- [ ] TTL aanzetten op container `auth` (Data Explorer → `auth` → *Scale & Settings* → **Time to Live: On (no default)**) — inlogtokens ruimen zichzelf dan op
+- [ ] Email Communication Service `ecs-duolexie` + Azure managed domain (§4a)
+- [ ] Communication Service `acs-duolexie`, domein gekoppeld, connection string gekopieerd (§4b)
+- [ ] Application Insights `appi-duolexie` gekoppeld aan de SWA (§5)
+- [ ] Vier nieuwe environment variables gezet, `/api/health` toont `mail: ok` (§6)
+- [ ] (later, S7) Eigen verzenddomein geverifieerd: TXT + SPF + 2× DKIM, `MAIL_FROM` omgezet

@@ -9,7 +9,7 @@ A Duolingo-style web app for a 9-year-old Dutch girl with dyslexia, in treatment
 - Audio: family-recorded clips + a recording helper tool
 - Reading-aloud checks: self/parent grading in v1, speech recognition as later experiment
 - Stack: React + Vite + TypeScript, kid-friendly PWA, Dutch UI
-- Auth: family account (parent email+password) + kid profile with avatar/PIN; progress syncs across devices
+- Auth: family account (parent email, passwordless magic link + code — see docs/accounts-plan.md) + kid profiles with avatar (PIN later); progress syncs across devices
 - Parent dashboard: later iteration, but progress data stored from day one
 - Hosting: Azure free tier, deploy from GitHub, user's custom domain
 - Flashcard game is speed-focused (matches her current RID practice); other games accuracy-focused
@@ -142,6 +142,8 @@ DuoLexie/
 ```
 
 ## 7. Auth & API
+
+> **Superseded (2026-09-18):** auth is now passwordless — magic link + 6-digit code, no bcryptjs/password forms. The current design, Azure resources and work order are in [docs/accounts-plan.md](docs/accounts-plan.md). The profile model and endpoint shapes below still apply; the password bits do not.
 
 SWA built-in auth is GitHub/Entra-only on Free (email+password needs Standard, $9/mo) → **minimal custom auth in the Functions API**:
 - Password hashing with **bcryptjs** (pure JS — native modules like argon2 break Oryx builds).
