@@ -11,7 +11,8 @@ tablet.
 **Status:** planned, nothing built. Every box below is `[ ]`. Written 2026-09-18 against
 `17ba59b`. Planned by Claude Fable 5.1, revised against the current tree by Claude Opus 5
 after the first draft turned out to have been written against a 129-commit-stale checkout
-(see "What the first draft got wrong").
+(see "What the first draft got wrong"), then extended in the same session with the approval
+gate Arjan asked for: sign-up is open to anyone, but a new family waits for him (§3.9).
 
 ## 0. Where this sits in the queue
 
@@ -71,7 +72,7 @@ Click paths are in [azure-setup.md §4–§6](azure-setup.md). What and why:
 |---|---|---|---|
 | 1 | **Email Communication Services** `ecs-duolexie`, data location Europe | Holds the sending domain. Start with the Azure managed domain, which works in a minute and sends from `DoNotReply@<guid>.azurecomm.net`. Move to `duolexie.assink.io` later for deliverability, via one TXT, one SPF TXT and two DKIM CNAMEs. | €0 |
 | 2 | **Communication Services** `acs-duolexie`, data location Europe | The resource holding the connection string the API uses. Link the domain from #1 under *Email → Domains*. Note these are two separate resource types with near-identical names. | ~€0.00025 per mail, so cents per month |
-| 3 | **Four SWA environment variables** | `ACS_CONNECTION_STRING`, `MAIL_FROM`, `NOTIFY_EMAIL`, `APP_BASE_URL`. | €0 |
+| 3 | **Five SWA environment variables** | `ACS_CONNECTION_STRING`, `MAIL_FROM`, `NOTIFY_EMAIL`, `APP_BASE_URL`, `ADMIN_TOKEN_SECRET`. | €0 |
 | 4 | **TTL on the `auth` container** | Expired login tokens delete themselves. Managed Functions on SWA are HTTP-only, so there is no timer trigger to sweep them. | €0 |
 | 5 | **Application Insights** `appi-duolexie`, recommended | Managed Functions have no other log viewer, and "I never got the mail" is miserable to debug blind. Free to 5 GB/month. | €0 |
 
@@ -98,12 +99,14 @@ Considered and rejected:
 | `COSMOS_ENDPOINT`, `COSMOS_KEY`, `JWT_SECRET` | *(already set)* | unchanged |
 | `ACS_CONNECTION_STRING` | `acs-duolexie` → *Keys* → Connection string | secret |
 | `MAIL_FROM` | `DoNotReply@<guid>.azurecomm.net`, later `noreply@duolexie.assink.io` | must be a sender on the linked domain |
-| `NOTIFY_EMAIL` | Arjan's own address | receives the sign-up notifications |
+| `NOTIFY_EMAIL` | `duolexie@assink.io` | receives the sign-up notifications and the approve links |
 | `APP_BASE_URL` | `https://duolexie.assink.io`, no trailing slash | builds the login link; never derive this from request headers |
+| `ADMIN_TOKEN_SECRET` | 32+ random bytes, base64 | signs the approve/reject links; see §3.9 |
 | `MAIL_MODE` | unset in production | `console` locally, `test` in e2e |
 
 Follow private-audio.md's precedent of **one secret per purpose**: `JWT_SECRET` signs
-sessions and nothing else, so rotating it logs everyone out without touching audio tokens.
+sessions, `ADMIN_TOKEN_SECRET` signs approval links, and private-audio.md's
+`AUDIO_TOKEN_SECRET` signs clip tokens. Rotating any one of them must not disturb the others.
 
 ## 3. Design decisions
 
@@ -142,6 +145,28 @@ sessions and nothing else, so rotating it logs everyone out without touching aud
    accounts and profiles do not need it and it doubles the surface. Accounts first, then
    `POST /api/sessions` and the outbox.
 
+9. **Sign-up is open, but a new family starts `pending` and Arjan approves it.** Decided
+   2026-09-18: anyone may request a link, because the real gate is approval rather than who
+   is allowed to ask. A family is created with `status: 'pending'`, the notification mail to
+   `duolexie@assink.io` carries *Goedkeuren* and *Weigeren* links, and Arjan taps one from
+   his phone.
+
+   **Assumption, because it was not specified:** approval gates the **cloud account**, not
+   the app. A pending family is signed in and can play exactly as any anonymous visitor can,
+   locally, but gets no profiles and no sync until approved. That keeps decision 4 intact and
+   is the smallest change. If the intent was instead that an unapproved visitor cannot use
+   the app at all, that is a different and much larger change — it reverses the local-first
+   design and needs its own pass. Say so and it gets one.
+
+   Not built into this phase, but worth a later look: the private voice clips
+   ([private-audio.md](private-audio.md)) are the genuinely sensitive asset here, and
+   serving them only to approved families is a cheap, real improvement once both exist.
+
+10. **Approval links, not an admin page.** The notification mail already exists, so adding
+    two signed links to it costs one endpoint, works from a phone, and needs no login. An
+    admin screen would mean a second authorisation role and somewhere to put it. If a list
+    of who has signed up becomes useful later, that is when to build the screen.
+
 ## 4. Auth flow
 
 ```
@@ -157,13 +182,23 @@ sessions and nothing else, so rotating it logs everyone out without touching aud
 [Code]       POST /api/auth/verify {email, code}
                ├─ look up by sha256(token), or by email then compare codeHash, max 5 tries
                ├─ reject expired or already used; delete the doc on success
-               ├─ family exists? load it : create it and mail NOTIFY_EMAIL
+               ├─ family exists? load it
+               │                : create it status:'pending', mail NOTIFY_EMAIL with the
+               │                  Goedkeuren/Weigeren links
                ├─ Set-Cookie: session=<JWT>; HttpOnly; Secure; SameSite=Lax; Path=/api
-               └─ 200 {email, familyId, isNew, profiles:[...]}
+               └─ 200 {email, familyId, status, isNew, profiles:[...]}
 
-[Start]      GET  /api/auth/me     → 200 {email, familyId, profiles} | 401
+[Start]      GET  /api/auth/me     → 200 {email, familyId, status, profiles} | 401
 [Uitloggen]  POST /api/auth/logout → clears the cookie
+
+[Arjan taps] GET  /api/admin/review?token=...  → a confirmation page with one button
+             POST /api/admin/review {token}    → flips status, mails the parent
+               ├─ token = HMAC(ADMIN_TOKEN_SECRET) over {familyId, action, exp}, 30-day exp
+               └─ single use: a second POST with the same token is a no-op, not an error
 ```
+
+The status a pending family sees is not an error. They are signed in; `status: 'pending'`
+simply means the profile routes answer 403 and the app says so kindly.
 
 Tokens are stored hashed, so a Cosmos read never yields a usable link. Fifteen-minute TTL,
 single use, five attempts on the code.
@@ -173,9 +208,14 @@ single use, five attempts on the code.
 `auth` container, partition key `/email`, TTL enabled:
 
 ```ts
-{ type: 'family', id: email, email, familyId, createdAt, lastLoginAt }
+{ type: 'family', id: email, email, familyId, createdAt, lastLoginAt,
+  status: 'pending' | 'approved' | 'rejected', reviewedAt?, reviewedVia?: 'mail' | 'portal' }
 { type: 'login',  id: sha256(token), email, codeHash, attempts, expiresAt, ttl: 900 }
 ```
+
+`status` has no TTL and no default: a family that predates this field does not exist yet, so
+there is no migration to write. A `rejected` family keeps its document rather than being
+deleted, so the same address signing up again does not silently reset to `pending`.
 
 `data` container, partition key `/familyId`:
 
@@ -200,10 +240,15 @@ through project references.
 | `GET  /api/auth/me` | cookie | who am I, plus profiles |
 | `POST /api/auth/logout` | cookie | clear the cookie |
 | `GET  /api/profiles` | cookie | list the family's profiles |
-| `POST /api/profiles` | cookie | create, max 6 per family |
-| `PATCH /api/profiles/{id}` | cookie | rename, avatar, owned items |
-| `DELETE /api/profiles/{id}` | cookie | remove, refuse the last one |
-| `GET  /api/health` | – | gains `env_ACS_CONNECTION_STRING` and a `mail` check, booleans only |
+| `POST /api/profiles` | cookie + approved | create, max 6 per family |
+| `PATCH /api/profiles/{id}` | cookie + approved | rename, avatar, owned items |
+| `DELETE /api/profiles/{id}` | cookie + approved | remove, refuse the last one |
+| `GET  /api/admin/review` | signed token | confirmation page for an approve or reject link |
+| `POST /api/admin/review` | signed token | apply it, single use |
+| `GET  /api/health` | – | gains `env_ACS_CONNECTION_STRING`, `env_ADMIN_TOKEN_SECRET` and a `mail` check, booleans only |
+
+"cookie + approved" is one helper in `lib/session.ts`, not a check repeated per route. A
+pending family gets 403 with a body the app can render, never a bare failure.
 
 In `api/src/lib/`, shared with private-audio.md §4: `cosmos.ts`, `http.ts`, plus this plan's
 `session.ts` (JWT and cookie), `mail.ts` (ACS behind `sendMail({to, subject, text, html})`,
@@ -240,7 +285,9 @@ simply not found. That single rule is the whole authorisation model.
   - `InloggenScreen` at `/inloggen` — email field, then the sent state with the code field.
     Reads `?token=` out of the hash route and verifies automatically.
   - `ProfielKiezerScreen` at `/profielen` — the Netflix grid, avatar and name per profile,
-    a "nieuw profiel" tile, a quiet "uitloggen".
+    a "nieuw profiel" tile, a quiet "uitloggen". For a `pending` family it shows instead a
+    short "we kijken er even naar, je kunt gewoon verder spelen" with a button back to the
+    path. Not a dead end and not an error page: she keeps playing locally while it waits.
   - `NieuwProfielScreen` — name plus the avatar pickers that already exist in
     `components/AvatarPickers.tsx`.
   - `PathScreen` header shows the active profile's avatar, tapping opens the picker. An
@@ -251,17 +298,27 @@ simply not found. That single rule is the whole authorisation model.
 
 ## 8. The notification mail
 
-Sent from `verify` when a family document is created:
+Sent to `duolexie@assink.io` from `verify`, when a family document is created:
 
 ```
 Onderwerp: DuoLexie — nieuwe aanmelding: ouder@voorbeeld.nl
 Familie:   3f9c...  (aangemaakt 2026-09-18 19:42 CEST)
-Totaal:    12 families
+Totaal:    12 families, waarvan 9 goedgekeurd
+
+Goedkeuren:  https://duolexie.assink.io/api/admin/review?token=...
+Weigeren:    https://duolexie.assink.io/api/admin/review?token=...
 ```
 
+Both links open a confirmation page with a single button; neither changes anything on the
+`GET`. That is deliberate, see §9. The parent gets a short "je account is goedgekeurd" mail
+when the approval lands, and nothing at all on a rejection — there is no useful thing to say,
+and silence is kinder than a form letter.
+
 Awaited but wrapped in try/catch: failing to notify Arjan must never fail a parent's login.
-Not doing a daily digest, because this tier has no timer triggers, and not notifying per new
-profile, because a family with three kids would make that noise.
+If that mail does fail, the family still exists as `pending` and can be approved from the
+Cosmos Data Explorer, so nobody is stuck. Not doing a daily digest, because this tier has no
+timer triggers, and not notifying per new profile, because a family with three kids would
+make that noise.
 
 ## 9. Security
 
@@ -272,6 +329,11 @@ profile, because a family with three kids would make that noise.
 - `/api/*` is already `Cache-Control: no-store` in `staticwebapp.config.json`.
 - Never echo submitted input into the mail's HTML; the link carries only the token.
 - Profiles: max 6, names at most 24 characters, validated server-side.
+- **The approve link must not act on `GET`.** Mail clients and corporate link scanners
+  prefetch URLs in messages, so a one-tap approve link that mutates on `GET` can approve a
+  family that Arjan never looked at. The `GET` renders a confirmation page, the button
+  `POST`s. The token is an HMAC over `{familyId, action, exp}` with `ADMIN_TOKEN_SECRET`, so
+  it is unguessable, expires in 30 days, and is single-use.
 - `api/local.settings.json` is now gitignored explicitly. It was not before:
   private-audio.md §3.4 claims `*.local` covers it, and that pattern does not match a file
   named `local.settings.json`. Fixed in the same commit as this plan.
@@ -297,14 +359,20 @@ profile, because a family with three kids would make that noise.
 Nothing here starts until the history purge has run. A1–A6 are done, so there are no
 code prerequisites left.
 
-- [ ] **S0 — Azure (Arjan).** ECS, ACS, the four env vars, TTL on `auth`, Application
+- [ ] **S0 — Azure (Arjan).** ECS, ACS, the five env vars, TTL on `auth`, Application
   Insights. Done when the extended `/api/health` reports `mail: ok`. See
   [azure-setup.md §4–§6](azure-setup.md).
 - [ ] **S1 — `api/src/lib/`.** `cosmos.ts`, `session.ts`, `mail.ts`, `throttle.ts`, the
   in-memory store, unit tests. Coordinate with private-audio.md §4 if that lands first.
 - [ ] **S2 — Auth endpoints.** `request`, `verify`, `me`, `logout`, plus the notification.
   Verified with curl against the deployed API and a real inbox.
-- [ ] **S3 — Profile endpoints.** CRUD, family-scoped, max 6, refuse deleting the last.
+- [ ] **S2b — Approval.** `family.status`, the signed review token, `GET`/`POST
+  /api/admin/review`, the approve mail to the parent, and the 403 body that a pending family
+  gets. Verified end to end: sign up a throwaway address, receive the mail at
+  `duolexie@assink.io`, tap Goedkeuren on a phone, watch the pending screen turn into the
+  profile picker.
+- [ ] **S3 — Profile endpoints.** CRUD, family-scoped, max 6, refuse deleting the last,
+  gated on `approved`.
 - [ ] **S4 — Profile-scoped local state.** Key prefixing, the `local` migration, the
   hydration gate, the two e2e fixtures. **Ship this alone and watch her iPad for a day** —
   it is the only step that touches existing progress.
@@ -316,17 +384,23 @@ code prerequisites left.
 
 Then, separately: `POST /api/sessions` and the outbox, hung off the profiles from S3.
 
-## 12. Open questions
+## 12. Settled, and still open
 
-Defaults are chosen so work can start; say otherwise and they change.
+Answered by Arjan on 2026-09-18:
 
-1. **Sending domain** — `noreply@duolexie.assink.io` assumed, matching the live site.
-2. **Who may sign up** — open to anyone, or an allow-list in an env var until you are ready
-   for strangers? The allow-list is about five lines in `request`.
-3. **`NOTIFY_EMAIL`** — which address, personal or work?
-4. **Profiles per family** — 6 assumed.
-5. **Session length** — 30 days sliding assumed; never-expire is a one-line change if you
-   would rather no parent ever re-clicks a link on the tablet.
+- **Who may sign up** — anyone. Approval is the gate, not the invitation.
+- **`NOTIFY_EMAIL`** — `duolexie@assink.io`.
+
+Assumed, and easy to change; the one that matters is the first:
+
+1. **Approval gates the cloud account, not the app.** A pending family plays locally like
+   any visitor. See §3.9 — if you meant that an unapproved visitor should not get into the
+   app at all, this needs its own pass.
+2. **Sending domain** `noreply@duolexie.assink.io`, matching the live site.
+3. **Profiles per family** 6.
+4. **Session length** 30 days sliding. Never-expire is a one-line change if you would rather
+   no parent ever re-clicks a link on the tablet.
+5. **A rejected family** is never told. §8.
 
 ## What the first draft got wrong
 

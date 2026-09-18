@@ -103,11 +103,14 @@ Portal → `swa-duolexie` → **Environment variables** → *Production* → *Ad
 |---|---|
 | `ACS_CONNECTION_STRING` | connection string uit 4b |
 | `MAIL_FROM` | `DoNotReply@<guid>.azurecomm.net` (later `noreply@duolexie.assink.io`) |
-| `NOTIFY_EMAIL` | je eigen adres — ontvangt de aanmeld-notificaties |
+| `NOTIFY_EMAIL` | `duolexie@assink.io` — ontvangt de aanmeldingen én de goedkeurlinks |
 | `APP_BASE_URL` | `https://duolexie.assink.io` (zonder slash op het eind) |
+| `ADMIN_TOKEN_SECRET` | `openssl rand -base64 32` — ondertekent de goedkeurlinks |
 
-`COSMOS_ENDPOINT`, `COSMOS_KEY` en `JWT_SECRET` staan er al. *Save* → de SWA start de
-Functions opnieuw; controleer daarna `/api/health` (wordt uitgebreid met een `mail`-check).
+`COSMOS_ENDPOINT`, `COSMOS_KEY` en `JWT_SECRET` staan er al. Gebruik voor
+`ADMIN_TOKEN_SECRET` een **ander** geheim dan `JWT_SECRET`: één geheim per doel, zodat je er
+één kunt roteren zonder iedereen uit te loggen. *Save* → de SWA start de Functions opnieuw;
+controleer daarna `/api/health` (wordt uitgebreid met een `mail`-check).
 
 **Lokaal:** dezelfde namen in `api/local.settings.json` (staat in `.gitignore`) onder
 `"Values"`, plus `"MAIL_MODE": "console"` zodat de link en code in de terminal verschijnen in
@@ -123,8 +126,9 @@ plaats van verstuurd te worden:
     "JWT_SECRET": "...",
     "MAIL_MODE": "console",
     "MAIL_FROM": "DoNotReply@local",
-    "NOTIFY_EMAIL": "jij@voorbeeld.nl",
-    "APP_BASE_URL": "http://localhost:5173"
+    "NOTIFY_EMAIL": "duolexie@assink.io",
+    "APP_BASE_URL": "http://localhost:5173",
+    "ADMIN_TOKEN_SECRET": "..."
   }
 }
 ```
@@ -139,5 +143,5 @@ plaats van verstuurd te worden:
 - [ ] Email Communication Service `ecs-duolexie` + Azure managed domain (§4a)
 - [ ] Communication Service `acs-duolexie`, domein gekoppeld, connection string gekopieerd (§4b)
 - [ ] Application Insights `appi-duolexie` gekoppeld aan de SWA (§5)
-- [ ] Vier nieuwe environment variables gezet, `/api/health` toont `mail: ok` (§6)
+- [ ] Vijf nieuwe environment variables gezet, `/api/health` toont `mail: ok` (§6)
 - [ ] (later, S7) Eigen verzenddomein geverifieerd: TXT + SPF + 2× DKIM, `MAIL_FROM` omgezet
