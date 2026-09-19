@@ -10,6 +10,7 @@ import { HardopLezen } from '../games/HardopLezen'
 import { Weetjes } from '../games/Weetjes'
 import { haptic, playEffect } from '../audio/audio'
 import { RewardScreen, type DisplayReward } from './RewardScreen'
+import type { GemLandingState } from './gemLanding'
 
 export interface GameResult {
   answers: AnswerRecord[]
@@ -112,7 +113,19 @@ export function GameScreen() {
   }
 
   if (reward) {
-    return <RewardScreen reward={reward} onDone={() => navigate('/')} />
+    /*
+     * The gems travel with her. `completeLesson` credited them a beat ago, so the leerpad's
+     * counter is already at the new total — handing it the number she just earned lets it
+     * hold that back and let the gems land in it (screens/gemLanding.ts,
+     * docs/kist-openen.md §4). Nothing depends on it: a leerpad reached any other way gets
+     * no state and shows the plain total.
+     */
+    return (
+      <RewardScreen
+        reward={reward}
+        onDone={() => navigate('/', { state: { gemsLanded: reward.gems } satisfies GemLandingState })}
+      />
+    )
   }
 
   const Game = GAMES[lesson.gameType]
