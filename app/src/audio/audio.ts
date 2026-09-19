@@ -296,6 +296,8 @@ export type EffectKind =
   | 'cardPop'
   /** the stat card's label upgrading a tier; `step` raises it a whole tone per tier */
   | 'tierUp'
+  /** the schatkist's lid swinging open — a wooden creak with a gold shimmer over it */
+  | 'chestOpen'
 
 /** Short celebratory blip using WebAudio (no asset needed) */
 let audioCtx: AudioContext | null = null
@@ -439,6 +441,47 @@ export function playEffect(kind: EffectKind, step = 0): void {
       osc.connect(gain).connect(ctx.destination)
       osc.start(now)
       osc.stop(now + 0.14)
+      return
+    }
+
+    if (kind === 'chestOpen') {
+      // Two halves, because a chest opening is two things: the lid (a low, short noise thump
+      // through a low-pass, the wood) and what is inside it (a fast rising arpeggio, the
+      // gold). Played together they read as one event; either alone reads as a door or a
+      // menu blip. It has to sit under the gem ticks that follow a beat later, so the
+      // shimmer is deliberately quieter than `tick`.
+      const now = ctx.currentTime
+
+      const length = Math.floor(ctx.sampleRate * 0.18)
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length)
+      const src = ctx.createBufferSource()
+      src.buffer = buffer
+      const wood = ctx.createBiquadFilter()
+      wood.type = 'lowpass'
+      wood.frequency.setValueAtTime(900, now)
+      wood.frequency.exponentialRampToValueAtTime(320, now + 0.18)
+      const woodGain = ctx.createGain()
+      woodGain.gain.setValueAtTime(0.14, now)
+      woodGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
+      src.connect(wood).connect(woodGain).connect(ctx.destination)
+      src.start(now)
+
+      // C6-E6-G6, 45ms apart — up and gone before the first gem tick lands
+      const shimmer = [1046.5, 1318.5, 1568]
+      shimmer.forEach((freq, i) => {
+        const at = now + i * 0.045
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.value = freq
+        gain.gain.setValueAtTime(0.055, at)
+        gain.gain.exponentialRampToValueAtTime(0.001, at + 0.16)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start(at)
+        osc.stop(at + 0.18)
+      })
       return
     }
 
