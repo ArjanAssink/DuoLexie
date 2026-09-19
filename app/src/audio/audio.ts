@@ -507,11 +507,6 @@ export function playEffect(kind: EffectKind, step = 0): void {
   }
 }
 
-/** Light haptic buzz where supported (Android Chrome); no-op on iOS Safari, which lacks the API. */
-export function haptic(pattern: number | number[] = 12): void {
-  try {
-    navigator.vibrate?.(pattern)
-  } catch {
-    // vibration is a nice-to-have, never worth crashing a game over
-  }
-}
+// Haptics moved to their own module once iOS needed a workaround (docs/haptics.md); the
+// games keep importing `haptic` from here.
+export { haptic } from './haptics'

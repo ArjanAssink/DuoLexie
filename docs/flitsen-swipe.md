@@ -249,10 +249,8 @@ the comment in `path-to-lesson.spec.ts`). `haptic(10)` on a landing, as on a fli
 *(Added after the merge, on request: a short `haptic(8)` the instant a carried card passes
 edge-on — the moment it turns over in her hand — in both directions, since carrying it back
 turns it face-down again. A card released before the midpoint flips during its landing, where
-the landing's own buzz already covers it. Note that `haptic()` is `navigator.vibrate`, which
-iOS Safari does not implement: on her iPad and iPhone none of the buzzes in this game are
-felt, and this one is no exception. It is there for Android and for the day WebKit ships
-it.)* The timer
+the landing's own buzz already covers it. `haptic()` reaches an iPhone through the switch
+trick in docs/haptics.md, as one light tick; an iPad has no motor and feels nothing.)* The timer
 starts on the first lift *or* the first tap. The reward path (`onComplete({ answers: [] })`)
 is identical, and `quit()` cancels every pending timer as it does today — landings and
 returns included, since they share `flightTimers`.

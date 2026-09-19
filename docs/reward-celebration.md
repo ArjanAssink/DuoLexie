@@ -222,8 +222,8 @@ anything else in the app — three rising pulses and a held rumble, ~450ms — b
 the one moment meant to feel big; a quiet round gets a single soft 40ms pulse, as it gets the
 pop-in instead of the burst. It fires from `handleBeat` alongside the whoosh and the confetti,
 so it goes through the same reduced-motion and skip gates; the short round-end tap in
-`GameScreen` stays where it is. `haptic()` is `navigator.vibrate`, which iOS Safari lacks, so
-on her iPad and iPhone none of this is felt — it is for Android.)*
+`GameScreen` stays where it is. On an iPhone it arrives as a rattle of six light ticks through
+the switch trick in docs/haptics.md; an iPad has no motor and feels nothing.)*
 
 Volume: none of the new effects louder than `ding`. Nothing plays after `done` except the
 gem ticks that were already running.

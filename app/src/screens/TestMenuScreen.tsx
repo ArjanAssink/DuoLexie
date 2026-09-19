@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import type { GameType } from '@shared/src/types'
 import { allLessons, PROEFRONDE_LESSON } from '../data/path'
+import { haptic, hapticBackend, type HapticBackend } from '../audio/haptics'
 
 const GAME_ORDER: GameType[] = [
   'flitsen',
@@ -33,6 +34,23 @@ const REWARD_PREVIEWS: [string, string][] = [
   ['Beloning — Tijdrit met NIEUW RECORD', 'spel=klank&goed=9&totaal=10&score=48&record=1'],
   ['Beloning — Weetje, niets te beoordelen', 'spel=weetje'],
 ]
+
+/**
+ * The three shapes of buzz the app uses, to feel on a real device (docs/haptics.md). The
+ * patterns are copies, not imports: the games own theirs, and this menu must not become a
+ * reason to export them.
+ */
+const HAPTIC_SAMPLES: [string, number | number[]][] = [
+  ['Tikje (kaart draait om)', 8],
+  ['Ronde klaar', [15, 60, 15]],
+  ['Viering (hero-beat)', [40, 50, 60, 50, 240]],
+]
+
+const BACKEND_LABEL: Record<HapticBackend, string> = {
+  vibrate: 'via navigator.vibrate (Android)',
+  'ios-switch': 'via de iOS-schakelaartruc (Safari 17.4+) — een iPad heeft geen trilmotor, dus voelt niets',
+  none: 'niet beschikbaar in deze browser',
+}
 
 /**
  * Not linked from anywhere in the app's own navigation — reachable only by typing
@@ -87,6 +105,18 @@ export function TestMenuScreen() {
             className="btn-primary test-menu-btn"
             onClick={() => navigate(`/beloning?${query}`)}
           >
+            {label}
+          </button>
+        ))}
+      </section>
+
+      <section className="avatar-picker">
+        <h2>Trillen</h2>
+        <p className="test-menu-note" data-haptic-backend={hapticBackend()}>
+          Op dit apparaat: {BACKEND_LABEL[hapticBackend()]}
+        </p>
+        {HAPTIC_SAMPLES.map(([label, pattern]) => (
+          <button key={label} className="btn-primary test-menu-btn" onClick={() => haptic(pattern)}>
             {label}
           </button>
         ))}
