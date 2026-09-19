@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { resolveSwipe, FLICK_MIN_PX, SWIPE_DISTANCE_PX, type SwipeSample } from './swipe'
+import {
+  resolveDrag,
+  resolveSwipe,
+  FLICK_MIN_PX,
+  SWIPE_DISTANCE_PX,
+  type SwipeSample,
+} from './swipe'
 
 /**
  * A gesture as a list of samples, `steps` of them, spread evenly over `ms` and travelling
@@ -77,5 +83,46 @@ describe('resolveSwipe', () => {
       { t: 1060, x: 0, y: -40 },
     ]
     expect(resolveSwipe(samples)).toBe('goed')
+  })
+})
+
+/**
+ * The same rules turned sideways, for Flitsen carrying a card from the deck to the discard
+ * pile (docs/flitsen-swipe.md §3.1). Right is positive, left negative.
+ */
+describe('resolveDrag on the horizontal axis', () => {
+  it('reads a slow drag to the right as positive and to the left as negative', () => {
+    expect(resolveDrag(drag({ dx: 100, ms: 900 }), 'x')).toBe(1)
+    expect(resolveDrag(drag({ dx: -100, ms: 900 }), 'x')).toBe(-1)
+  })
+
+  it('leaves a short slow drag undecided, so the card slides back onto the deck', () => {
+    expect(resolveDrag(drag({ dx: 30, ms: 900 }), 'x')).toBe(0)
+  })
+
+  it('commits a short fast flick — a card toss', () => {
+    expect(resolveDrag(drag({ dx: 30, ms: 30 }), 'x')).toBe(1)
+  })
+
+  it('ignores a drag that is more vertical than horizontal, however far it goes', () => {
+    expect(resolveDrag(drag({ dx: 200, dy: 250, ms: 900 }), 'x')).toBe(0)
+  })
+
+  it('takes the commit distance from the caller, so it can be half the gap between the stacks', () => {
+    // 70px is short of the default 80 but past a 60px threshold
+    expect(resolveDrag(drag({ dx: 70, ms: 900 }), 'x')).toBe(0)
+    expect(resolveDrag(drag({ dx: 70, ms: 900 }), 'x', 60)).toBe(1)
+  })
+
+  it('cannot decide anything from a single sample', () => {
+    expect(resolveDrag([{ t: 0, x: 0, y: 0 }], 'x')).toBe(0)
+    expect(resolveDrag([], 'x')).toBe(0)
+  })
+
+  it('is the function resolveSwipe is built on', () => {
+    // the vertical wrapper and the axis-generic core must never disagree
+    const up = drag({ dy: -100, ms: 900 })
+    expect(resolveDrag(up, 'y')).toBe(-1)
+    expect(resolveSwipe(up)).toBe('goed')
   })
 })

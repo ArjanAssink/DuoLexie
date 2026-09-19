@@ -1161,6 +1161,23 @@ button:disabled { cursor: default; }
   55% { transform: translateX(calc(var(--fly-dx) * 0.5)) translateY(-26px) rotateY(90deg); }
   100% { transform: translateX(var(--fly-dx)) translateY(0) rotateY(180deg); }
 }
+/* The drag (docs/flitsen-swipe.md). The deck stack owns the gesture — `touch-action: none`
+   on it *and* on the button she actually touches, because the generic button rule's
+   `manipulation` would let the browser take the gesture over as a scroll and cancel it. */
+.kk-deck { touch-action: none; cursor: grab; }
+.kk-deck .kk-face-back { touch-action: none; }
+.kk-deck.holding, .kk-deck.holding .kk-face-back { cursor: grabbing; }
+/* A carried card is driven by inline transforms, not the flight keyframes: the outer
+   follows the finger, the inner turns over with the distance travelled. */
+.kk-held .kk-fly-inner,
+.kk-landing .kk-fly-inner,
+.kk-returning .kk-fly-inner { animation: none; }
+/* above a card that is still on its way, so the one in her hand is never painted under it */
+.kk-held { z-index: 6; }
+/* Released: a transition rather than a keyframe, so it starts from wherever the finger
+   left the card. The flight's curve to the pile; Hardop lezen's spring back to the deck. */
+.kk-landing, .kk-landing .kk-fly-inner { transition: transform 0.26s cubic-bezier(0.34, 1.1, 0.64, 1); }
+.kk-returning, .kk-returning .kk-fly-inner { transition: transform 0.32s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .kk-tap-hint {
   font-size: 13px;
   font-weight: 800;
@@ -1173,7 +1190,11 @@ button:disabled { cursor: default; }
   50% { opacity: 0.35; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .kk-fly-inner { animation: none; transform: translateX(var(--fly-dx)) rotateY(180deg); }
+  .kk-flying .kk-fly-inner { animation: none; transform: translateX(var(--fly-dx)) rotateY(180deg); }
+  /* the held card still follows the finger — that is her moving it, not decoration — but
+     letting go jumps straight to the end state, like the tap flight above */
+  .kk-landing, .kk-landing .kk-fly-inner,
+  .kk-returning, .kk-returning .kk-fly-inner { transition: none; }
   .kk-tap-hint { animation: none; }
 }
 
