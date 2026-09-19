@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti'
 import type { AnswerRecord, LessonKind, WordResult } from '@shared/src/types'
 import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
-import { playEffect, playWord } from '../audio/audio'
+import { haptic, playEffect, playWord } from '../audio/audio'
 import { Frida } from '../components/Frida'
 import { useProgress } from '../state/progress'
 import {
@@ -36,6 +36,17 @@ export interface DisplayReward extends Reward {
    */
   answers?: AnswerRecord[]
 }
+
+/**
+ * The buzz as Frida bursts in (the hero beat, §2). Long on purpose — three rising pulses and
+ * a held rumble, ~450ms in all — where every other haptic in the app is a tick of 4–25ms:
+ * this is the one moment that is *meant* to be big. A quiet round (§5, under 50%) gets a
+ * single soft pulse instead, the way it gets the pop-in instead of the burst. Distinct from
+ * the short round-end tap in GameScreen.handleComplete, which belongs to the game finishing;
+ * this one belongs to the celebration, and is skipped with it under reduced motion.
+ */
+const HERO_HAPTIC = [40, 50, 60, 50, 240]
+const HERO_HAPTIC_QUIET = 40
 
 interface Props {
   reward: DisplayReward
@@ -123,6 +134,7 @@ export function RewardScreen({ reward, onDone }: Props) {
     (beat: Beat) => {
       if (beat === 'hero') {
         if (!quiet) playEffect('whoosh')
+        haptic(quiet ? HERO_HAPTIC_QUIET : HERO_HAPTIC)
         // A Weetje has no percentage to size the burst by, and is never a bad round — she
         // learned the thing however she guessed — so it gets the default burst a klank game
         // would get.

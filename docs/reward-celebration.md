@@ -217,6 +217,14 @@ formula **move** from `GameScreen` into the reward screen's hero beat (§2) so t
 with Frida and are skipped under reduced motion and when tapped through. Haptics stay in
 `GameScreen`.
 
+*(Added after the merge, on request: the hero beat also has a haptic of its own, longer than
+anything else in the app — three rising pulses and a held rumble, ~450ms — because this is
+the one moment meant to feel big; a quiet round gets a single soft 40ms pulse, as it gets the
+pop-in instead of the burst. It fires from `handleBeat` alongside the whoosh and the confetti,
+so it goes through the same reduced-motion and skip gates; the short round-end tap in
+`GameScreen` stays where it is. `haptic()` is `navigator.vibrate`, which iOS Safari lacks, so
+on her iPad and iPhone none of this is felt — it is for Android.)*
+
 Volume: none of the new effects louder than `ding`. Nothing plays after `done` except the
 gem ticks that were already running.
 
