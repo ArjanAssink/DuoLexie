@@ -1,9 +1,36 @@
 [
   { "id": "oorbellen-stip", "slot": "oorbellen", "name": "Stip-oorbellen", "price": 20 },
   { "id": "oorbellen-hart", "slot": "oorbellen", "name": "Hart-oorbellen", "price": 25 },
+  { "id": "oorbellen-ring", "slot": "oorbellen", "name": "Ringen", "price": 25 },
+  { "id": "oorbellen-ster", "slot": "oorbellen", "name": "Sterretjes", "price": 30 },
+  { "id": "oorbellen-druppel", "slot": "oorbellen", "name": "Druppels", "price": 35 },
+  { "id": "oorbellen-bloem", "slot": "oorbellen", "name": "Bloemetjes", "price": 40 },
+
   { "id": "bril-rond", "slot": "bril", "name": "Ronde bril", "price": 30 },
+  { "id": "bril-vierkant", "slot": "bril", "name": "Hoekige bril", "price": 30 },
   { "id": "bril-ster", "slot": "bril", "name": "Sterrenbril", "price": 45 },
-  { "id": "hoed-pet", "slot": "hoed", "name": "Pet", "price": 35 },
+  { "id": "bril-zon", "slot": "bril", "name": "Zonnebril", "price": 45 },
+  { "id": "bril-hart", "slot": "bril", "name": "Hartjesbril", "price": 50 },
+  { "id": "bril-duik", "slot": "bril", "name": "Duikbril", "price": 55 },
+
+  { "id": "hoed-haarband", "slot": "hoed", "name": "Haarband", "price": 25 },
   { "id": "hoed-strik", "slot": "hoed", "name": "Strik", "price": 30 },
-  { "id": "hoed-kroon", "slot": "hoed", "name": "Kroontje", "price": 60 }
+  { "id": "hoed-pet", "slot": "hoed", "name": "Pet", "price": 35 },
+  { "id": "hoed-muts", "slot": "hoed", "name": "Wintermuts", "price": 40 },
+  { "id": "hoed-zon", "slot": "hoed", "name": "Zonnehoed", "price": 45 },
+  { "id": "hoed-koptelefoon", "slot": "hoed", "name": "Koptelefoon", "price": 55 },
+  { "id": "hoed-kroon", "slot": "hoed", "name": "Kroontje", "price": 60 },
+  { "id": "hoed-tovenaar", "slot": "hoed", "name": "Tovenaarshoed", "price": 70 },
+
+  { "id": "sjaal-gestreept", "slot": "sjaal", "name": "Gestreepte sjaal", "price": 30 },
+  { "id": "sjaal-gebreid", "slot": "sjaal", "name": "Gebreide sjaal", "price": 35 },
+  { "id": "sjaal-stippen", "slot": "sjaal", "name": "Stippensjaal", "price": 40 },
+  { "id": "sjaal-regenboog", "slot": "sjaal", "name": "Regenboogsjaal", "price": 60 },
+
+  { "id": "jas-hoodie", "slot": "jas", "name": "Hoodie", "price": 40 },
+  { "id": "jas-spijker", "slot": "jas", "name": "Spijkerjasje", "price": 50 },
+  { "id": "jas-regen", "slot": "jas", "name": "Regenjas", "price": 50 },
+  { "id": "jas-winter", "slot": "jas", "name": "Winterjas", "price": 60 },
+  { "id": "jas-superheld", "slot": "jas", "name": "Heldenpak", "price": 75 },
+  { "id": "jas-ruimtepak", "slot": "jas", "name": "Ruimtepak", "price": 90 }
 ]

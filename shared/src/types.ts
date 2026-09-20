@@ -171,7 +171,11 @@ export type HairStyle =
   | 'golven'
   | 'hoge-staart'
 
-export type AccessorySlot = 'oorbellen' | 'bril' | 'hoed'
+/**
+ * One wearable per slot. 'jas' swaps the torso's own colours rather than laying something
+ * over it, and 'sjaal' sits between the neck and the chin; the rest are overlays.
+ */
+export type AccessorySlot = 'oorbellen' | 'bril' | 'hoed' | 'sjaal' | 'jas'
 
 export interface AvatarConfig {
   skinColor: string

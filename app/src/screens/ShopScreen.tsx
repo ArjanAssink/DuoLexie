@@ -16,6 +16,7 @@ export function ShopScreen() {
   const addOwnedItem = useAvatar((s) => s.addOwnedItem)
   const equipItem = useAvatar((s) => s.equipItem)
   const [activeSlot, setActiveSlot] = useState<AccessorySlot>(SHOP_SLOTS[0].slot)
+  const tileCrop = SHOP_SLOTS.find((s) => s.slot === activeSlot)?.crop ?? 'kapsel'
 
   function handleTap(item: ShopItem) {
     const owned = ownedItems.includes(item.id)
@@ -75,7 +76,7 @@ export function ShopScreen() {
             >
               <AvatarView
                 config={{ ...config, equipped: { [item.slot]: item.id } }}
-                crop="topbar"
+                crop={tileCrop}
               />
               <span className="shop-item-name">{item.name}</span>
               <span className="shop-item-price">

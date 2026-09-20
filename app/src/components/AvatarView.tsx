@@ -1,14 +1,18 @@
 import type { AvatarConfig } from '@shared/src/types'
 import { hairBack, hairFront } from './hair'
+import { earrings, glasses, hat, scarfLayer, torso } from './accessories'
+import { shade } from './shade'
 
 interface Props {
   config: AvatarConfig
   /**
    * 'full' = hip-up bust (customization screen). 'topbar' = shoulders + face only.
-   * 'kapsel' = head plus all the room the tallest kapsel needs (afro, knot, stekels), for
-   * the hairstyle picker — the topbar crop starts below those and would behead them.
+   * 'kapsel' = head plus all the room the tallest kapsel or hoed needs (afro, knot, the
+   * wizard hat's point), for the kapsel picker and the shop's head tiles — the topbar crop
+   * starts below those and would behead them.
+   * 'romp' = chin to hem, for the shop's sjaal and jas tiles, which a head crop would miss.
    */
-  crop?: 'full' | 'topbar' | 'kapsel'
+  crop?: 'full' | 'topbar' | 'kapsel' | 'romp'
   className?: string
 }
 
@@ -16,132 +20,15 @@ const VIEWBOX = {
   full: '0 0 200 260',
   topbar: '18 36 164 128',
   kapsel: '18 0 164 164',
-}
-
-/** Mixes a hex color toward black (amt > 0) or white (amt < 0) — flat shading, no gradients (gradient <defs> ids collide when several AvatarViews render at once). */
-function shade(hex: string, amt: number): string {
-  const clean = hex.replace('#', '')
-  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean
-  const num = parseInt(full, 16)
-  const target = amt > 0 ? 0 : 255
-  const p = Math.min(1, Math.abs(amt))
-  const mix = (channel: number) => Math.round(channel + (target - channel) * p)
-  const r = mix((num >> 16) & 0xff)
-  const g = mix((num >> 8) & 0xff)
-  const b = mix(num & 0xff)
-  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`
-}
-
-/** Earrings hang from the ear lobes — swapped by shop item id. */
-function Earrings({ id }: { id: string }) {
-  if (id === 'oorbellen-hart') {
-    return (
-      <g fill="#F4778F">
-        <path d="M52,118 C45,112 45,105 51,106 C52,104 55,104 52,109 C55,104 58,104 59,106 C61,109 52,113 52,118 Z" />
-        <path d="M148,118 C141,112 141,105 147,106 C148,104 151,104 148,109 C151,104 154,104 155,106 C157,109 148,113 148,118 Z" />
-      </g>
-    )
-  }
-  return (
-    <g>
-      <circle cx="52" cy="114" r="4.2" fill="#F7C531" />
-      <circle cx="53" cy="112.5" r="1.1" fill="#FFF6D8" />
-      <circle cx="148" cy="114" r="4.2" fill="#F7C531" />
-      <circle cx="149" cy="112.5" r="1.1" fill="#FFF6D8" />
-    </g>
-  )
-}
-
-/** Glasses sit over the eyes — swapped by shop item id. */
-function Glasses({ id }: { id: string }) {
-  if (id === 'bril-ster') {
-    const frame = '#E2542F'
-    const lens = (cx: number) => (
-      <path
-        d={`M${cx - 16},${86} Q${cx},${74} ${cx + 16},${86} Q${cx + 18},${98} ${cx + 10},${104} Q${cx},${110} ${cx - 10},${104} Q${cx - 18},${98} ${cx - 16},${86} Z`}
-        fill="#FFFFFF"
-        fillOpacity="0.25"
-        stroke={frame}
-        strokeWidth="4.5"
-        strokeLinejoin="round"
-      />
-    )
-    return (
-      <g>
-        {lens(78)}
-        {lens(122)}
-        <path d="M93,90 Q100,85 107,90" stroke={frame} strokeWidth="4.5" fill="none" strokeLinecap="round" />
-        <path d="M62,84 Q54,86 51,95" stroke={frame} strokeWidth="4.5" fill="none" strokeLinecap="round" />
-        <path d="M138,84 Q146,86 149,95" stroke={frame} strokeWidth="4.5" fill="none" strokeLinecap="round" />
-        <g fill="#F7C531">
-          <path d="M58,70 L60,75 L65,76 L60,78 L58,83 L56,78 L51,76 L56,75 Z" />
-          <path d="M142,70 L144,75 L149,76 L144,78 L142,83 L140,78 L135,76 L140,75 Z" />
-        </g>
-      </g>
-    )
-  }
-  const frame = '#3B3026'
-  return (
-    <g>
-      <circle cx="78" cy="93" r="15.5" fill="#FFFFFF" fillOpacity="0.2" stroke={frame} strokeWidth="4.5" />
-      <circle cx="122" cy="93" r="15.5" fill="#FFFFFF" fillOpacity="0.2" stroke={frame} strokeWidth="4.5" />
-      <circle cx="83" cy="87" r="2.5" fill="#FFFFFF" fillOpacity="0.7" />
-      <circle cx="127" cy="87" r="2.5" fill="#FFFFFF" fillOpacity="0.7" />
-      <path d="M93,91 Q100,86 107,91" stroke={frame} strokeWidth="4.5" fill="none" strokeLinecap="round" />
-      <path d="M63,88 Q54,90 51,97" stroke={frame} strokeWidth="4.5" fill="none" strokeLinecap="round" />
-      <path d="M137,88 Q146,90 149,97" stroke={frame} strokeWidth="4.5" fill="none" strokeLinecap="round" />
-    </g>
-  )
-}
-
-/** A hat sits on top of the hair, drawn last — swapped by shop item id. */
-function Hat({ id }: { id: string }) {
-  if (id === 'hoed-strik') {
-    return (
-      <g fill="#F4778F">
-        <path d="M112,42 C112,30 96,26 90,34 C85,41 92,50 112,42 Z" />
-        <path d="M116,42 C116,30 132,26 138,34 C143,41 136,50 116,42 Z" />
-        <path d="M108,45 L104,58 L113,49 Z" />
-        <path d="M120,45 L124,58 L115,49 Z" />
-        <circle cx="114" cy="42" r="6" fill="#D9556E" />
-      </g>
-    )
-  }
-  if (id === 'hoed-kroon') {
-    return (
-      <g>
-        <path
-          d="M48,62 L48,50 L64,34 L78,52 L100,26 L122,52 L136,34 L152,50 L152,62 Z"
-          fill="#F7C531"
-          stroke="#D9A616"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-        />
-        <rect x="48" y="58" width="104" height="10" rx="3" fill="#F2B822" stroke="#D9A616" strokeWidth="2" />
-        <circle cx="64" cy="40" r="4.5" fill="#E2542F" />
-        <circle cx="100" cy="34" r="5.5" fill="#2FA79B" />
-        <circle cx="136" cy="40" r="4.5" fill="#E2542F" />
-      </g>
-    )
-  }
-  // hoed-pet
-  return (
-    <g>
-      <path
-        d="M44,68 C42,36 68,16 100,16 C132,16 158,36 156,68 C156,60 148,52 132,50 C126,58 114,62 100,62 C86,62 74,58 68,50 C52,52 44,60 44,68 Z"
-        fill="#2FA79B"
-      />
-      <ellipse cx="100" cy="63" rx="36" ry="8" fill="#22857B" />
-      <circle cx="100" cy="20" r="4" fill="#22857B" />
-    </g>
-  )
+  romp: '22 108 156 156',
 }
 
 /**
- * Player avatar rig — one drawing, two crops (full bust vs. shoulders+face for
- * the top bar). Traits (skin/eye/hair color) are fills read from config;
- * hairstyle and accessories swap which group renders, keyed by id. The hair itself lives in
- * `hair.tsx` — one catalogue entry per kapsel, drawn here in two layers around the face.
+ * Player avatar rig — one drawing, four crops (full bust, shoulders+face for the top bar,
+ * and two shop/picker framings). Traits (skin/eye/hair color) are fills read from config;
+ * hairstyle and accessories swap which group renders, keyed by id. The art itself lives in
+ * two catalogues: `hair.tsx` (one entry per kapsel, drawn in two layers around the face) and
+ * `accessories.tsx` (one entry per shop item, including the jas, which *is* the torso).
  */
 export function AvatarView({ config, crop = 'full', className }: Props) {
   const { skinColor, eyeColor, hairColor, hairstyle } = config
@@ -154,10 +41,8 @@ export function AvatarView({ config, crop = 'full', className }: Props) {
 
   return (
     <svg viewBox={VIEWBOX[crop]} className={className} role="img" aria-label="Avatar">
-      {/* torso */}
-      <path d="M38,262 C38,188 58,148 100,148 C142,148 162,188 162,262 Z" fill="var(--teal)" />
-      <path d="M38,262 C38,188 58,148 100,148 L100,262 Z" fill="var(--teal-shadow)" opacity="0.35" />
-      <path d="M78,150 Q100,166 122,150" stroke="var(--teal-shadow)" strokeWidth="3" fill="none" opacity="0.5" />
+      {/* torso — the default shirt, or the jas she is wearing */}
+      {torso(equipped.jas)}
 
       {/* hair — back layer, behind the head */}
       {hairBack(hairstyle, hairPaint)}
@@ -165,6 +50,9 @@ export function AvatarView({ config, crop = 'full', className }: Props) {
       {/* neck */}
       <rect x="85" y="136" width="30" height="26" rx="8" fill={skinColor} />
       <ellipse cx="100" cy="159" rx="15" ry="7" fill={skinShadow} opacity="0.35" />
+
+      {/* sjaal — before the head, so the jaw covers its top edge the way a scarf tucks in */}
+      {scarfLayer(equipped.sjaal)}
 
       {/* ears */}
       <ellipse cx="51" cy="97" rx="9" ry="13" fill={skinColor} />
@@ -204,8 +92,8 @@ export function AvatarView({ config, crop = 'full', className }: Props) {
       {/* nose */}
       <ellipse cx="100" cy="107" rx="4.5" ry="2.6" fill={skinShadow} opacity="0.55" />
 
-      {equipped.oorbellen && <Earrings id={equipped.oorbellen} />}
-      {equipped.bril && <Glasses id={equipped.bril} />}
+      {earrings(equipped.oorbellen)}
+      {glasses(equipped.bril)}
 
       {/* mouth */}
       <path d="M81,115 Q100,133 119,115 Q100,125 81,115 Z" fill="#B85C56" />
@@ -214,7 +102,7 @@ export function AvatarView({ config, crop = 'full', className }: Props) {
       {/* hair — front layer, over the forehead */}
       {hairFront(hairstyle, hairPaint)}
 
-      {equipped.hoed && <Hat id={equipped.hoed} />}
+      {hat(equipped.hoed)}
     </svg>
   )
 }

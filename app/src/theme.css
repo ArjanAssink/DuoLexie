@@ -1329,10 +1329,12 @@ button:disabled { cursor: default; }
 }
 
 /* ---------- winkel (shop) ---------- */
-.shop-tabs { display: flex; gap: 8px; }
+/* Five tabs do not fit one phone-wide row, so they run three-and-two rather than shrink to
+   unreadable — "Op je hoofd" has to stay legible at a glance. A grid keeps the second row's
+   two tabs the same width as the first row's three, instead of letting them stretch. */
+.shop-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .shop-tab {
-  flex: 1;
-  padding: 10px;
+  padding: 10px 6px;
   border-radius: 12px;
   border: 2px solid var(--hairline);
   background: white;
@@ -1359,7 +1361,7 @@ button:disabled { cursor: default; }
   border: 2px solid var(--hairline);
   background: white;
 }
-.shop-item svg { width: 64px; height: 48px; }
+.shop-item svg { width: 72px; height: 72px; }
 .shop-item-name { font-weight: 800; font-size: 14px; }
 .shop-item-price {
   display: flex;
