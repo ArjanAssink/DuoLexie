@@ -1258,28 +1258,36 @@ button:disabled { cursor: default; }
   letter-spacing: 1px;
   margin: 0 0 10px;
 }
+.avatar-picker h3 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+.hairstyle-group + .hairstyle-group,
+.swatch-group + .swatch-group { margin-top: 12px; }
+/* Wraps rather than scrolls: with eleven kapsels per groep a scrolling strip would hide
+   most of the shelf off the right edge, and she has to be able to see what there is. */
 .hairstyle-row {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 7px;
 }
 .hairstyle-btn {
-  width: 64px;
-  height: 56px;
+  aspect-ratio: 1;
   border-radius: 14px;
   border: 2px solid var(--hairline);
   background: white;
-  flex: 0 0 auto;
   display: grid;
   place-items: center;
+  padding: 2px;
 }
-.hairstyle-btn svg { width: 46px; height: 36px; }
+.hairstyle-btn svg { width: 100%; height: 100%; }
 .hairstyle-btn.selected { border-color: var(--teal-pill-border); background: var(--teal-pill); }
-.swatch-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.swatch-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .swatch {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: 3px solid transparent;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
@@ -1287,6 +1295,37 @@ button:disabled { cursor: default; }
 .swatch.selected {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px var(--teal-pill), 0 3px 0 rgba(0, 0, 0, 0.12);
+}
+.custom-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 24px;
+  border: 2px solid var(--hairline);
+  background: white;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+}
+.custom-color.selected { border-color: var(--teal-pill-border); background: var(--teal-pill); }
+/* The native swatch is the tap target; it sits under the dot so the control looks like the
+   other swatches instead of like a browser widget. */
+.custom-color input[type='color'] {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+}
+.custom-color-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  flex: 0 0 auto;
 }
 
 /* ---------- winkel (shop) ---------- */

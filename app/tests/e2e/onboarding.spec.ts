@@ -178,9 +178,10 @@ test('an avatar choice on step 3 is written straight to the avatar store', async
   await page.getByRole('button', { name: 'Aan de slag' }).click()
   await page.getByRole('button', { name: 'Liever geen naam' }).click()
 
-  await page.getByRole('button', { name: 'Krullen' }).click()
+  // exact: the kapsel shelf also holds a "Korte krullen", and a substring match finds both.
+  await page.getByRole('button', { name: 'Krullen', exact: true }).click()
 
-  await expect(page.getByRole('button', { name: 'Krullen' })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Krullen', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   )
@@ -190,6 +191,43 @@ test('an avatar choice on step 3 is written straight to the avatar store', async
       return blob?.state?.config?.hairstyle
     })
     .toBe('krullen')
+})
+
+test('both kapsel shelves are on step 3, with ten or more options each', async ({
+  page,
+}, testInfo) => {
+  behaviourOnly(testInfo.project.name)
+
+  await page.goto('/#/welkom')
+  await page.getByRole('button', { name: 'Aan de slag' }).click()
+  await page.getByRole('button', { name: 'Liever geen naam' }).click()
+
+  const shelves = page.locator('.hairstyle-group')
+  await expect(shelves).toHaveCount(2)
+  await expect(shelves.nth(0).locator('h3')).toHaveText('Jongens')
+  await expect(shelves.nth(1).locator('h3')).toHaveText('Meisjes')
+  for (const shelf of await shelves.all()) {
+    expect(await shelf.locator('.hairstyle-btn').count()).toBeGreaterThanOrEqual(10)
+  }
+})
+
+test('a gek haarkleur is written to the avatar store like any other', async ({
+  page,
+}, testInfo) => {
+  behaviourOnly(testInfo.project.name)
+
+  await page.goto('/#/welkom')
+  await page.getByRole('button', { name: 'Aan de slag' }).click()
+  await page.getByRole('button', { name: 'Liever geen naam' }).click()
+
+  await page.getByRole('button', { name: 'Knalroze' }).click()
+
+  await expect
+    .poll(async () => {
+      const blob = (await readAvatar(page)) as { state?: { config?: { hairColor?: string } } } | null
+      return blob?.state?.config?.hairColor
+    })
+    .toBe('#FF4FA3')
 })
 
 test('finishing the flow lands on the leerpad, with her name, and stays there', async ({

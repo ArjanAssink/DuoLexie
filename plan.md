@@ -202,7 +202,10 @@ Two crop levels of the *same* rig, not two separately drawn assets:
 
 ### Customizable traits (v1)
 - Huidskleur, oogkleur, haarkleur — swatches, applied as an SVG fill on the relevant layer(s).
-- Kapsel — a small set of interchangeable hair shapes, each recolorable.
+  Shipped as 10 skin tones, 10 eye colours and 30 hair colours (natural plus a "Gek" shelf of
+  pink/blue/green/…), with a colour input for anything outside those.
+- Kapsel — interchangeable hair shapes, each recolorable. Shipped as 22 of them on two shelves
+  (jongens/meisjes), catalogued in `app/src/components/hair.tsx`.
 - Accessoires — oorbellen, bril, hoed(en) — one optional overlay layer per slot (or none equipped).
 
 ### Technical approach: layered SVG rig

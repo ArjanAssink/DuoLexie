@@ -1,15 +1,21 @@
 import type { AvatarConfig } from '@shared/src/types'
+import { hairBack, hairFront } from './hair'
 
 interface Props {
   config: AvatarConfig
-  /** 'full' = hip-up bust (customization screen). 'topbar' = shoulders + face only. */
-  crop?: 'full' | 'topbar'
+  /**
+   * 'full' = hip-up bust (customization screen). 'topbar' = shoulders + face only.
+   * 'kapsel' = head plus all the room the tallest kapsel needs (afro, knot, stekels), for
+   * the hairstyle picker — the topbar crop starts below those and would behead them.
+   */
+  crop?: 'full' | 'topbar' | 'kapsel'
   className?: string
 }
 
 const VIEWBOX = {
   full: '0 0 200 260',
   topbar: '18 36 164 128',
+  kapsel: '18 0 164 164',
 }
 
 /** Mixes a hex color toward black (amt > 0) or white (amt < 0) — flat shading, no gradients (gradient <defs> ids collide when several AvatarViews render at once). */
@@ -134,7 +140,8 @@ function Hat({ id }: { id: string }) {
 /**
  * Player avatar rig — one drawing, two crops (full bust vs. shoulders+face for
  * the top bar). Traits (skin/eye/hair color) are fills read from config;
- * hairstyle and accessories swap which group renders, keyed by id.
+ * hairstyle and accessories swap which group renders, keyed by id. The hair itself lives in
+ * `hair.tsx` — one catalogue entry per kapsel, drawn here in two layers around the face.
  */
 export function AvatarView({ config, crop = 'full', className }: Props) {
   const { skinColor, eyeColor, hairColor, hairstyle } = config
@@ -143,6 +150,7 @@ export function AvatarView({ config, crop = 'full', className }: Props) {
   const skinShadow = shade(skinColor, 0.12)
   const skinHighlight = shade(skinColor, -0.16)
   const earInner = shade(skinColor, 0.14)
+  const hairPaint = { hair: hairColor, shadow: hairShadow }
 
   return (
     <svg viewBox={VIEWBOX[crop]} className={className} role="img" aria-label="Avatar">
@@ -152,29 +160,7 @@ export function AvatarView({ config, crop = 'full', className }: Props) {
       <path d="M78,150 Q100,166 122,150" stroke="var(--teal-shadow)" strokeWidth="3" fill="none" opacity="0.5" />
 
       {/* hair — back layer, behind the head */}
-      {hairstyle === 'staart' && (
-        <g>
-          <path
-            d="M144,88 C160,84 172,98 169,118 C167,136 156,150 147,147 C140,145 138,128 141,111 C142,99 141,93 144,88 Z"
-            fill={hairColor}
-          />
-          <path d="M148,112 Q158,118 152,138" stroke={hairShadow} strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.6" />
-        </g>
-      )}
-      {hairstyle === 'lang' && (
-        <g>
-          <path
-            d="M53,84 C38,114 36,152 46,184 C50,197 58,204 67,199 C60,180 57,150 61,120 C63,103 66,90 71,79 Z"
-            fill={hairColor}
-          />
-          <path
-            d="M147,84 C162,114 164,152 154,184 C150,197 142,204 133,199 C140,180 143,150 139,120 C137,103 134,90 129,79 Z"
-            fill={hairColor}
-          />
-          <path d="M56,110 Q50,150 60,188" stroke={hairShadow} strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.5" />
-          <path d="M144,110 Q150,150 140,188" stroke={hairShadow} strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.5" />
-        </g>
-      )}
+      {hairBack(hairstyle, hairPaint)}
 
       {/* neck */}
       <rect x="85" y="136" width="30" height="26" rx="8" fill={skinColor} />
@@ -226,33 +212,7 @@ export function AvatarView({ config, crop = 'full', className }: Props) {
       <path d="M89,118 Q100,123 111,118" stroke="#FFF6E6" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.8" />
 
       {/* hair — front layer, over the forehead */}
-      {(hairstyle === 'kort' || hairstyle === 'staart' || hairstyle === 'lang') && (
-        <g>
-          <path
-            d="M50,80 C46,44 72,26 100,26 C128,26 154,44 150,80
-               C144,64 136,54 126,53
-               C122,62 116,66 110,60
-               C106,66 100,68 94,62
-               C88,68 82,66 78,58
-               C68,60 56,66 50,80 Z"
-            fill={hairColor}
-          />
-          <path d="M64,40 Q68,52 63,62" stroke={hairShadow} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5" />
-          <path d="M136,40 Q132,52 137,62" stroke={hairShadow} strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.5" />
-        </g>
-      )}
-      {hairstyle === 'staart' && <rect x="141" y="99" width="11" height="9" rx="4" fill={hairShadow} />}
-      {hairstyle === 'krullen' && (
-        <g fill={hairColor}>
-          <path
-            d="M45,70 C40,50 50,34 64,30 C62,18 78,10 90,18 C96,8 112,8 116,18 C130,10 144,20 140,30 C154,36 160,52 154,70
-               C148,60 140,58 134,62 C130,52 118,48 110,54 C104,46 98,46 92,54 C82,48 70,52 64,62 C56,58 50,62 45,70 Z"
-          />
-          <circle cx="56" cy="52" r="7" fill={hairShadow} opacity="0.5" />
-          <circle cx="100" cy="24" r="7" fill={hairShadow} opacity="0.5" />
-          <circle cx="144" cy="52" r="7" fill={hairShadow} opacity="0.5" />
-        </g>
-      )}
+      {hairFront(hairstyle, hairPaint)}
 
       {equipped.hoed && <Hat id={equipped.hoed} />}
     </svg>
