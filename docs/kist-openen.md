@@ -179,8 +179,11 @@ carries no state, so the counter shows the plain total immediately with nothing 
 
 The chest is exercised through the `/#/beloning` preview, for the reason
 reward-celebration.md §9 gives. The *landing* cannot be — it is the seam between two screens,
-and the only way to produce a real navigation carrying a real reward is to play a real round —
-so the two tests that cover it play one.
+and the only way to produce a real navigation carrying a real reward is to play a real round
+— so exactly **one** test plays one, and it covers both halves of §4's contract before it
+lets go of that round. It was two tests; a real round is the single thing in this suite
+known to fall over on CI's WebKit runners (playwright.config.ts on retries), and a second
+one on every profile was not worth one extra assertion that a page reload can reach.
 
 What is pinned:
 
@@ -193,8 +196,8 @@ What is pinned:
 5. Reduced motion mounts it open, with nothing moving and the gems still counting.
 6. It is a button: labelled, and openable with Enter.
 7. After a real round: the counter holds at the old total with seven gems in the air, then
-   reads the new total with nothing left on screen.
-8. A leerpad reached any other way shows the total straight away.
+   reads the new total with nothing left on screen — and after a reload, which is a leerpad
+   reached with no landing owed, it shows that total straight away with nothing in the air.
 
 **Why the tap is dispatched, not clicked.** `page.clock` fakes `requestAnimationFrame`, and
 Playwright will not dispatch a click until the target's box has held still across two

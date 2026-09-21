@@ -251,7 +251,9 @@ test('the chest is a real button, reachable and announced', async ({ page }) => 
  * The seam. Everything above is about a screen; this is about two of them, and the whole
  * point of the feature is the line between them — so this one plays a real round.
  */
-test('after a real round, the gems fly out of the chest and into the jar', async ({ page }) => {
+test('after a real round, the gems fly into the jar — once, and only then', async ({
+  page,
+}) => {
   // a ten-card round costs 15s on a desktop and up to 38s on CI's two-core WebKit runners
   test.setTimeout(150_000)
   await recordLanding(page)
@@ -296,34 +298,21 @@ test('after a real round, the gems fly out of the chest and into the jar', async
    * What is worth pinning about the landing is above and below this: the counter held, the
    * gems flew, the total is right and nothing is left in the air.
    */
-})
 
-test('the leerpad reached any other way just shows the total', async ({ page }) => {
-  // A real round, so the same budget as the test above it. Without this it inherits the 30s
-  // default and fails on the slower profiles for no reason but the clock: the round alone
-  // takes 25-38s on CI's WebKit runners.
-  test.setTimeout(150_000)
   /*
-   * The other half of §4's contract, and the one a reader has to be able to trust: a landing
-   * belongs to one navigation and nothing else. Reaching the leerpad by reload, by deep link
-   * or by the back gesture must show her what she has, immediately, with nothing in the air —
-   * a counter that held itself back on a cold start would be showing her the wrong number for
-   * no reason at all.
+   * And the other half of §4's contract, which used to be a test of its own: a landing
+   * belongs to one navigation and to nothing else. Reaching the leerpad any other way — a
+   * reload here, but equally a deep link or the back gesture — must show her what she has
+   * straight away, with nothing in the air. A counter that held itself back on a cold start
+   * would be showing her the wrong number for no reason at all.
+   *
+   * Folded in rather than left standing alone because it needed a real round to set up, and
+   * a real round is the one thing in this suite that is known to fall over on CI's WebKit
+   * runners (see playwright.config.ts on retries). Two tests meant two rounds on every
+   * profile for one extra assertion; this way the assertion costs a page reload.
    */
-  await skipOnboarding(page)
-  await installNarration(page)
-  await installLearnedSwipe(page)
-  await page.goto(PROEFRONDE)
-  await finishRound(page, 7)
-  await page.locator('.reward-screen').click({ position: { x: 5, y: 5 } })
-  await page.locator('.reward-verder').click()
-  // The same 30s the test above allows, and for the same reason: the leerpad renders
-  // nothing until both stores have hydrated from IndexedDB, which on a contended WebKit
-  // runner has taken more than six seconds.
-  await expect(page.locator('.statbar .stat.gems')).toContainText('12', { timeout: 30_000 })
-
   await page.reload()
-  await expect(page.locator('.statbar .stat.gems')).toContainText('12')
-  await expect(page.locator('.statbar .stat.gems')).not.toHaveAttribute('data-landing', 'true')
+  await expect(counter).toContainText('12', { timeout: 30_000 })
+  await expect(counter).not.toHaveAttribute('data-landing', 'true')
   await expect(page.locator('.gem-flight-gem')).toHaveCount(0)
 })
