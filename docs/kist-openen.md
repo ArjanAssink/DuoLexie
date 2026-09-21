@@ -244,10 +244,14 @@ That is correct behaviour for a machine that lost a second and a half, and asser
 reported a contended CI runner as a broken feature. What the landing test pins is the hold,
 the gems in the air, the final total and an empty sky.
 
-**`walkTheClock` had to grow.** The chest opens *after* the last beat, and the count-up
-starts with its lid, so `reward-celebration.spec.ts`'s clock walk no longer covered the
-whole sequence — it froze the clock with the Weetje round's gems still counting, leaving
-680ms of slack where there used to be two seconds. Its bound is `BEATS.chestAt + 2000` now.
+**The Weetje round's gems need the clock fed, not walked.** The chest opens *after* the
+last beat and the count-up starts with its lid, so `reward-celebration.spec.ts`'s fixed
+clock walk stopped covering the whole sequence — it froze the clock with that round's gems
+still counting. Growing the walk to `BEATS.chestAt + 2000` was not enough either: a
+contended ipad still came back with `💎 +3`, because the ticks are an interval React has to
+flush between `runFor` calls and the clock's position at mount is not knowable. Its
+`runUntilGems` helper now feeds the clock until the line reads what it should, which has
+none of those unknowns.
 
 ---
 
