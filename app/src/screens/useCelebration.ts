@@ -24,6 +24,18 @@ interface Options {
   onChestOpen?: () => void
 }
 
+/**
+ * How the chest came to be open. Mirrored to `data-opened-by` on the chest.
+ *
+ * It exists because the three paths are indistinguishable from the outside — an open chest
+ * is an open chest — and the difference between them is the whole feature. A test cannot
+ * infer it from the clock either: Playwright's actionability wait drives a paused clock
+ * forward, by about a second on Chromium and nearly three on WebKit, which is enough for the
+ * auto-open to fire *inside* the `click()` that was meant to beat it. That is a real flake
+ * this attribute is the fix for, not a hypothetical.
+ */
+export type ChestOpener = 'tap' | 'auto' | 'skip' | 'reduced'
+
 export interface Celebration {
   /** which stage is on screen; the reward screen mirrors it to `data-beat` */
   beat: Beat
@@ -38,6 +50,8 @@ export interface Celebration {
    * be a position in it.
    */
   chestOpen: boolean
+  /** which of the three ways it opened, or null while it is still shut */
+  chestOpenedBy: ChestOpener | null
   /** she tapped the chest. Idempotent, and safe to call after the auto-open has fired. */
   openChest: () => void
   /** jump to the final state: everything at its final value, nothing left mid-animation */
@@ -82,7 +96,9 @@ export function useCelebration({
   // Reduced motion mounts every part of the screen in its final state, and for the chest
   // that is open — there is no hinge swing to watch and no reason to make her tap for a
   // number the screen could simply be showing her.
-  const [chestOpen, setChestOpen] = useState(reduced)
+  const [chestOpenedBy, setChestOpenedBy] = useState<ChestOpener | null>(
+    reduced ? 'reduced' : null,
+  )
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const frame = useRef<number | null>(null)
@@ -99,11 +115,11 @@ export function useCelebration({
   chestRef.current = onChestOpen
 
   /**
-   * Whether the chest's sound has been spent. A ref rather than reading `chestOpen`, because
+   * The chest's state, shadowed in a ref. A ref rather than reading `chestOpenedBy`, because
    * a tap landing in the same frame as the auto-open timer would see the old state in both
-   * handlers and creak twice.
+   * handlers — and open the chest twice, which is once too many creaks.
    */
-  const chestSounded = useRef(false)
+  const openedRef = useRef<ChestOpener | null>(reduced ? 'reduced' : null)
 
   const clearAll = useCallback(() => {
     for (const t of timers.current) clearTimeout(t)
@@ -113,16 +129,21 @@ export function useCelebration({
   }, [])
 
   /**
-   * Opening the chest is one-way and idempotent: the auto-open timer, a tap, and a skip all
-   * call this, and on a slow frame two of them can land together.
+   * Opening the chest is one-way and idempotent: the auto-open timer, a tap and a skip all
+   * come through here, and on a slow frame two of them can land together — whichever is
+   * first is the one recorded, and the sound is spent once.
+   *
+   * A skip is silent, on the same terms as `onBeat`: the chest is open because the screen
+   * jumped, and nothing happened for a sound to belong to.
    */
-  const openChest = useCallback(() => {
-    if (!chestSounded.current) {
-      chestSounded.current = true
-      chestRef.current?.()
-    }
-    setChestOpen(true)
+  const open = useCallback((by: ChestOpener) => {
+    if (openedRef.current) return
+    openedRef.current = by
+    setChestOpenedBy(by)
+    if (by !== 'skip') chestRef.current?.()
   }, [])
+
+  const openChest = useCallback(() => open('tap'), [open])
 
   const skip = useCallback(() => {
     clearAll()
@@ -133,8 +154,8 @@ export function useCelebration({
     // it shut would make the tap she just made the one thing on the screen that did nothing.
     // It opens without its hinge swing, because `data-skipped` turns every animation off —
     // which is the guarantee, not an oversight.
-    setChestOpen(true)
-  }, [clearAll])
+    open('skip')
+  }, [clearAll, open])
 
   useEffect(() => {
     if (reduced) return
@@ -163,14 +184,14 @@ export function useCelebration({
       at(BEATS.doneAt - cardGap, () => enter('done'))
       // The chest is timed off the strip, not off the clock, so a Weetje's shorter sequence
       // does not leave it hanging 1.3s longer than every other round's.
-      at(BEATS.chestAt - cardGap, openChest)
+      at(BEATS.chestAt - cardGap, () => open('auto'))
       return clearAll
     }
 
     at(BEATS.cardAt, () => enter('card'))
     at(BEATS.stripAt, () => enter('strip'))
     at(BEATS.doneAt, () => enter('done'))
-    at(BEATS.chestAt, openChest)
+    at(BEATS.chestAt, () => open('auto'))
 
     at(BEATS.cardAt + BEATS.barDelay, () => {
       const started = performance.now()
@@ -199,7 +220,15 @@ export function useCelebration({
     })
 
     return clearAll
-  }, [pct, reduced, skipCard, clearAll, openChest])
+  }, [pct, reduced, skipCard, clearAll, open])
 
-  return { beat, progress, skipped, chestOpen, openChest, skip }
+  return {
+    beat,
+    progress,
+    skipped,
+    chestOpen: chestOpenedBy !== null,
+    chestOpenedBy,
+    openChest,
+    skip,
+  }
 }

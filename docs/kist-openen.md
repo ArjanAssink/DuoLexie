@@ -106,6 +106,11 @@ they started in, and holding Verder back for them would penalise her best rounds
 screen's tap-to-skip sets `data-skipped`, which turns every animation off, so without it the
 one tap this feature exists for would be the one tap whose lid never swings.
 
+**Which of the three did it** is recorded and mirrored to `data-opened-by` on the chest —
+`tap`, `auto`, `skip`, or `reduced` for a screen that mounted open. Opening is one-way and
+the first one in wins, guarded by a ref rather than by state so a tap landing in the same
+frame as the timer cannot open the chest twice.
+
 Timers live in `useCelebration`, with the rest of the sequence's, for the reason that hook's
 own note gives — a celebration with timers scattered through a component's render body is how
 `quit-mid-animation.spec.ts` came to exist.
@@ -179,8 +184,8 @@ so the two tests that cover it play one.
 
 What is pinned:
 
-1. The chest arrives shut, the gem line reads `+0`, and her tap is what opens it — verified
-   against the clock, not assumed (see below).
+1. The chest arrives shut, the gem line reads `+0`, and her tap — not the timer — is what
+   opens it.
 2. The tap does not skip: `data-skipped` is never set, and the lid animation actually runs.
 3. Left alone, Verder comes up *first* and the chest opens by itself afterwards, and the gems
    still arrive.
@@ -191,12 +196,20 @@ What is pinned:
    reads the new total with nothing left on screen.
 8. A leerpad reached any other way shows the total straight away.
 
-**A clock is not free.** Playwright's actionability wait drives a paused clock forward, and it
-drives it further on this element than almost anywhere else in the suite, because a wobbling
-button is never "stable" until the quiet stretch of its keyframes — roughly a second goes by
-inside `click()`. Test 1 therefore *reads* the clock after the tap and asserts it beat
-`BEATS.chestAt`, rather than trusting that it did. Without that, the test would one day watch
-the auto-open timer open the chest and report it as a tap.
+**Why `data-opened-by` exists, and not a clock reading.** A click is not free on a paused
+clock: Playwright's actionability wait drives it forward, and further on this element than
+almost anywhere else in the suite, because a wobbling button is never "stable" until the
+quiet stretch of its keyframes. Test 1 originally read `performance.now()` after the tap and
+asserted it had beaten `BEATS.chestAt`. On Chromium the click cost about a second and that
+held. On CI's WebKit it cost 2.7s, the auto-open fired *inside* the `click()` that was meant
+to beat it, and the test reported the timer's work as hers — it failed, then passed on
+retry, which is the worst way for a test to be wrong. The attribute makes the claim exactly
+instead of by inference, on any engine and at any speed, and the other three tests assert
+their own path with it too.
+
+**Budget the real rounds.** The two tests that play one need `test.setTimeout(150_000)`: a
+ten-card round costs about 15s on a desktop and up to 38s on CI's two-core WebKit runners,
+so the 30s default is not enough — which is how the first CI run failed.
 
 ---
 

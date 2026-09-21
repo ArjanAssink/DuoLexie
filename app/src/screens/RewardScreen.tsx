@@ -158,7 +158,7 @@ export function RewardScreen({ reward, onDone }: Props) {
     haptic(18)
   }, [])
 
-  const { beat, progress, skipped, chestOpen, openChest, skip } = useCelebration({
+  const { beat, progress, skipped, chestOpen, chestOpenedBy, openChest, skip } = useCelebration({
     pct,
     skipCard: isWeetje,
     onBeat: handleBeat,
@@ -296,6 +296,7 @@ export function RewardScreen({ reward, onDone }: Props) {
             type="button"
             className="reward-chest"
             data-open={chestOpen ? 'true' : 'false'}
+            data-opened-by={chestOpenedBy ?? 'shut'}
             aria-label={chestOpen ? 'De schatkist is open' : 'Open de schatkist'}
             onPointerDown={(e) => {
               e.stopPropagation()

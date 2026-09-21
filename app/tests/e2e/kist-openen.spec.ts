@@ -75,16 +75,18 @@ test('the chest arrives shut, and her tap is what opens it', async ({ page }) =>
   await expect(chest(page)).toHaveAttribute('data-open', 'true')
 
   /*
-   * It was the tap that opened it, not the auto-open catching up. Worth asserting rather
-   * than assuming: a click is not free on a paused clock — Playwright's actionability wait
-   * drives it forward, and it drives it forward further here than almost anywhere else in
-   * the suite, because the closed chest wobbles to invite the tap and a wobbling element is
-   * never "stable" until the quiet stretch of its keyframes. Roughly a second goes by. If it
-   * ever became two, this test would be watching the timer open the chest and calling it a
-   * tap, so the clock is read rather than trusted.
+   * It was the tap that opened it, and not the auto-open catching up inside the click.
+   *
+   * That distinction cannot be made from the clock, which is what the first version of this
+   * test tried: a click is not free on a paused clock — Playwright's actionability wait
+   * drives it forward, and further here than almost anywhere else in the suite, because the
+   * closed chest wobbles to invite the tap and a wobbling element is never "stable" until
+   * the quiet stretch of its keyframes. On Chromium that is about a second, which left room.
+   * On WebKit it was 2.7s, which did not: the auto-open fired *inside* the `click()` meant
+   * to beat it and the test reported the timer's work as hers. `data-opened-by` exists
+   * because of that failure, and makes the claim exactly rather than by inference.
    */
-  const clockAt = await page.evaluate(() => performance.now())
-  expect(clockAt, 'the tap beat the auto-open to it').toBeLessThan(BEATS.chestAt)
+  await expect(chest(page)).toHaveAttribute('data-opened-by', 'tap')
 
   /*
    * The half that is easy to lose. The screen's own tap-to-skip sets `data-skipped`, which
@@ -121,6 +123,10 @@ test('left alone, the chest opens by itself — after Verder is already up', asy
 
   await page.clock.runFor(BEATS.chestAt - BEATS.doneAt + 300)
   await expect(chest(page)).toHaveAttribute('data-open', 'true')
+  await expect(chest(page), 'and the timer is what did it').toHaveAttribute(
+    'data-opened-by',
+    'auto',
+  )
   await page.clock.runFor(4000)
   await expect(gemLine(page)).toHaveText('💎 +18')
 })
@@ -138,6 +144,7 @@ test('a tap anywhere else opens it too, with nothing left mid-animation', async 
     timeout: 1000,
   })
   await expect(chest(page)).toHaveAttribute('data-open', 'true')
+  await expect(chest(page)).toHaveAttribute('data-opened-by', 'skip')
   expect(
     await runningAnimations(page),
     'the idle float is still the only thing moving',
@@ -152,6 +159,7 @@ test('reduced motion mounts the chest already open', async ({ page }) => {
 
   await expect(page.locator('.reward-screen')).toHaveAttribute('data-beat', 'done')
   await expect(chest(page)).toHaveAttribute('data-open', 'true')
+  await expect(chest(page)).toHaveAttribute('data-opened-by', 'reduced')
   expect(await runningAnimations(page), 'and nothing moves, chest included').toEqual([])
   await expect.poll(() => gemLine(page).innerText(), { timeout: 20_000 }).toBe('💎 +10')
 })
@@ -172,6 +180,7 @@ test('the chest is a real button, reachable and announced', async ({ page }) => 
  * point of the feature is the line between them — so this one plays a real round.
  */
 test('after a real round, the gems fly out of the chest and into the jar', async ({ page }) => {
+  // a ten-card round costs 15s on a desktop and up to 38s on CI's two-core WebKit runners
   test.setTimeout(150_000)
   await skipOnboarding(page)
   await installNarration(page)
@@ -203,6 +212,10 @@ test('after a real round, the gems fly out of the chest and into the jar', async
 })
 
 test('the leerpad reached any other way just shows the total', async ({ page }) => {
+  // A real round, so the same budget as the test above it. Without this it inherits the 30s
+  // default and fails on the slower profiles for no reason but the clock: the round alone
+  // takes 25-38s on CI's WebKit runners.
+  test.setTimeout(150_000)
   /*
    * The other half of §4's contract, and the one a reader has to be able to trust: a landing
    * belongs to one navigation and nothing else. Reaching the leerpad by reload, by deep link
