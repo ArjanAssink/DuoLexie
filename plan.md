@@ -202,8 +202,14 @@ Two crop levels of the *same* rig, not two separately drawn assets:
 
 ### Customizable traits (v1)
 - Huidskleur, oogkleur, haarkleur — swatches, applied as an SVG fill on the relevant layer(s).
-- Kapsel — a small set of interchangeable hair shapes, each recolorable.
-- Accessoires — oorbellen, bril, hoed(en) — one optional overlay layer per slot (or none equipped).
+  Shipped as 10 skin tones, 10 eye colours and 30 hair colours (natural plus a "Gek" shelf of
+  pink/blue/green/…), with a colour input for anything outside those.
+- Kapsel — interchangeable hair shapes, each recolorable. Shipped as 22 of them on two shelves
+  (jongens/meisjes), catalogued in `app/src/components/hair.tsx`.
+- Accessoires — one optional layer per slot (or none equipped). Shipped as five slots and 30
+  items: oorbellen, bril and hoed as overlays, plus sjaal and jas, where a jas replaces the
+  torso's own colours rather than covering it. Catalogued in
+  `app/src/components/accessories.tsx`.
 
 ### Technical approach: layered SVG rig
 Mirrors how Frida was built (hand-drawn SVG, layered groups) rather than a new rendering stack:

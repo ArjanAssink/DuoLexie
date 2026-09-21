@@ -140,9 +140,42 @@ export interface SessionResult {
   newRecord?: boolean
 }
 
-export type HairStyle = 'kort' | 'krullen' | 'staart' | 'lang'
+/**
+ * Every kapsel in the picker, in two groups (see app/src/components/hair.tsx for the art and
+ * the group each one is listed under). The first four ids are the original set and are kept
+ * verbatim: a saved avatar from before the catalogue grew still resolves to its own hair.
+ */
+export type HairStyle =
+  // jongens
+  | 'kort'
+  | 'millimeter'
+  | 'stekels'
+  | 'kuif'
+  | 'zijscheiding'
+  | 'bol'
+  | 'krullen-kort'
+  | 'afro'
+  | 'dreads'
+  | 'matje'
+  | 'kaal'
+  // meisjes
+  | 'krullen'
+  | 'staart'
+  | 'lang'
+  | 'bob'
+  | 'pixie'
+  | 'pony'
+  | 'vlechten'
+  | 'knot'
+  | 'staartjes'
+  | 'golven'
+  | 'hoge-staart'
 
-export type AccessorySlot = 'oorbellen' | 'bril' | 'hoed'
+/**
+ * One wearable per slot. 'jas' swaps the torso's own colours rather than laying something
+ * over it, and 'sjaal' sits between the neck and the chin; the rest are overlays.
+ */
+export type AccessorySlot = 'oorbellen' | 'bril' | 'hoed' | 'sjaal' | 'jas'
 
 export interface AvatarConfig {
   skinColor: string
