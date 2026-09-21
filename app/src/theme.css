@@ -1730,16 +1730,25 @@ button:disabled { cursor: default; }
   animation: chestGlowIn 420ms ease-out both;
 }
 
-/* The invitation. A closed chest that just sits there is scenery; this is the only thing
-   that says it is a button, to a child who cannot be told so in a tooltip. It stops the
-   moment she opens it, which is also the moment `data-open` flips. */
+/*
+ * The invitation. A closed chest that just sits there is scenery; this is the only thing
+ * that says it is a button, to a child who cannot be told so in a tooltip. It stops the
+ * moment she opens it, which is also the moment `data-open` flips.
+ *
+ * It wobbles the *drawing*, not the button. A transform on a descendant leaves the button's
+ * own layout box alone, which matters twice over: a tap target that physically moves is
+ * harder for a nine-year-old to land on, and Playwright will not dispatch a click until an
+ * element's box has held still for two frames — with the animation on the button itself
+ * that wait ran to 2.7s on CI's WebKit, long enough for the auto-open to fire inside the
+ * very click meant to beat it (docs/kist-openen.md §6).
+ */
 @keyframes chestNudge {
   0%, 62%, 100% { transform: none; }
   70% { transform: rotate(-5deg) scale(1.05); }
   78% { transform: rotate(5deg) scale(1.05); }
   86% { transform: rotate(-3deg) scale(1.03); }
 }
-.reward-chest[data-open="false"] { animation: chestNudge 2.2s ease-in-out infinite; }
+.reward-chest[data-open="false"] .chest { animation: chestNudge 2.2s ease-in-out infinite; }
 
 /*
  * The gems coming out. `--i` and `--n` come from the component (screens/RewardScreen.tsx):

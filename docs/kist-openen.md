@@ -196,16 +196,34 @@ What is pinned:
    reads the new total with nothing left on screen.
 8. A leerpad reached any other way shows the total straight away.
 
-**Why `data-opened-by` exists, and not a clock reading.** A click is not free on a paused
-clock: Playwright's actionability wait drives it forward, and further on this element than
-almost anywhere else in the suite, because a wobbling button is never "stable" until the
-quiet stretch of its keyframes. Test 1 originally read `performance.now()` after the tap and
-asserted it had beaten `BEATS.chestAt`. On Chromium the click cost about a second and that
-held. On CI's WebKit it cost 2.7s, the auto-open fired *inside* the `click()` that was meant
-to beat it, and the test reported the timer's work as hers — it failed, then passed on
-retry, which is the worst way for a test to be wrong. The attribute makes the claim exactly
-instead of by inference, on any engine and at any speed, and the other three tests assert
-their own path with it too.
+**Why the tap is dispatched, not clicked.** `page.clock` fakes `requestAnimationFrame`, and
+Playwright will not dispatch a click until the target's box has held still across two
+animation frames — so it drives the clock forward to get them. Measured: **936ms on
+Chromium, 2.7s on CI's WebKit, for a static element.** The auto-open is 1.5s after the
+strip. On WebKit the timer therefore opened the chest *inside the very click meant to beat
+it*.
+
+Three attempts, worth writing down because each one looked like the answer:
+
+1. Read `performance.now()` after the tap and assert it beat `BEATS.chestAt`. Held on
+   Chromium, failed on WebKit — but only sometimes, so it failed and then passed on retry,
+   which is the worst way for a test to be wrong.
+2. `data-opened-by`, replacing the inference with the fact. Correct, and it made the next
+   run fail *honestly*: the timer really had won. Kept — the other three tests assert their
+   own path with it now.
+3. Blame the wobble. `chestNudge` was on the button, and an element that never stops moving
+   is never stable, so surely that was the wait. It was not: with the animation moved to the
+   drawing inside the button, a click still cost 936ms. Playwright's clock advances for any
+   click, animation or none.
+
+So the test dispatches `pointerdown` instead, which costs no clock at all, and asserts
+explicitly what the actionability check would have covered: that a tap at the chest's
+centre reaches the chest. With nothing burning the clock, the `performance.now()` assertion
+from attempt 1 is free, so it is kept as the tripwire against this drifting back into a
+race.
+
+Attempt 3 stayed anyway, on its own merits: a tap target that physically moves is harder
+for a nine-year-old to land on than one that holds still while its picture wiggles.
 
 **Budget the real rounds.** The two tests that play one need `test.setTimeout(150_000)`: a
 ten-card round costs about 15s on a desktop and up to 38s on CI's two-core WebKit runners,

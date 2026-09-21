@@ -124,22 +124,41 @@ test('the chest arrives shut, and her tap is what opens it', async ({ page }) =>
   await expect(chest(page)).toHaveAttribute('data-open', 'false')
   await expect(gemLine(page), 'and not a gem before it opens').toHaveText('💎 +0')
 
-  await chest(page).click()
+  /*
+   * A tap at the chest's centre reaches the chest — the hit test Playwright's own
+   * actionability check would do, made explicit here because the line below deliberately
+   * skips it.
+   */
+  const hittable = await chest(page).evaluate((el) => {
+    const box = el.getBoundingClientRect()
+    const at = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+    return !!at && el.contains(at)
+  })
+  expect(hittable, 'a tap at its centre lands on the chest').toBe(true)
+
+  /*
+   * Dispatched rather than clicked, and this is the whole reason the test is written this
+   * way: `click()` is not free on a paused clock. Playwright will not dispatch one until the
+   * target's box has held still across two animation frames, and with `requestAnimationFrame`
+   * faked it drives the clock forward to get them — 936ms on Chromium and 2.7s on CI's
+   * WebKit, for a *static* element. The auto-open is 1.5s after the strip, so on WebKit the
+   * timer opened the chest inside the very click meant to beat it. Not a race the test can
+   * win by being cleverer; a race it should not be in. Dispatching costs no clock at all, and
+   * the hit test above is what it gives up.
+   */
+  await chest(page).dispatchEvent('pointerdown')
   await expect(chest(page)).toHaveAttribute('data-open', 'true')
 
   /*
-   * It was the tap that opened it, and not the auto-open catching up inside the click.
-   *
-   * That distinction cannot be made from the clock, which is what the first version of this
-   * test tried: a click is not free on a paused clock — Playwright's actionability wait
-   * drives it forward, and further here than almost anywhere else in the suite, because the
-   * closed chest wobbles to invite the tap and a wobbling element is never "stable" until
-   * the quiet stretch of its keyframes. On Chromium that is about a second, which left room.
-   * On WebKit it was 2.7s, which did not: the auto-open fired *inside* the `click()` meant
-   * to beat it and the test reported the timer's work as hers. `data-opened-by` exists
-   * because of that failure, and makes the claim exactly rather than by inference.
+   * It was the tap that opened it, not the auto-open. The attribute says so outright; the
+   * clock is checked too, because with nothing burning it that assertion is now free and it
+   * is the thing that would catch this test quietly drifting back into a race.
    */
   await expect(chest(page)).toHaveAttribute('data-opened-by', 'tap')
+  expect(
+    await page.evaluate(() => performance.now()),
+    'and the auto-open was still a long way off',
+  ).toBeLessThan(BEATS.chestAt)
 
   /*
    * The half that is easy to lose. The screen's own tap-to-skip sets `data-skipped`, which
