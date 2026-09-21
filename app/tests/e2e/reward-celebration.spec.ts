@@ -93,9 +93,16 @@ function label(page: Page) {
  * retry, which is the worst way for a test to be wrong.
  *
  * The beats are at least 600ms apart, so a 200ms step can never merge two of them.
+ *
+ * The bound is `chestAt`, not `doneAt`: the schatkist (docs/kist-openen.md §3) opens *after*
+ * the last beat, and the gem count-up now starts with its lid rather than with the strip, so
+ * a walk that stopped at `doneAt` would freeze the clock with the gems still counting. It
+ * did: the Weetje test below asserts the gems reach +8, and at the old bound it had 680ms of
+ * slack instead of the two seconds it used to have — which showed up as two failed attempts
+ * on CI's ipad profile and a pass on the third.
  */
 async function walkTheClock(page: Page) {
-  for (let elapsed = 0; elapsed < BEATS.doneAt + 1000; elapsed += 200) {
+  for (let elapsed = 0; elapsed < BEATS.chestAt + 2000; elapsed += 200) {
     await page.clock.runFor(200)
   }
 }

@@ -35,6 +35,59 @@ function gemLine(page: Page) {
   return page.locator('.reward-line').first()
 }
 
+/**
+ * Watch the leerpad's gem counter take the gems, from before the page has loaded.
+ *
+ * Polling cannot see this and should not be asked to. The whole landing is 900ms long, and
+ * on the far side of a route change from a screen that took a ten-card round to reach: on
+ * CI's WebKit runners the statbar did not even *exist* three seconds after Verder, because
+ * nothing renders until both stores have hydrated from IndexedDB, and by the time a poll
+ * found the element the flag it was looking for had been and gone. That is the same problem
+ * `recordBeats` exists for, solved the same way — an observer installed before the document
+ * has an `<html>` element at all, recording what happened rather than sampling for it.
+ *
+ * Records three things at the moments they are true, rather than three separate races: what
+ * the counter read while it was holding, how many gems were ever in the air, and whether the
+ * pop that says it took them ever fired.
+ */
+async function recordLanding(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as {
+      __landing: { held: string | null; sprites: number; popped: boolean }
+    }
+    w.__landing = { held: null, sprites: 0, popped: false }
+    const note = () => {
+      const counter = document.querySelector('.statbar .stat.gems')
+      // the first frame of the hold is the honest one: the counter has not taken them yet
+      if (counter?.getAttribute('data-landing') === 'true' && w.__landing.held === null) {
+        w.__landing.held = counter.textContent?.trim() ?? ''
+      }
+      if (counter?.getAttribute('data-landed') === 'true') w.__landing.popped = true
+      // a peak, not a sample: the sprites mount a commit after the hold begins, because
+      // GemFlight renders nothing until its layout effect has measured the counter
+      const n = document.querySelectorAll('.gem-flight-gem').length
+      if (n > w.__landing.sprites) w.__landing.sprites = n
+    }
+    // `document`, not `document.documentElement` — see recordBeats: an init script runs
+    // before the document has an <html> element, and observing null throws silently.
+    new MutationObserver(note).observe(document, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-landing', 'data-landed'],
+    })
+  })
+}
+
+/** What `recordLanding` saw. */
+function landingSeen(page: Page) {
+  return page.evaluate(
+    () =>
+      (window as unknown as { __landing: { held: string | null; sprites: number; popped: boolean } })
+        .__landing,
+  )
+}
+
 /** The animations actually running on the lid right now — the swing, when it is swinging. */
 function lidAnimations(page: Page): Promise<string[]> {
   return page.locator('.chest-lid').evaluate((el) =>
@@ -182,6 +235,7 @@ test('the chest is a real button, reachable and announced', async ({ page }) => 
 test('after a real round, the gems fly out of the chest and into the jar', async ({ page }) => {
   // a ten-card round costs 15s on a desktop and up to 38s on CI's two-core WebKit runners
   test.setTimeout(150_000)
+  await recordLanding(page)
   await skipOnboarding(page)
   await installNarration(page)
   await installLearnedSwipe(page)
@@ -195,20 +249,21 @@ test('after a real round, the gems fly out of the chest and into the jar', async
 
   const counter = page.locator('.statbar .stat.gems')
 
-  /*
-   * §4, and the bug it exists for: `completeLesson` credited these gems a beat before the
-   * reward screen even mounted, so without the handoff the counter is *already* at twelve
-   * when the gems she watched come out of the chest arrive — and they land on a number that
-   * has nothing left to change. It holds at the old total while they are in the air.
-   */
-  await expect(counter).toHaveAttribute('data-landing', 'true', { timeout: 3000 })
-  await expect(counter).toContainText('0')
-  await expect(page.locator('.gem-flight-gem')).toHaveCount(7)
-
-  // and then it takes them
-  await expect(counter).not.toHaveAttribute('data-landing', 'true', { timeout: 4000 })
-  await expect(counter).toContainText('12')
+  // the end state first, because it is the one that waits for you
+  await expect(counter).toContainText('12', { timeout: 30_000 })
+  await expect(counter).not.toHaveAttribute('data-landing', 'true')
   await expect(page.locator('.gem-flight-gem')).toHaveCount(0)
+
+  /*
+   * And now what the observer saw on the way there. §4, and the bug it exists for:
+   * `completeLesson` credited these gems a beat before the reward screen even mounted, so
+   * without the handoff the counter is *already* at twelve when the gems she watched come
+   * out of the chest arrive — and they land on a number that has nothing left to change.
+   */
+  const seen = await landingSeen(page)
+  expect(seen.held, 'the counter held at the old total while they were in the air').toBe('0')
+  expect(seen.sprites, 'and seven gems were in it — gemSpriteCount(12)').toBe(7)
+  expect(seen.popped, 'and it popped when it took them').toBe(true)
 })
 
 test('the leerpad reached any other way just shows the total', async ({ page }) => {

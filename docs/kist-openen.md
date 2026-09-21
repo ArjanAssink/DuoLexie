@@ -211,6 +211,19 @@ their own path with it too.
 ten-card round costs about 15s on a desktop and up to 38s on CI's two-core WebKit runners,
 so the 30s default is not enough — which is how the first CI run failed.
 
+**The landing is watched, not polled.** It is 900ms long, on the far side of a route change
+from a screen that took a whole round to reach. On CI's WebKit the statbar did not exist
+three seconds after Verder — nothing renders until both stores have hydrated from IndexedDB
+— and by the time a poll found it the flag had been and gone. `recordLanding` installs a
+`MutationObserver` before the document has an `<html>` element and records what happened:
+what the counter read while it held, how many gems were ever in the air, whether the pop
+fired. Same problem and same answer as `recordBeats`.
+
+**`walkTheClock` had to grow.** The chest opens *after* the last beat, and the count-up
+starts with its lid, so `reward-celebration.spec.ts`'s clock walk no longer covered the
+whole sequence — it froze the clock with the Weetje round's gems still counting, leaving
+680ms of slack where there used to be two seconds. Its bound is `BEATS.chestAt + 2000` now.
+
 ---
 
 ## 7. As built: deviations, and what was not done
