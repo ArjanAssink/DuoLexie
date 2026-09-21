@@ -219,6 +219,13 @@ three seconds after Verder — nothing renders until both stores have hydrated f
 what the counter read while it held, how many gems were ever in the air, whether the pop
 fired. Same problem and same answer as `recordBeats`.
 
+**The pop is recorded but not asserted.** `data-landed` is one 600ms class on the counter,
+and on a runner stalled long enough its timer and the flight's come due in the same
+macrotask — React collapses them into one commit and the attribute never reaches the DOM.
+That is correct behaviour for a machine that lost a second and a half, and asserting it
+reported a contended CI runner as a broken feature. What the landing test pins is the hold,
+the gems in the air, the final total and an empty sky.
+
 **`walkTheClock` had to grow.** The chest opens *after* the last beat, and the count-up
 starts with its lid, so `reward-celebration.spec.ts`'s clock walk no longer covered the
 whole sequence — it froze the clock with the Weetje round's gems still counting, leaving
