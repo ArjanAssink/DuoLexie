@@ -38,6 +38,10 @@ const sessions: SessionResult[] = [
     lessonId: 'fase1-u1-l2',
     answers: [{ soundId: 'a', correct: true, ms: 900 }],
     wordResults: [{ wordId: 'kat', correct: true, ms: 2000, withinWindow: true }],
+    spellingResults: [
+      { wordId: 'hond', correct: false },
+      { wordId: 'kast', correct: true },
+    ],
     score: 25,
     newRecord: true,
     xpEarned: 11,
@@ -65,5 +69,41 @@ describe('recomputeFrom', () => {
     expect(result.completedLessons['fase1-u1-l2'].timesCompleted).toBe(2)
     expect(result.completedLessons['fase1-u1-l2'].bestScore).toBe(25)
     expect(result.wordStats['kat'].attempts).toBe(1)
+  })
+})
+
+/**
+ * Spelling history is its own aggregate, deliberately apart from `wordStats`
+ * (docs/maak-het-woord-af.md §5): those are the reading-speed Leitner boxes, and how she
+ * spells a word says nothing about how fast she reads it.
+ */
+describe('spellingStats', () => {
+  it('counts a sighting and a miss per word', () => {
+    const agg = recomputeFrom(sessions)
+    expect(agg.spellingStats.hond).toEqual({ seen: 1, missed: 1 })
+    expect(agg.spellingStats.kast).toEqual({ seen: 1, missed: 0 })
+  })
+
+  it('adds up over sessions', () => {
+    const later = session('s4', {
+      completedAt: '2026-01-04T10:00:00.000Z',
+      spellingResults: [{ wordId: 'hond', correct: true }],
+    })
+    const agg = recomputeFrom([...sessions, later])
+    expect(agg.spellingStats.hond).toEqual({ seen: 2, missed: 1 })
+  })
+
+  it('never touches wordStats — spelling a word is not reading it', () => {
+    const only = session('s5', {
+      spellingResults: [{ wordId: 'hond', correct: false }],
+    })
+    const agg = applySession(emptyAggregates(), only)
+    expect(agg.wordStats).toEqual({})
+    expect(agg.spellingStats.hond).toEqual({ seen: 1, missed: 1 })
+  })
+
+  it('starts empty and stays empty for a session that spelled nothing', () => {
+    expect(emptyAggregates().spellingStats).toEqual({})
+    expect(applySession(emptyAggregates(), session('s6', {})).spellingStats).toEqual({})
   })
 })

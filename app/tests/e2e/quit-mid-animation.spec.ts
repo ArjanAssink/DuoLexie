@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { installNarration } from './fixtures/narration'
 import { installLearnedSwipe } from './fixtures/profile'
 import { skipOnboarding } from './fixtures/onboarded'
+import { answersFor, installSpellingNarration, optionsFor } from './fixtures/spellingNarration'
 
 /**
  * Unit ids are stable/sounds-derived (data/path.ts, backend-readiness A3):
@@ -10,6 +11,8 @@ import { skipOnboarding } from './fixtures/onboarded'
  */
 const FLITSEN = '/#/les/fase1-a-e-o-u-i-l1'
 const LEZEN = '/#/les/fase1-m-s-k-r-t-l5'
+/** The d/t try-round — the only way in until the seed words are reviewed (§12.1). */
+const SPELLING = '/#/les/proef-spel-d-t'
 
 /** Mirrors FLY_MS in src/games/Flitsen.tsx — the flight's setTimeout. */
 const FLITSEN_FLY_MS = 420
@@ -273,4 +276,105 @@ test('Hardop lezen: finishing the round credits exactly one session', async ({ p
   expect(after.lessons).toBe(1)
   // 5 for finishing + 1 per correct word; not a perfect round, so no perfect bonus
   expect(after.gems).toBe(5 + correct)
+})
+
+/**
+ * Everything MaakHetWoordAf.runCommit can be waiting on after a miss: the 420ms bump, the
+ * 260ms the correct tile spends sliding in, audio.ts's 8000ms CLIP_TIMEOUT_MS backstop on
+ * the word *and* on its longer form, the 1600ms she is given to look at the correction,
+ * and — since this is the round's last card — the 600ms closing beat before onComplete.
+ * Advancing past the sum proves no orphaned continuation is left that could credit later.
+ */
+const SPELLING_COMMIT_MAX_MS = 420 + 260 + 8000 + 8000 + 1600 + 600
+
+const SPELLING_ANSWER = answersFor('d-t')
+const SPELLING_OPTIONS = optionsFor('d-t')
+
+function spellingBeat(page: Page, want: string, timeout = 20_000) {
+  return page.waitForFunction(
+    (b) => document.querySelector('.spel-screen')?.getAttribute('data-beat') === b,
+    want,
+    { timeout },
+  )
+}
+
+/** Which tile is right for the stem on the card, and which is not. */
+async function spellingTiles(page: Page) {
+  const stem = await page.locator('.word-text').evaluate((el) => el.textContent ?? '')
+  const right = SPELLING_OPTIONS.indexOf(SPELLING_ANSWER.get(stem)!)
+  return { stem, right, wrong: 1 - right }
+}
+
+/**
+ * Quitting mid-correction is the dangerous window in this game, for the same reason the
+ * miss branch is the dangerous one in Hardop lezen: it is the only path that awaits audio
+ * — twice, the word and its longer form — before the round can finish.
+ *
+ * The decisive action is a *carry*, not a tap. A tap schedules the tile's 260ms travel on
+ * a `setTimeout`, which the fake clock freezes before `commit` is ever reached; releasing
+ * the tile over the gap calls `commit` synchronously, so the chain is genuinely parked
+ * mid-animation with the bump still running (CSS, which the fake clock does not touch —
+ * the same constraint the Hardop lezen case above is built around).
+ */
+test('Maak het woord af: quitting during the correction credits nothing', async ({ page }) => {
+  test.setTimeout(180_000)
+  await installSpellingNarration(page)
+  await page.clock.install()
+  await skipOnboarding(page)
+  await page.goto(SPELLING)
+  await expect(page.locator('.spel-card')).toBeVisible()
+
+  const total = await page.locator('.pip').count()
+  expect(total).toBe(10)
+
+  /** Tap a tile and wait until the card is no longer answerable. */
+  async function tap(wrong: boolean) {
+    await spellingBeat(page, 'choose')
+    const t = await spellingTiles(page)
+    await page.locator('.spel-tile').nth(wrong ? t.wrong : t.right).click()
+    await page.waitForFunction(
+      () => document.querySelector('.spel-screen')?.getAttribute('data-beat') !== 'choose',
+      null,
+      { timeout: 20_000 },
+    )
+  }
+
+  // Every card but the last, right.
+  for (let i = 0; i < total - 1; i++) await tap(false)
+  // The last card, wrong: it is re-queued once and comes back as the round's final card.
+  await tap(true)
+  await expect(page.locator('.pip-done')).toHaveCount(total)
+
+  // That final card. Missing it a second time re-queues nothing (§5), so the very next
+  // thing this chain does after the correction is finish the round and credit it.
+  await spellingBeat(page, 'choose')
+  const { wrong } = await spellingTiles(page)
+  const tile = page.locator('.spel-tile').nth(wrong)
+  const t = (await tile.boundingBox())!
+  const g = (await page.locator('.gap').boundingBox())!
+
+  await freezeTimers(page)
+  await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2 - 30, { steps: 4 })
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2, { steps: 8 })
+  await page.mouse.up()
+
+  // The wrong tile is knocking against the gap — the chain is parked on its first `wait`.
+  await expect(page.locator('.spel-tile.bumping')).toHaveCount(1)
+  await page.locator('.quit').click()
+  await expect(page.locator('.coin-item').first()).toBeVisible()
+
+  // Advance past every await the correction could still be sitting on.
+  await page.clock.runFor(SPELLING_COMMIT_MAX_MS + 100)
+  await page.clock.resume()
+  // Then wait in real time, generously, for the same reason the Hardop lezen case does:
+  // the rest of the chain is not all timers, and its last two waits land in resumed time.
+  await page.waitForTimeout(2500)
+
+  const after = await credited(page)
+  expect(after.sessions, 'quitting mid-correction must not log a session').toBe(0)
+  expect(after.gems).toBe(0)
+  expect(after.lessons).toBe(0)
+  await expect(page.locator('.reward-screen')).toHaveCount(0)
 })

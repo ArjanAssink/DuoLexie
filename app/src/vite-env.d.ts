@@ -16,4 +16,5 @@ declare module 'virtual:recorded-audio' {
   export const recordedSounds: ReadonlySet<string>
   export const recordedWords: ReadonlySet<string>
   export const recordedWeetjes: ReadonlySet<string>
+  export const recordedSpelling: ReadonlySet<string>
 }

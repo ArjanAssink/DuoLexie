@@ -1,4 +1,4 @@
-import type { AnswerRecord, Lesson, WordResult } from '@shared/src/types'
+import type { AnswerRecord, Lesson, SpellingResult, WordResult } from '@shared/src/types'
 
 export interface Reward {
   gems: number
@@ -40,9 +40,32 @@ export function computeReward(
   prevRecord: number,
   score?: number,
   wordResults?: WordResult[],
+  spellingResults?: SpellingResult[],
 ): Reward {
   if (lesson.kind === 'weetje') {
     return { gems: WEETJE_GEMS, xp: WEETJE_XP, perfect: false, newRecord: false }
+  }
+
+  /*
+   * A spelling round pays exactly what a reading round of the same length pays
+   * (docs/maak-het-woord-af.md §5). Its own branch rather than a shared one with the block
+   * below, because the two count different things — a `SpellingResult` has no time and no
+   * reading window — and folding them together would mean one `if` deciding which unit the
+   * round was scored in, which is how the gems and the stat card came to disagree before.
+   *
+   * Counted over the round's *distinct* words: a word she missed comes back three cards
+   * later, and that second showing is the correction being taught, not a second card she
+   * can earn a gem for.
+   */
+  if (spellingResults && spellingResults.length > 0) {
+    const correct = spellingResults.filter((r) => r.correct).length
+    const perfect = correct === spellingResults.length
+    return {
+      gems: READING_FINISH_GEMS + correct + (perfect ? READING_PERFECT_BONUS : 0),
+      xp: 10 + correct,
+      perfect,
+      newRecord: false,
+    }
   }
 
   // A word round is scored per *word*, not per klank. `answers` carries one record per

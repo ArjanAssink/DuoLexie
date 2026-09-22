@@ -7,7 +7,7 @@
  * docs/private-audio.md — which moves every clip out of `public/` and behind the API — is a
  * change to one function instead of to every player in the app.
  */
-import { clipSrc } from './recorded'
+import { clipSrc, type ClipKind } from './recorded'
 
 const clipCache = new Map<string, HTMLAudioElement | null>()
 
@@ -176,28 +176,33 @@ export async function playWord(wordId: string, text: string): Promise<void> {
 /** A shade under natural speed — the pace docs/weetjes.md §7 asks these sentences to be read at. */
 const WEETJE_SPEECH_RATE = 0.9
 
-const weetjeClipCache = new Map<string, HTMLAudioElement | null>()
+const narrationClipCache = new Map<string, HTMLAudioElement | null>()
 
 /**
- * The Weetjes clip that is playing right now, so `stopNarration` can silence it.
+ * The narration clip that is playing right now, so `stopNarration` can silence it.
  *
  * Words never needed this: a reading round awaits one word at a time and nothing else may
  * start while it does. A Weetje card narrates on its own, from an effect, and she can tap
  * 🔊 or leave the screen in the middle of it — so there has to be something to stop, and
- * exactly one thing may ever be speaking (docs/weetjes.md §7).
+ * exactly one thing may ever be speaking (docs/weetjes.md §7). The spelling strategy badge
+ * is the same shape: she can tap it twice, or answer, while it is still talking.
  */
-let currentWeetjeClip: HTMLAudioElement | null = null
+let currentNarrationClip: HTMLAudioElement | null = null
 
-async function loadWeetjeClip(clipId: string): Promise<HTMLAudioElement | null> {
-  const cached = weetjeClipCache.get(clipId)
+async function loadNarrationClip(
+  kind: ClipKind,
+  clipId: string,
+): Promise<HTMLAudioElement | null> {
+  const key = `${kind}/${clipId}`
+  const cached = narrationClipCache.get(key)
   if (cached) return cached
-  const audio = new Audio(clipSrc('weetjes', clipId, __AUDIO_VERSION__))
+  const audio = new Audio(clipSrc(kind, clipId, __AUDIO_VERSION__))
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
     audio.load()
   })
-  if (result) weetjeClipCache.set(clipId, result)
+  if (result) narrationClipCache.set(key, result)
   return result
 }
 
@@ -241,13 +246,35 @@ async function speakLines(lines: string[], gapMs: number): Promise<void> {
  * @param clipId `<card id>-fact` | `-doe` | `-reveal`
  */
 export async function playWeetje(clipId: string, lines: string[], gapMs = 0): Promise<void> {
-  const clip = await loadWeetjeClip(clipId)
+  return playNarration('weetjes', clipId, lines, gapMs)
+}
+
+/**
+ * The spelling strategy badge, read aloud: a word's longer form (`<wordId>-langer`) or a
+ * pair's rule (`<pairId>-regel`), from `public/audio/spelling/` if it has been recorded and
+ * from browser speech otherwise (docs/maak-het-woord-af.md §10).
+ *
+ * The same function as a Weetje beat, at the same rate and under the same `stopNarration`,
+ * because it is the same thing: a sentence Frida says, which the child may interrupt.
+ */
+export async function playSpelling(clipId: string, lines: string[]): Promise<void> {
+  return playNarration('spelling', clipId, lines, 0)
+}
+
+/** The shared body of the two above — one clip, one fallback, one thing ever speaking. */
+async function playNarration(
+  kind: ClipKind,
+  clipId: string,
+  lines: string[],
+  gapMs: number,
+): Promise<void> {
+  const clip = await loadNarrationClip(kind, clipId)
   if (!clip) return speakLines(lines, gapMs)
-  currentWeetjeClip = clip
+  currentNarrationClip = clip
   try {
     return await playWithFallback(clip, () => speakLines(lines, gapMs))
   } finally {
-    if (currentWeetjeClip === clip) currentWeetjeClip = null
+    if (currentNarrationClip === clip) currentNarrationClip = null
   }
 }
 
@@ -261,8 +288,8 @@ export async function playWeetje(clipId: string, lines: string[], gapMs = 0): Pr
  */
 export function stopNarration(): void {
   narrationGeneration += 1
-  const clip = currentWeetjeClip
-  currentWeetjeClip = null
+  const clip = currentNarrationClip
+  currentNarrationClip = null
   try {
     if (clip) {
       clip.pause()

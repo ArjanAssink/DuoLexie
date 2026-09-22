@@ -32,7 +32,7 @@ const AUDIO = join(REPO, 'app', 'public', 'audio')
 const VERDICTS = join(RECORDINGS, 'verdicts.json')
 const SPLITTER = join(REPO, 'tools', 'split-take.mjs')
 
-export const AUDIO_FOLDERS = ['sounds', 'words', 'weetjes'] as const
+export const AUDIO_FOLDERS = ['sounds', 'words', 'weetjes', 'spelling'] as const
 export type AudioFolder = (typeof AUDIO_FOLDERS)[number]
 
 export const VIRTUAL_ID = 'virtual:recorded-audio'
@@ -94,7 +94,12 @@ function mp3Ids(folder: AudioFolder): string[] {
 }
 
 function recordedLists(): Record<AudioFolder, string[]> {
-  return { sounds: mp3Ids('sounds'), words: mp3Ids('words'), weetjes: mp3Ids('weetjes') }
+  return {
+    sounds: mp3Ids('sounds'),
+    words: mp3Ids('words'),
+    weetjes: mp3Ids('weetjes'),
+    spelling: mp3Ids('spelling'),
+  }
 }
 
 /**
@@ -111,6 +116,7 @@ function virtualModuleSource(lists: Record<AudioFolder, string[]>): string {
 export const recordedSounds = new Set(${JSON.stringify(lists.sounds)})
 export const recordedWords = new Set(${JSON.stringify(lists.words)})
 export const recordedWeetjes = new Set(${JSON.stringify(lists.weetjes)})
+export const recordedSpelling = new Set(${JSON.stringify(lists.spelling)})
 
 if (import.meta.hot) {
   const replace = (set, ids) => { set.clear(); for (const id of ids) set.add(id) }
@@ -118,6 +124,7 @@ if (import.meta.hot) {
     replace(recordedSounds, lists.sounds)
     replace(recordedWords, lists.words)
     replace(recordedWeetjes, lists.weetjes)
+    replace(recordedSpelling, lists.spelling)
   })
 }
 `

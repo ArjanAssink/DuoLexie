@@ -64,8 +64,12 @@ export function Bliksemsprint({ onDone }: Props) {
       // alone. The Goed! pocket now sits in that row, and it is both a tap target and where
       // the card she just earned is landing: a three-in-a-row streak fires at the exact
       // moment a card is flying into it.
+      // `.spel-stage > .coach` rather than the spelling card itself: the generic
+      // nth-child(2) fallback below would already find `.spel-card`, and a band that
+      // cleared only the card would still sit over Frida's bubble — which on that screen
+      // is where the strategy she is being taught is written.
       const card = screen.querySelector(
-        '.flash-card, .top-row, .swipe-arena, .game-stage > *:nth-child(2)',
+        '.flash-card, .top-row, .swipe-arena, .spel-stage > .coach, .game-stage > *:nth-child(2)',
       )
       // -16, not -4: confirmed in CI the card's own position varies by several px between
       // rounds even after the font-swap re-measure below (different klank glyphs, the

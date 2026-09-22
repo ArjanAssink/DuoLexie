@@ -1,6 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import type { GameType } from '@shared/src/types'
-import { allLessons, PROEFRONDE_LESSON } from '../data/path'
+import {
+  allLessons, PROEFRONDE_LESSON, SPELLING_TRY_LESSONS, spellingDraftCount,
+} from '../data/path'
+import { getSpellingPair } from '../spelling'
 import { haptic, hapticBackend, type HapticBackend } from '../audio/haptics'
 
 const GAME_ORDER: GameType[] = [
@@ -8,6 +11,7 @@ const GAME_ORDER: GameType[] = [
   'tijdrit',
   'hardop-lezen',
   'weetjes',
+  'maak-het-woord-af',
   'welke-klank',
   'woordbouwer',
 ]
@@ -17,6 +21,7 @@ const GAME_LABELS: Record<GameType, string> = {
   tijdrit: 'Tijdrit — 60s Goed/Nog even, klanken per minuut',
   'hardop-lezen': 'Hardop lezen — woord lezen, swipe goed/fout',
   weetjes: 'Weetjes — dyslexie-feitjes: luister, doe, bewaar',
+  'maak-het-woord-af': 'Maak het woord af — sleep d of t in het gat',
   'welke-klank': 'Welke klank? — nog niet gebouwd',
   woordbouwer: 'Woordbouwer — nog niet gebouwd',
 }
@@ -78,6 +83,25 @@ export function TestMenuScreen() {
         >
           Proefronde lezen — 10 woorden uit heel fase 1
         </button>
+        {/*
+          The spelling node only appears on the path once its seed words are `reviewed:
+          true` (docs/maak-het-woord-af.md §6 rule 5), so until that review has happened
+          this is the only way in — and it deals the drafts, which the label says out loud.
+        */}
+        {SPELLING_TRY_LESSONS.map((lesson) => {
+          const pair = getSpellingPair(lesson.spellingPair ?? '')
+          const drafts = spellingDraftCount(lesson.spellingPair ?? '')
+          return (
+            <button
+              key={lesson.id}
+              className="btn-primary test-menu-btn"
+              onClick={() => navigate(`/les/${lesson.id}`)}
+            >
+              Maak het woord af — {pair?.title ?? lesson.spellingPair}
+              {drafts > 0 && <small>{drafts} woorden nog niet nagekeken</small>}
+            </button>
+          )
+        })}
       </section>
 
       <section className="avatar-picker">

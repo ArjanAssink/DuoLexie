@@ -1,6 +1,7 @@
-import type { Lesson, SoundStats } from '@shared/src/types'
+import type { Lesson, SoundStats, SpellingStats, SpellingWord } from '@shared/src/types'
 import { confusablesOf, categoryOf } from '../curriculum'
-import { wordsForPool, hasWordRecording } from '../words'
+import { wordsForPool, hasWordRecording, getWord } from '../words'
+import { spellingWordsForPool } from '../spelling'
 import { reviewWeight } from './stats'
 
 export interface Exercise {
@@ -227,4 +228,69 @@ export function buildTijdritDeck(lesson: Lesson, statsMap: Record<string, SoundS
     if (reviewWeight(statsMap[s]) > 3) deck.push(s)
   }
   return shuffle(deck)
+}
+
+/**
+ * Orders `items` by repeatedly drawing one at random, each item's chance proportional to
+ * its weight. Everything comes out exactly once — this is a weighted shuffle, not
+ * `weightedSample`'s draw-with-refill.
+ */
+function weightedOrder<T>(items: T[], weightOf: (item: T) => number): T[] {
+  const pool = [...items]
+  const out: T[] = []
+  while (pool.length > 0) {
+    const weights = pool.map(weightOf)
+    const total = weights.reduce((a, b) => a + b, 0)
+    let r = Math.random() * total
+    let idx = 0
+    for (; idx < pool.length - 1; idx++) {
+      r -= weights[idx]
+      if (r <= 0) break
+    }
+    out.push(pool[idx])
+    pool.splice(idx, 1)
+  }
+  return out
+}
+
+/**
+ * Maak het woord af's round: `exerciseCount` **distinct** spelling words drawn from the
+ * pair's readable, reviewed words (docs/maak-het-woord-af.md §5).
+ *
+ * The same shape as `buildWordExercises` — shortest first inside a 2× window, recorded
+ * words ahead of un-recorded ones so an early round is in a family voice — with one
+ * addition: inside each of those two groups the order is weighted by `1 + missed`, so a
+ * word she has got wrong before is likelier to come up than one she has never missed.
+ * Recorded-first stays a hard ordering rather than becoming another weight: which voice
+ * she hears is not a thing to trade against which word she needs.
+ *
+ * A pool smaller than the round gives a **shorter round, never a repeat**. Hardop lezen
+ * allows itself one duplicate; here a repeat would be indistinguishable from the re-queue
+ * that a miss causes (`engine/spelling.ts`), which is the one thing in this game that is
+ * allowed to show a word twice.
+ */
+export function buildSpellingRound(
+  lesson: Lesson,
+  stats: Record<string, SpellingStats> = {},
+  /** Injectable so the recorded-first ordering is testable without fixture mp3s. */
+  isRecorded: (id: string) => boolean = hasWordRecording,
+  /** Injectable so the path's own unit test can ask about the unreviewed drafts. */
+  words?: SpellingWord[],
+): string[] {
+  if (!lesson.spellingPair) return []
+  const eligible = spellingWordsForPool(lesson.spellingPair, lesson.soundPool, words)
+  if (eligible.length === 0) return []
+
+  const count = Math.min(lesson.exerciseCount || 10, eligible.length)
+  const byLength = [...eligible].sort(
+    (a, b) => getWord(a.wordId).text.length - getWord(b.wordId).text.length,
+  )
+  // Twice the round size, for the same reason buildWordExercises uses that window: any
+  // wider and "shortest first" stops meaning anything, because a pair's word list jumps
+  // from three letters to six with little in between.
+  const candidates = byLength.slice(0, Math.max(count * 2, 12))
+  const weightOf = (w: SpellingWord) => 1 + (stats[w.wordId]?.missed ?? 0)
+  const recorded = weightedOrder(candidates.filter((w) => isRecorded(w.wordId)), weightOf)
+  const rest = weightedOrder(candidates.filter((w) => !isRecorded(w.wordId)), weightOf)
+  return [...recorded, ...rest].slice(0, count).map((w) => w.wordId)
 }

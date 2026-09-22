@@ -50,7 +50,7 @@ describe('safeBasename', () => {
 
 describe('safeFolder', () => {
   it('accepts exactly the three folders under public/audio', () => {
-    expect(AUDIO_FOLDERS).toEqual(['sounds', 'words', 'weetjes'])
+    expect(AUDIO_FOLDERS).toEqual(['sounds', 'words', 'weetjes', 'spelling'])
     for (const folder of AUDIO_FOLDERS) expect(safeFolder(folder)).toBe(folder)
   })
 

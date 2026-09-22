@@ -1,13 +1,20 @@
 import { useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { AnswerRecord, GameType, Lesson, WordResult } from '@shared/src/types'
+import type {
+  AnswerRecord,
+  GameType,
+  Lesson,
+  SpellingResult,
+  WordResult,
+} from '@shared/src/types'
 import { lessonById } from '../data/path'
 import { useProgress } from '../state/progress'
 import { Flitsen } from '../games/Flitsen'
 import { Tijdrit } from '../games/Tijdrit'
 import { HardopLezen } from '../games/HardopLezen'
 import { Weetjes } from '../games/Weetjes'
+import { MaakHetWoordAf } from '../games/MaakHetWoordAf'
 import { haptic, playEffect } from '../audio/audio'
 import { RewardScreen, type DisplayReward } from './RewardScreen'
 import type { GemLandingState } from './gemLanding'
@@ -18,6 +25,8 @@ export interface GameResult {
   score?: number
   /** Hardop lezen only — one entry per word she graded */
   wordResults?: WordResult[]
+  /** Maak het woord af only — one entry per distinct word she spelled */
+  spellingResults?: SpellingResult[]
 }
 
 interface GameProps {
@@ -59,6 +68,7 @@ const GAMES: Record<GameType, ComponentType<GameProps>> = {
   tijdrit: Tijdrit,
   'hardop-lezen': HardopLezen,
   weetjes: Weetjes,
+  'maak-het-woord-af': MaakHetWoordAf,
   'welke-klank': NotImplementedGame,
   woordbouwer: NotImplementedGame,
 }
@@ -92,6 +102,7 @@ export function GameScreen() {
       answers: result.answers,
       score: result.score,
       wordResults: result.wordResults,
+      spellingResults: result.spellingResults,
     })
     setReward({
       ...reward,
@@ -99,6 +110,7 @@ export function GameScreen() {
       kind: lesson.kind,
       score: result.score,
       wordResults: result.wordResults,
+      spellingResults: result.spellingResults,
       // the stat card's denominator for every game that is not scored per word
       answers: result.answers,
     })

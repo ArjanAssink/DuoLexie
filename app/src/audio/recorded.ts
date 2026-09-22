@@ -15,24 +15,31 @@
  * with the list read at build time.
  */
 
-import { recordedSounds, recordedWeetjes, recordedWords } from 'virtual:recorded-audio'
+import {
+  recordedSounds,
+  recordedSpelling,
+  recordedWeetjes,
+  recordedWords,
+} from 'virtual:recorded-audio'
 
 /** The kinds of clip the app has, named as the recording studio names its sets. */
-export type ClipKind = 'klanken' | 'woorden' | 'weetjes'
+export type ClipKind = 'klanken' | 'woorden' | 'weetjes' | 'spelling'
 
 /** The directory each kind lives in under `public/audio/`. */
-export type AudioFolder = 'sounds' | 'words' | 'weetjes'
+export type AudioFolder = 'sounds' | 'words' | 'weetjes' | 'spelling'
 
 const FOLDERS: Record<ClipKind, AudioFolder> = {
   klanken: 'sounds',
   woorden: 'words',
   weetjes: 'weetjes',
+  spelling: 'spelling',
 }
 
 const SETS: Record<ClipKind, ReadonlySet<string>> = {
   klanken: recordedSounds,
   woorden: recordedWords,
   weetjes: recordedWeetjes,
+  spelling: recordedSpelling,
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Lesson, WordResult } from '@shared/src/types'
+import type { Lesson, SpellingResult, WordResult } from '@shared/src/types'
 import { computeReward } from './reward'
 
 function lesson(kind: Lesson['kind']): Lesson {
@@ -119,5 +119,77 @@ describe('computeReward for a reading round', () => {
   it('leaves the other games on the per-answer formula', () => {
     const r = computeReward(lezen, klanken, 0, undefined, [])
     expect(r.gems).toBe(10 + 5) // empty wordResults is not a reading round
+  })
+})
+
+/**
+ * A spelling round is paid exactly like a reading round of the same length
+ * (docs/maak-het-woord-af.md §5) — but off its own list, because a `SpellingResult` has no
+ * time and no reading window and must never reach the reading Leitner boxes.
+ */
+describe('computeReward — Maak het woord af', () => {
+  const spel: Lesson = {
+    ...lesson('les'),
+    gameType: 'maak-het-woord-af',
+    spellingPair: 'd-t',
+    exerciseCount: 10,
+  }
+  const klanken = [{ soundId: 'a', correct: true, ms: 1 }]
+
+  function spelled(count: number, correct: number): SpellingResult[] {
+    return Array.from({ length: count }, (_, i) => ({
+      wordId: `w${i}`,
+      correct: i < correct,
+    }))
+  }
+
+  it('pays 5 for finishing a round she got entirely wrong', () => {
+    const r = computeReward(spel, [], 0, undefined, undefined, spelled(10, 0))
+    expect(r.gems).toBe(5)
+    expect(r.xp).toBe(10)
+    expect(r.perfect).toBe(false)
+  })
+
+  it('pays 5 + one per correct word', () => {
+    const r = computeReward(spel, [], 0, undefined, undefined, spelled(10, 7))
+    expect(r.gems).toBe(5 + 7)
+    expect(r.xp).toBe(17)
+    expect(r.perfect).toBe(false)
+  })
+
+  it('adds the perfect bonus on a clean round', () => {
+    const r = computeReward(spel, [], 0, undefined, undefined, spelled(10, 10))
+    expect(r.gems).toBe(5 + 10 + 3)
+    expect(r.xp).toBe(20)
+    expect(r.perfect).toBe(true)
+  })
+
+  it('is never a new record — a spelling round is untimed', () => {
+    expect(computeReward(spel, [], 0, 99, undefined, spelled(10, 10)).newRecord).toBe(false)
+  })
+
+  it('pays the same as a reading round of the same shape', () => {
+    const reads: WordResult[] = Array.from({ length: 10 }, (_, i) => ({
+      wordId: `w${i}`,
+      correct: i < 6,
+      ms: 1200,
+      withinWindow: true,
+    }))
+    const reading = computeReward(spel, [], 0, undefined, reads)
+    const spelling = computeReward(spel, [], 0, undefined, undefined, spelled(10, 6))
+    expect(spelling.gems).toBe(reading.gems)
+    expect(spelling.xp).toBe(reading.xp)
+  })
+
+  it('ignores the klank answers a spelling round does not produce', () => {
+    // The game reports `answers: []` on purpose — how she spells a word says nothing about
+    // how quickly she reads its klanken. A stray answer list must not change the payout.
+    const withAnswers = computeReward(spel, klanken, 0, undefined, undefined, spelled(10, 6))
+    const without = computeReward(spel, [], 0, undefined, undefined, spelled(10, 6))
+    expect(withAnswers).toEqual(without)
+  })
+
+  it('leaves an empty spelling list on the per-answer formula', () => {
+    expect(computeReward(spel, klanken, 0, undefined, undefined, []).gems).toBe(10 + 5)
   })
 })

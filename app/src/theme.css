@@ -2969,3 +2969,192 @@ html[data-welkom] .app { height: 100dvh; min-height: 100dvh; }
   box-shadow: 0 3px 0 var(--gold-shadow);
 }
 .coin-item[data-kind='weetje'].active .coin-label { color: var(--gold-shadow); }
+
+/* ---------- Maak het woord af (docs/maak-het-woord-af.md §8) ----------
+   A word with its last sound missing, and two tiles to carry into the gap. The card is the
+   `.word-card` look — white, 24px radius, hairline shadow — with a border that is always
+   there and only ever changes colour, so a verdict can never move the word by a pixel. */
+
+.spel-stage { gap: clamp(12px, 2.2vh, 22px); }
+
+.spel-card {
+  position: relative;
+  width: min(80vw, 340px);
+  min-height: clamp(150px, 26vh, 190px);
+  background: #fff;
+  border: 3px solid transparent;
+  border-radius: 24px;
+  box-shadow: 0 8px 0 var(--hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  /* The bottom padding is the strategy badge's row. The badge is positioned rather than
+     laid out, so that the word stays centred in the card whether or not the longer form is
+     showing — but the space under it has to be reserved, or the two collide the moment the
+     reveal step prints `bedden`. */
+  padding: 14px 14px 46px;
+  color: var(--text);
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+.spel-card.dealing { animation: cardDeal 260ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+/* The card lifts a touch while a tile is over the gap — the same "this is the target"
+   language the piles speak in Hardop lezen. */
+.spel-card.lifted { transform: translateY(-5px); }
+.spel-card.landed { border-color: var(--teal); }
+.spel-card.landed .word-text { color: var(--teal); }
+/* Orange, never red: red is never used on her work (§8). Last, so a miss wins over the
+   green the correction is about to paint. */
+.spel-card.flashing { border-color: var(--orange); }
+
+/* The one line of the card. `.word-text` carries the display font, the size and — through
+   `.app.font-dyslexie` — the letter-spacing, exactly as the reading card's does; this only
+   turns it from a centred grid cell into a row, so the stem and the gap sit side by side. */
+.spel-card .word-text {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: clamp(36px, 11vw, 60px);
+}
+
+/* The gap is exactly as wide as the pair's widest option (`cht`), so nothing moves
+   sideways when the tile lands. Two things make that work:
+
+   - the width comes from `::before`, whose text is a CSS variable and so never reaches
+     `textContent` — which is what lets a test ask the DOM whether the wrong spelling was
+     ever on screen and get a straight answer;
+   - the dashed box is `::after`, drawn *outside* the flow. Giving the gap its own border
+     and padding would add about eighteen pixels of inline width, and a landed word would
+     read "tan d" instead of "tand" — which is the one thing this card exists to show. */
+.gap {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+.gap::before {
+  content: var(--gap-ghost, 'x');
+  visibility: hidden;
+}
+.gap::after {
+  content: '';
+  position: absolute;
+  inset: -2px -6px;
+  border: 3px dashed var(--hairline);
+  border-radius: 10px;
+  pointer-events: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.gap-letter {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.gap.targeted::after {
+  border-color: var(--teal);
+  background: var(--teal-pill);
+}
+/* Gone once the letter is in it: a box drawn round one letter of a finished word would
+   keep saying "something is missing here". */
+.gap.filled::after { border-color: transparent; }
+
+/* The longer form, under the stem — the `langer` badge's second step (§4). */
+.spel-langer {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(18px, 5vw, 24px);
+  color: var(--teal);
+}
+
+/* Bottom-right of the card, opposite the speaker badge. Outlined rather than solid: it is
+   help, always available and never the thing she is meant to press first (§4). */
+.strategy-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 2px solid var(--teal-pill-border);
+  border-radius: 999px;
+  background: var(--teal-pill);
+  color: var(--teal-shadow);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.strategy-btn.open {
+  background: var(--teal);
+  border-color: var(--teal-shadow);
+  color: #fff;
+}
+
+/* `touch-action: none` on the row, not on a tile: the row owns the pointer capture, so it
+   is the row that must not hand the gesture to the scroller. */
+.spel-tiles {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 4px;
+  touch-action: none;
+}
+.spel-tile {
+  min-width: 96px;
+  min-height: 80px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--teal);
+  box-shadow: 0 5px 0 var(--teal-shadow);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 44px;
+  line-height: 1;
+  cursor: grab;
+  will-change: transform;
+}
+/* Not dimmed while the verdict plays out: the tile is still travelling, and a control that
+   fades halfway through its own journey reads as a glitch. */
+.spel-tile:disabled { opacity: 1; cursor: default; }
+.spel-tile.carrying {
+  transition: none;
+  z-index: 5;
+  cursor: grabbing;
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.18);
+}
+.spel-tile.sliding {
+  transition: transform 260ms cubic-bezier(0.2, 0.9, 0.35, 1);
+  z-index: 5;
+}
+/* The Hardop lezen spring curve, so a tile that did not commit comes back the way a card
+   that was not sorted does. */
+.spel-tile.returning { transition: transform 320ms cubic-bezier(0.2, 1.4, 0.4, 1); }
+.spel-tile.bumping { animation: tileBump 420ms cubic-bezier(0.3, 0.9, 0.4, 1) both; }
+/* The tile that landed is spent. It leaves rather than snapping back into the row behind a
+   word that is already finished. */
+.spel-tile.spent { opacity: 0; transition: opacity 160ms ease; }
+
+/* Up to the gap, a knock, and back. Deliberately short of the gap at its furthest point:
+   the wrong tile must never look as though it went in. */
+@keyframes tileBump {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(-26px); }
+  45% { transform: translateY(-20px) rotate(-4deg); }
+  55% { transform: translateY(-20px) rotate(4deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No travel and no lift — a chosen tile simply appears in the gap (§8). The drag itself
+     still follows her finger: that is not decoration, it is the control. */
+  .spel-card, .spel-card.dealing, .spel-tile.bumping { animation: none; }
+  .spel-card.lifted { transform: none; }
+  .spel-tile.sliding, .spel-tile.returning { transition: none; }
+}
