@@ -494,6 +494,15 @@ All of them do.
   genuinely parked mid-animation with the CSS bump still running. Both new cases were
   checked in the other direction too — the pointer guard and the `quit()` cancellation were
   each stripped out and each test went red.
+- **The round-level cases are desktop-only.** The first CI run of this branch put the job
+  from 15.8 minutes to 21.9 and took one pre-existing WebKit test down hard and four more
+  into a retry — every one of them somebody else's test, none of the twenty-eight new ones.
+  A ten-card round is the most expensive shape in this suite, and this added two of them
+  per WebKit profile. `maak-het-woord-af-round.spec.ts` (ten distinct words, the arrow
+  keys, the missed-word chip) is now in the `ipad`/`iphone` `testIgnore` list, and what
+  actually differs between engines — the carry, the CSS bump, the pseudo-element gap, the
+  narration — stays in `maak-het-woord-af.spec.ts` and runs on all three. Same trade the
+  reward-screen preview and `installLearnedSwipe` were introduced to make.
 - The screenshots (`tests/e2e/shots-spelling.spec.ts`, behind `SHOTS=1`, into
   `docs/media/maak-het-woord-af/`) run on **Chromium wearing the iPhone 13 and iPad Pro 11
   descriptors**. WebKit does not run on the machine this was built on — Playwright's host

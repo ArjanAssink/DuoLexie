@@ -1,108 +1,39 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import {
-  answersFor,
   clearSpoken,
   installSpellingNarration,
   langerFor,
-  optionsFor,
   ruleFor,
   spoken,
   wordIdFor,
 } from './fixtures/spellingNarration'
+import {
+  ANSWER,
+  OPTIONS,
+  PAIR,
+  TRY_DT,
+  beatOf,
+  nextCard,
+  playCard,
+  stemOf,
+  tilesFor,
+  waitForBeat,
+} from './fixtures/spellingRound'
 
 /**
- * The d/t try-round from `/#/proberen` (data/path.ts SPELLING_TRY_LESSONS).
+ * Maak het woord af: the card, the carry and the correction (docs/maak-het-woord-af.md
+ * §2–§4). Everything here is about the gesture, the CSS and the narration — the parts that
+ * can differ between engines — so it runs on all three profiles.
  *
- * Not a path node, on purpose: a path node only appears once the seed words are
- * `reviewed: true` (docs/maak-het-woord-af.md §6 rule 5, §12.1), and until Arjan has been
- * through that list there is nothing on the path to drive. The try-round deals the drafts,
- * which is exactly what it exists for — and it needs no onboarding flag to reach.
+ * The round-level bookkeeping (ten distinct words, the reward screen, the keyboard) lives
+ * in maak-het-woord-af-round.spec.ts, which is desktop-only: those are full rounds, and a
+ * full round is the most expensive thing in this suite on CI's two-core WebKit runners.
  */
-const TRY_DT = '/#/les/proef-spel-d-t'
-const PAIR = 'd-t'
-const ANSWER = answersFor(PAIR)
 const LANGER = langerFor(PAIR)
 const WORD_ID = wordIdFor(PAIR)
-const OPTIONS = optionsFor(PAIR)
-
-function waitForBeat(page: Page, want: string, timeout = 15_000) {
-  return page.waitForFunction(
-    (b) => document.querySelector('.spel-screen')?.getAttribute('data-beat') === b,
-    want,
-    { timeout },
-  )
-}
-
-function beatOf(page: Page): Promise<string | null> {
-  return page.getAttribute('.spel-screen', 'data-beat')
-}
-
-/**
- * The stem on the card. `textContent`, not `innerText`: the gap's width is held by a
- * pseudo-element, so nothing but the stem (and, once a tile has landed, the ending) is in
- * the DOM at all — which is what makes "the wrong spelling was never on screen" a question
- * the DOM can answer.
- */
-function stemOf(page: Page): Promise<string> {
-  return page.locator('.word-text').evaluate((el) => el.textContent ?? '')
-}
-
-/** Which tile is right for the stem now on the card, and which is not. */
-async function tilesFor(page: Page): Promise<{ stem: string; right: number; wrong: number }> {
-  const stem = await stemOf(page)
-  const ending = ANSWER.get(stem)
-  expect(ending, `no seed word has the stem "${stem}"`).toBeTruthy()
-  const right = OPTIONS.indexOf(ending!)
-  return { stem, right, wrong: 1 - right }
-}
-
-/**
- * Answer the card on screen, right or wrong, by tapping a tile. Returns its stem.
- *
- * It waits for the card to stop being answerable before returning, which is load-bearing:
- * a tapped tile takes 260ms to travel into the gap before anything is committed, so a
- * caller that read the next card straight after the click would read the *same* one again
- * and think the round was repeating itself.
- */
-async function playCard(page: Page, correct: boolean): Promise<string> {
-  await waitForBeat(page, 'choose')
-  const { stem, right, wrong } = await tilesFor(page)
-  await page.locator('.spel-tile').nth(correct ? right : wrong).click()
-  await page.waitForFunction(
-    () => document.querySelector('.spel-screen')?.getAttribute('data-beat') !== 'choose',
-    null,
-    { timeout: 15_000 },
-  )
-  return stem
-}
-
-/** Wait until the verdict has played out and the next card is answerable. */
-async function nextCard(page: Page): Promise<void> {
-  await waitForBeat(page, 'choose', 20_000)
-}
 
 test.beforeEach(async ({ page }) => {
   await installSpellingNarration(page)
-})
-
-test('a round is ten distinct words and ends on the reward screen', async ({ page }) => {
-  test.setTimeout(120_000)
-  await page.goto(TRY_DT)
-  await expect(page.locator('.spel-card')).toBeVisible()
-
-  const total = await page.locator('.pip').count()
-  expect(total, 'the try-round deals a full round').toBe(10)
-
-  const stems: string[] = []
-  for (let i = 0; i < total; i++) {
-    stems.push(await playCard(page, true))
-    if (i < total - 1) await nextCard(page)
-  }
-
-  expect(new Set(stems).size, 'every card is a different word').toBe(total)
-  await expect(page.locator('.reward-screen')).toBeVisible({ timeout: 20_000 })
-  // ten right: 5 for finishing + 10 + the 3 for a clean round
-  await expect(page.locator('.reward-tally')).toHaveText('10 goed · 0 nog even')
 })
 
 test('carrying the right tile into the gap turns the word green', async ({ page }) => {
@@ -131,6 +62,7 @@ test('carrying the right tile into the gap turns the word green', async ({ page 
   await expect(page.locator('.pip-done')).toHaveCount(1)
 })
 
+
 test('releasing a tile away from the gap springs it back and grades nothing', async ({ page }) => {
   await page.goto(TRY_DT)
   await waitForBeat(page, 'choose')
@@ -154,6 +86,7 @@ test('releasing a tile away from the gap springs it back and grades nothing', as
   expect(Math.abs(after.x - t.x)).toBeLessThan(2)
 })
 
+
 test('a flick upwards commits, even short of the gap', async ({ page }) => {
   await page.goto(TRY_DT)
   await waitForBeat(page, 'choose')
@@ -171,6 +104,7 @@ test('a flick upwards commits, even short of the gap', async ({ page }) => {
   await expect(page.locator('.spel-card.landed')).toHaveCount(1)
   expect(await stemOf(page)).toBe(stem + ANSWER.get(stem))
 })
+
 
 test('a wrong tile bounces, the right one slides in, and the word comes back three cards later', async ({
   page,
@@ -232,6 +166,7 @@ test('a wrong tile bounces, the right one slides in, and the word comes back thr
   expect(after[after.length - 1], 'the missed word is the third card after it').toBe(stem)
 })
 
+
 test('the strategy badge prompts first and reveals on the second tap', async ({ page }) => {
   await page.goto(TRY_DT)
   await waitForBeat(page, 'choose')
@@ -259,6 +194,7 @@ test('the strategy badge prompts first and reveals on the second tap', async ({ 
   expect(await beatOf(page)).toBe('choose')
 })
 
+
 test('after a miss the strategy opens by itself, straight at the reveal', async ({ page }) => {
   await page.goto(TRY_DT)
   await waitForBeat(page, 'choose')
@@ -276,53 +212,5 @@ test('after a miss the strategy opens by itself, straight at the reveal', async 
   await expect.poll(() => spoken(page), { timeout: 10_000 }).toEqual([
     `words/${wordId}`,
     `spelling/${wordId}-langer`,
-  ])
-})
-
-test('the arrow keys choose the left and the right tile', async ({ page }) => {
-  await page.goto(TRY_DT)
-  await waitForBeat(page, 'choose')
-  const { stem, right } = await tilesFor(page)
-
-  await page.keyboard.press(right === 0 ? 'ArrowLeft' : 'ArrowRight')
-  await expect(page.locator('.spel-card.landed')).toHaveCount(1)
-  expect(await stemOf(page)).toBe(stem + ANSWER.get(stem))
-
-  // …and the other key picks the other tile, which on the next card is a miss half the
-  // time — so this only asserts that it committed *something*.
-  await nextCard(page)
-  const next = await tilesFor(page)
-  await page.keyboard.press(next.wrong === 0 ? 'ArrowLeft' : 'ArrowRight')
-  await expect(page.locator('.spel-screen[data-beat="wrong"]')).toHaveCount(1)
-})
-
-test('a missed-word chip on the reward screen speaks the word and its longer form', async ({
-  page,
-}) => {
-  test.setTimeout(120_000)
-  await page.goto(TRY_DT)
-  await expect(page.locator('.spel-card')).toBeVisible()
-
-  // Miss the first card, get everything else right. The missed word comes back once, so
-  // the round is eleven cards for ten distinct words.
-  const missed = await playCard(page, false)
-  const missedId = WORD_ID.get(missed)!
-  for (let i = 0; i < 10; i++) {
-    await nextCard(page)
-    await playCard(page, true)
-  }
-
-  await expect(page.locator('.reward-screen')).toBeVisible({ timeout: 20_000 })
-  await expect(page.locator('.reward-tally')).toHaveText('9 goed · 1 nog even')
-  const chips = page.locator('.word-chip')
-  await expect(chips).toHaveCount(1)
-  await expect(chips.first()).toContainText(missed + ANSWER.get(missed))
-
-  await clearSpoken(page)
-  await chips.first().click()
-  // The strategy rides along one last time, for exactly the word she got wrong (§5).
-  await expect.poll(() => spoken(page), { timeout: 10_000 }).toEqual([
-    `words/${missedId}`,
-    `spelling/${missedId}-langer`,
   ])
 })
