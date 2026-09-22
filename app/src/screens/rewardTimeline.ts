@@ -38,6 +38,17 @@ export const BEATS = {
    * exactly the rounds she did best on.
    */
   doneAt: 4300,
+  /**
+   * The schatkist opens by itself, if she has not tapped it (docs/kist-openen.md §3).
+   *
+   * The tap is the point, so this is a floor under it rather than the intended path: 1.5s
+   * after the strip arrives is long enough that a child reaching for the chest gets to be
+   * the one who opens it, and short enough that a child who is not looking still sees her
+   * gems without having to do anything. It sits *after* `doneAt` on purpose — Verder is
+   * already up and usable while the chest is still closed, so waiting for the chest is
+   * never something the screen makes her do.
+   */
+  chestAt: 5200,
 } as const
 
 export type TierId = 'geoefend' | 'goed' | 'super' | 'perfect'
@@ -126,6 +137,28 @@ export function confettiCount(pct: number, newRecord: boolean, correct?: number)
   const full = Math.min(correct === undefined ? 120 : 40 + 18 * correct, CONFETTI_MAX)
   // 50–79 gets half the burst; 80 and up gets all of it
   return pct >= 80 ? full : Math.round(full / 2)
+}
+
+/**
+ * Most gems that fly out of the opened chest at once.
+ *
+ * A sprite per gem would mean eighteen elements on a perfect round and five on the worst
+ * one, which reads as "this round was worth more" — true, but the count-up already says it,
+ * and eighteen animating elements on a 2019 Android tablet is the one place this screen
+ * could drop frames. The burst is a *gesture*; the number is the number.
+ */
+const GEM_SPRITES_MAX = 7
+
+/**
+ * How many gems to draw flying out of the chest for a round worth `gems`.
+ *
+ * Never more than `GEM_SPRITES_MAX`, never more than she actually earned (four gems throwing
+ * seven sprites is a small lie a nine-year-old will catch), and never fewer than one for a
+ * round that earned anything at all — a chest that opens on nothing is worse than no chest.
+ */
+export function gemSpriteCount(gems: number): number {
+  if (gems <= 0) return 0
+  return Math.max(1, Math.min(GEM_SPRITES_MAX, gems))
 }
 
 /** Whether the diagonal streak band sweeps in — the quiet room below 50% has no sweep. */
