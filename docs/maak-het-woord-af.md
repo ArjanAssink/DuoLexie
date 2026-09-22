@@ -11,7 +11,7 @@ acceptance criterion; where it says *suggested*, use judgement.
 
 **Status:** plan, not yet built. Written by Claude Fable 5.1 (session
 [012C52p53S3dATWRG7puuGvK](https://claude.ai/code/session_012C52p53S3dATWRG7puuGvK)) after
-three rounds of design questions with Arjan; the decisions those settled are marked
+four rounds of design questions with Arjan; the decisions those settled are marked
 *(decided)* below, the ones still open are collected in §12. It replaces plan.md's v2 row
 "Woordenvangst (hear word → tap correct spelling; trains ei/ij, au/ou)".
 
@@ -112,12 +112,18 @@ the card is that strategy made tappable:
 
 | pair | badge | what it does |
 |---|---|---|
-| **d/t** | **Maak langer** | Frida's bubble shows and speaks the word's `langer` form: "honden". RID's own move — lengthen the word and you hear the d. |
-| **cht/gt** | **cht of gt?** | Frida's bubble speaks the pair's `rule`: "Hoor je /cht/? Dan schrijf je cht. Behalve bij een werkwoord met een g: ik lig, hij ligt." For a `gt` word the bubble adds the word's own `langer`: "ik lig". |
+| **d/t** | **Maak langer** | **Two steps** *(decided)*. First tap: Frida says "Maak het woord langer. Zeg het maar." and waits — RID's move is that *she* produces the longer word. Second tap, or after `LANGER_REVEAL_MS` (2000) without one: the `langer` form appears under the stem and is spoken: "honden". |
+| **cht/gt** | **cht of gt?** | Frida's bubble speaks the pair's `rule`: "Hoor je /cht/? Dan schrijf je cht. Behalve bij een werkwoord met een g: ik lig, hij ligt." For a `gt` word the bubble adds the word's own `langer`: "ik lig". One step; there is nothing for her to produce. |
 
 The badge never affects the score or the streak. After a wrong answer the bubble opens by
-itself (§2). The `langer` text is spoken through `utter()` (TTS) until there is a recording;
-§10 says how recordings arrive.
+itself (§2), straight to the reveal step — the correction is not the moment to quiz her. The
+`langer` text is spoken through `utter()` (TTS) until there is a recording; §10 says how
+recordings arrive.
+
+**No gate** *(decided)*: she may choose before the word has finished playing. The stem `hon`
+is unambiguous to a reader, so the audio confirms rather than reveals, and a fast round stays
+fast. This is the one place this game differs from Hardop lezen's read → hear → judge order,
+on purpose.
 
 ---
 
@@ -138,8 +144,11 @@ itself (§2). The `langer` text is spoken through `utter()` (TTS) until there is
   fast she reads it.
 - **Gems**: the reading formula, in its own branch of `computeReward`: `5 + correct + 3 if
   perfect` over the round's *distinct* words; XP `10 + correct`. `perfect` and `newRecord`
-  as for reading. The reward screen's stat card and its missed-word chips (tap to hear the
-  word) work unchanged once `spellingResults` is mapped to the same shape the screen reads.
+  as for reading. The reward screen's stat card works unchanged once `spellingResults` is
+  mapped to the shape it reads. Its missed-word chips get one new behaviour *(decided)*: for
+  a spelling round a tap speaks the word **and its longer form** — "hond… honden" — so the
+  strategy rides along one last time for exactly the words she got wrong. For `cht` words,
+  which have no `langer`, the chip speaks the word only.
 - **Stats**: `state/progress.ts` gains `spellingStats: Record<wordId, { seen, missed }>`
   (persist version **5**, migration adds `{}`); the selector prefers words she has missed
   before (weight `1 + missed`). Nothing else reads it yet.
@@ -156,7 +165,7 @@ Pairs are data; a word's spelling facts sit next to the word list, not inside it
     {
       "id": "d-t",
       "title": "d of t?",
-      "options": ["d", "t"],          // tile order, fixed (left, right) — see §12
+      "options": ["d", "t"],          // tile order, fixed: left, right (decided; ArrowLeft/Right follow it)
       "strategy": "langer",           // the badge: 'langer' | 'regel'
       "rule": "Maak het woord langer. Hoor je een d? Dan schrijf je een d.",
       "needs": ["d", "t"]             // klanken that must be taught before the node appears
@@ -325,7 +334,10 @@ entry with a fixture that marks the seed words reviewed:
   springs it back*; *a flick up commits*.
 - *a wrong tile bounces, the right one slides in, and the word comes back three cards
   later*: assert the `.word-text` after the bounce never contains the wrong full spelling.
-- *the strategy badge speaks the longer form* (narration spy fixture).
+- *the strategy badge prompts first and reveals on the second tap* (narration spy fixture:
+  first tap speaks the prompt and no `langer`; second tap speaks "honden"); *after a miss the
+  bubble opens straight at the reveal*.
+- *a missed-word chip on the reward screen speaks the word and its longer form*.
 - *arrow keys choose*.
 - `pointer-isolation.spec.ts`: one case, a second finger cannot steal the tile.
 - `quit-mid-animation.spec.ts`: one case, quitting during the correction credits nothing
@@ -344,12 +356,14 @@ entry with a fixture that marks the seed words reviewed:
 2. **Do the new words also feed Hardop lezen?** They are in `words.json`, so yes by default.
    Verb forms (`ligt`, `zegt`, `kocht`) as reading cards are unusual; if unwanted, a
    `readable: false` flag is a two-line filter in `wordsForPool`.
-3. **Tile order**: fixed `d` left, `t` right (calmer; the answer varies per word so position
-   carries no information), or shuffled per card. Spec says fixed.
-4. **`licht`/`ligt`** stay out until a `zin` (context sentence) is worth building. Say if
+3. **`licht`/`ligt`** stay out until a `zin` (context sentence) is worth building. Say if
    the cht/gt set feels thin without them.
-5. **Balloons**: round confetti from the card (spec) or real CSS balloons drifting up. The
+4. **Balloons**: round confetti from the card (spec) or real CSS balloons drifting up. The
    spec's is a two-line change; the other is an afternoon of animation.
+
+Settled in the fourth round of questions and no longer open: the badge is two-step for d/t
+(§4), there is no hearing gate (§4), reward chips speak the longer form (§5), tile order is
+fixed (§6).
 
 ---
 
