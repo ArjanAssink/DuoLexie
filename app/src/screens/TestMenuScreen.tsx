@@ -21,7 +21,10 @@ const GAME_LABELS: Record<GameType, string> = {
   tijdrit: 'Tijdrit — 60s Goed/Nog even, klanken per minuut',
   'hardop-lezen': 'Hardop lezen — woord lezen, swipe goed/fout',
   weetjes: 'Weetjes — dyslexie-feitjes: luister, doe, bewaar',
-  'maak-het-woord-af': 'Maak het woord af — sleep d of t in het gat',
+  // Disabled until the seed words are reviewed, because until then there is no node of
+  // this type on the path at all — the two buttons under "Proberen met haar" are the way
+  // in. Worded so it reads right on both sides of that (docs/maak-het-woord-af.md §12.1).
+  'maak-het-woord-af': 'Maak het woord af — d of t in het gat; op het pad zodra de woorden nagekeken zijn',
   'welke-klank': 'Welke klank? — nog niet gebouwd',
   woordbouwer: 'Woordbouwer — nog niet gebouwd',
 }
