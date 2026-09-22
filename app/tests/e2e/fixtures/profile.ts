@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test'
 const DB_NAME = 'duolexie'
 const STORE = 'kv'
 const KEY = 'duolexie-progress'
-const VERSION = 4
+const VERSION = 5
 
 /**
  * Start the test with a profile that has already learned the swipe.

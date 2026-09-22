@@ -9,11 +9,24 @@ It is written to be implemented by a fresh session that has not seen the convers
 it. Everything needed is here or in the files it names. Where it says *must*, that is an
 acceptance criterion; where it says *suggested*, use judgement.
 
-**Status:** plan, not yet built. Written by Claude Fable 5.1 (session
+**Status:** **built** (2026-09-22), by Claude Opus 5 (1M context), session
+[01WNvYJ9iJ8uddJbSiCh8jC7](https://claude.ai/code/session_01WNvYJ9iJ8uddJbSiCh8jC7).
+Planned by Claude Fable 5.1 (session
 [012C52p53S3dATWRG7puuGvK](https://claude.ai/code/session_012C52p53S3dATWRG7puuGvK)) after
 four rounds of design questions with Arjan; the decisions those settled are marked
 *(decided)* below, the ones still open are collected in §12. It replaces plan.md's v2 row
 "Woordenvangst (hear word → tap correct spelling; trains ei/ij, au/ou)".
+
+Everywhere the build departed from this document, or settled something it left open, is
+marked ***(as built)*** inline, in the section it belongs to — §4, §5, §6, §6.1, §7, §8,
+§9, §10, §11, §12, §13 and §14 each have one. The departure that matters most is in §6.1:
+**fourteen of its draft words are not in the shipped file**, because their other spelling
+is also a real Dutch word, which is this spec's own §6 rule 3.
+
+**Not built, deliberately, and waiting on Arjan:** the seed words are all
+`reviewed: false`, so *no spelling node is on the path yet* — the way in is
+`/#/proberen`, which deals the drafts. Reviewing them, the open decisions in §12 and
+recording the Spelling set are all his (§12.1, §10).
 
 ---
 
@@ -120,6 +133,20 @@ itself (§2), straight to the reveal step — the correction is not the moment t
 `langer` text is spoken through `utter()` (TTS) until there is a recording; §10 says how
 recordings arrive.
 
+*(as built)* Three details §4 did not pin down, settled in the build:
+
+- **One clip per pair, not two.** `<pairId>-regel.mp3` holds whatever that pair's badge
+  actually *says*: the question for a `langer` pair ("Maak het woord langer. Zeg het
+  maar."), the rule for a `regel` pair. A pair only ever speaks one of them, so a second
+  id would be a clip recorded and never played (`spelling.ts` `strategyLine`).
+- **A `langer` pair's `rule` is shown, never spoken.** At the reveal step the longer form
+  is printed under the stem *and* spoken, and the bubble carries the pair's written rule —
+  the reminder behind the question it just asked. Without this the `d-t` pair's `rule`
+  field would have had no use in the UI at all.
+- **`LANGER_REVEAL_MS` starts when the prompt has finished playing**, not when it starts.
+  Two seconds measured from the tap would mean the bubble answered itself while Frida was
+  still asking.
+
 **No gate** *(decided)*: she may choose before the word has finished playing. The stem `hon`
 is unambiguous to a reader, so the audio confirms rather than reveals, and a fast round stays
 fast. This is the one place this game differs from Hardop lezen's read → hear → judge order,
@@ -152,6 +179,21 @@ on purpose.
 - **Stats**: `state/progress.ts` gains `spellingStats: Record<wordId, { seen, missed }>`
   (persist version **5**, migration adds `{}`); the selector prefers words she has missed
   before (weight `1 + missed`). Nothing else reads it yet.
+
+*(as built)* Three things this section left open:
+
+- **The pips count distinct words, not cards.** A miss re-queues a word, so the queue grows
+  mid-round; if the pips grew with it the bar would get *longer* the worse she did. Ten
+  pips, one per word she is scored on, and a re-queued card advances none of them.
+- **`spellingStats` lives in `engine/recompute.ts`'s `Aggregates`**, next to `wordStats`,
+  so it is folded out of the session log by the same `applySession` that everything else
+  is and a replay of two devices' logs reproduces it. The v5 migration still seeds `{}`
+  rather than replaying: no session written before v5 carries a `spellingResults` field,
+  so the replay would cost a fold over her whole history to produce an empty object.
+- **The game reports `answers: []`.** Hardop lezen charges every klank of a word for how
+  fast she read it; how she *spells* a word says nothing about any of its klanken, and
+  writing one would quietly move her per-sound EWMA on evidence it has no business using.
+  `computeReward`'s spelling branch ignores `answers` entirely, and a unit test pins that.
 
 ---
 
@@ -204,6 +246,18 @@ Rules, all enforced by a unit test over the file (`spelling.test.ts`):
    `ik`-form); a `cht` word has `null`.
 5. Only `reviewed: true` words are dealt — exactly the Weetjes rule. Arjan flips the flag.
 
+*(as built)* Rule 3 is the one that bit. It cannot be checked mechanically — there is no
+Dutch dictionary in this repo, and `hard`, `nood` and `liet` are ordinary words that
+simply happen not to be on the reading list — so `engine/spelling.test.ts` enforces it in
+two halves: a **written-down list** of the pairs found while building (which is the review,
+and which keeps a later batch from re-adding one), plus the mechanical check that the wrong
+spelling is not itself a word in `words.json`, which catches the case the list cannot — a
+word added later that turns an existing item into a homophone pair.
+
+`zin` is present on every word as an explicit `null` rather than left out, the same
+convention `weetjes.json` uses and for the same reason: a hand-edited item that forgets a
+field should fail the unit test rather than render an empty beat.
+
 ### 6.1 Seed content, for review
 
 Drafted, not reviewed; every one goes in with `reviewed: false`. Words already in
@@ -241,6 +295,43 @@ jaagt→ik jaag, klaagt→ik klaag, weegt→ik weeg, voegt→ik voeg, dreigt→i
 Excluded: `licht` and `ligt` (rule 3). `juicht` is a `cht` word with a `ch` stem and would
 confuse the rule's wording; left out of the first set.
 
+***(as built)*** **Fourteen of the words above are not in `spelling.json`**, because their
+other spelling is also a real Dutch word and the item carries no `zin` — rule 3, applied to
+this section's own draft:
+
+| word | what the wrong tile would have spelled |
+|---|---|
+| hart | hard |
+| wind | wint |
+| veld | velt |
+| held | helt |
+| paard | paart |
+| maand | maant |
+| baard | baart |
+| lied | liet |
+| boot | bood |
+| voet | voed |
+| noot | nood |
+| laat | laad |
+| band | bant |
+| ligt | licht |
+
+The last is the spec contradicting itself: the `gt` list opens with `ligt→ik lig` and the
+paragraph two lines below excludes it. The exclusion is right.
+
+What shipped is **108 words**: 32 `d`, 35 `t`, 24 `cht`, 17 `gt`. Eighty-one of them were
+new to `words.json` and were segmented by hand against the multi-letter klanken in
+`sounds.json`, under the rules in todo.md's "Klif in de woordenlijst gedicht" — with the
+one exception that rule list could not survive here: **vowel digraphs are unavoidable**.
+`paard`, `brood`, `vliegt` and `krijgt` are the content this game is about, and the batch
+that banned digraphs was a fase-1 batch. Everything else holds: no `c`/`q`/`x`/`y` outside
+`ch`, no double consonants, no open syllables, every word one closed syllable.
+
+**Still borderline, and worth a second opinion (§12):** `koud`/`kout` (archaic, "praatje"),
+`oud`/`out` (an English loan used in sport), `kaart`/`kaard` (kaarden, to card wool),
+`bad`/`bat` (a cricket bat is in Van Dale) and `rand`/`rant`. All five are in the file;
+none is a word a nine-year-old is likely to produce, but they are the closest calls.
+
 ---
 
 ## 7. On the path
@@ -272,6 +363,23 @@ in, no default branch.
 `/#/proberen` gets one button per pair with the whole fase-1 (resp. fase-5) pool, like the
 Proefronde: the entry Arjan uses to play-test it with her before her path reaches it.
 
+*(as built)*
+
+- The rule is `spellingLessonsFor(unitId, pool, words?)`, **exported** from `data/path.ts`
+  with the word set injectable. It has to be: every seed word is `reviewed: false`, so the
+  real `path` has no spelling node on it at all, and a test over `allLessons` would be
+  asserting the gate rather than the rule. Its test walks the units with the *draft* list
+  and pins `fase1-n-p-b-d-f` and `fase5-ch-ng-nk`; a separate test pins that the shipped
+  path is empty, which is the line to delete once the review has happened.
+- A try-round's pool runs to the end of the **fase** that completes the pair's `needs`,
+  not to the unit — derived from `FASE_DEFS` rather than written out, so a third pair gets
+  the right pool without anyone remembering to widen a constant.
+- The try-rounds deal the **drafts**. They are recognised by `unitId === TRY_UNIT_ID`
+  (`'proefronde'`, the id the Proefronde already used), which is the one thing that
+  distinguishes "this is a play-test entry" from "this is a node on her path".
+- `PathScreen`'s icon map is a `switch` on the lesson *title*, not a `Record<GameType>`, so
+  the compiler did not point at it; it gained a `TileIcon` case by hand.
+
 ---
 
 ## 8. Layout and visual rules
@@ -293,6 +401,22 @@ Proefronde: the entry Arjan uses to play-test it with her before her path reache
 - Reduced motion: no tile travel (a chosen tile appears in the gap), no confetti, no lift
   scale; the drag still follows the finger.
 
+*(as built)* Three layout details this section's description made real:
+
+- **The gap's width is a pseudo-element, and so is its dashed box.** `.gap::before` takes
+  its text from a `--gap-ghost` custom property, so the widest option reserves the width
+  without a single character of it reaching `textContent` — which is what lets the e2e
+  suite ask the DOM whether the wrong spelling was ever on screen and get a straight
+  answer. The dashed box is `.gap::after`, drawn *outside* the flow: a real border and
+  padding added about eighteen pixels of inline width, and a landed word read "tan d".
+- **The card reserves the badge's row** (`padding-bottom: 46px`). The badge is positioned
+  rather than laid out so the word stays centred whether or not the longer form is
+  showing, and without the reserved space the two collided the moment the reveal printed
+  `bedden`.
+- **A tile shrinks as it travels into the gap.** A tile is 96×80 and the gap is about a
+  letter wide; at full size it arrived sitting *over* the word — and, after a miss, over
+  the correction she is being shown. It scales to the gap on the way in.
+
 ---
 
 ## 9. Sounds, haptics, motion
@@ -300,6 +424,12 @@ Proefronde: the entry Arjan uses to play-test it with her before her path reache
 Nothing new in `audio/audio.ts`. `swish` on deal, `ding`/`fart` on the verdict, `pop` when
 the strategy bubble opens, the existing `haptic()` calls. Confetti: `canvas-confetti` with
 `shapes: ['circle']`, 14 pieces, from the card's centre — the "balloons".
+
+*(as built)* No new *sound*, but one new function: `playSpelling(clipId, lines)`. It is
+`playWeetje` pointed at the other folder, and the two now share one body — same clip cache,
+same `stopNarration`, same "exactly one thing may ever be speaking" guarantee. The strategy
+badge needed that guarantee for the same reason a Weetje beat does: she can tap it twice,
+or answer the card, while it is still talking.
 
 ---
 
@@ -345,6 +475,39 @@ entry with a fixture that marks the seed words reviewed:
 
 **Selectors that must exist**: `.spel-screen[data-beat]`, `.spel-card`, `.word-text`,
 `.gap`, `.spel-tile`, `.reveal-btn`, `.strategy-btn`, `.coach-bubble`, `.pip`, `.pip-done`.
+All of them do.
+
+*(as built)*
+
+- The e2e suite drives the **`/#/proberen` try-round** and needs no "mark the seed words
+  reviewed" fixture: that entry deals the drafts by design (§7), which is one less thing
+  that can drift from the shipped data.
+- `fixtures/spellingNarration.ts` serves silence for `/audio/words/` **and**
+  `/audio/spelling/` from *one* patch of `HTMLMediaElement.prototype.play` — there is only
+  one such method, and a second fixture wrapping the first would hand spelling clips to a
+  handler that only knows about words. It also exports the stem→ending map read straight
+  out of `spelling.json`, which is how a test answers a card on purpose rather than by luck
+  (stems are unique inside a pair, and a unit test pins that).
+- The quit-mid-animation case commits by **carry**, not by tap. A tap schedules the tile's
+  260ms travel on a `setTimeout`, which the fake clock freezes before `commit` is ever
+  reached; releasing the tile over the gap calls `commit` synchronously, so the chain is
+  genuinely parked mid-animation with the CSS bump still running. Both new cases were
+  checked in the other direction too — the pointer guard and the `quit()` cancellation were
+  each stripped out and each test went red.
+- **The round-level cases are desktop-only.** The first CI run of this branch put the job
+  from 15.8 minutes to 21.9 and took one pre-existing WebKit test down hard and four more
+  into a retry — every one of them somebody else's test, none of the twenty-eight new ones.
+  A ten-card round is the most expensive shape in this suite, and this added two of them
+  per WebKit profile. `maak-het-woord-af-round.spec.ts` (ten distinct words, the arrow
+  keys, the missed-word chip) is now in the `ipad`/`iphone` `testIgnore` list, and what
+  actually differs between engines — the carry, the CSS bump, the pseudo-element gap, the
+  narration — stays in `maak-het-woord-af.spec.ts` and runs on all three. Same trade the
+  reward-screen preview and `installLearnedSwipe` were introduced to make.
+- The screenshots (`tests/e2e/shots-spelling.spec.ts`, behind `SHOTS=1`, into
+  `docs/media/maak-het-woord-af/`) run on **Chromium wearing the iPhone 13 and iPad Pro 11
+  descriptors**. WebKit does not run on the machine this was built on — Playwright's host
+  check wants libicu/libxml/libflite that Arch does not provide — so the `iphone` and
+  `ipad` projects, and with them the real engine, are CI's to confirm.
 
 ---
 
@@ -361,6 +524,13 @@ entry with a fixture that marks the seed words reviewed:
 4. **Balloons**: round confetti from the card (spec) or real CSS balloons drifting up. The
    spec's is a two-line change; the other is an afternoon of animation.
 
+5. ***(as built, new)*** **The five borderline homophones** listed at the end of §6.1 —
+   `koud`/`kout`, `oud`/`out`, `kaart`/`kaard`, `bad`/`bat`, `rand`/`rant`. They are in the
+   file; say if any of them should follow the other fourteen out.
+6. ***(as built, new)*** **Whether the cht/gt set is now too thin.** It lost `ligt`, which
+   was its own rule's worked example, and it was already short of §12.3's `licht`. Forty-one
+   words is plenty for a round; it is the *`gt`* half — seventeen verbs — that is thin.
+
 Settled in the fourth round of questions and no longer open: the badge is two-step for d/t
 (§4), there is no hearing gate (§4), reward chips speak the longer form (§5), tile order is
 fixed (§6).
@@ -374,6 +544,11 @@ Woordenvangst row in favour of this), `README.md` structure block if `spelling.j
 mentioned alongside the other curriculum files, and this file's *Status* line with *(as
 built)* notes.
 
+*(as built)* All done, except `README.md`: it does not list the curriculum files at all, so
+there was nothing to add to. `plan.md`'s structure block did list them, and now names
+`words.json`, `weetjes.json` and `spelling.json` instead of the `words/{soundId}.json`
+layout that has not existed for a long time.
+
 ---
 
 ## 14. Out of scope
@@ -382,3 +557,6 @@ Typing the ending, more than two options per item, `zin` items, any pair beyond 
 above (they are data, and can follow), a spelling section in the Weetjesboek, and the
 recordings themselves. If one of these blocks the work, say so in the commit rather than
 fixing it in passing.
+
+*(as built)* None of them blocked it. `zin` came closest — fourteen words wanted one — and
+leaving them out rather than building it is what §6 rule 3 asks for.

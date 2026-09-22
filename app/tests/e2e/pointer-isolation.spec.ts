@@ -1,5 +1,6 @@
 import { test, expect, type CDPSession, type Page } from '@playwright/test'
 import { installNarration } from './fixtures/narration'
+import { installSpellingNarration } from './fixtures/spellingNarration'
 
 /**
  * HardopLezen's swipe tracked no pointerId: onPointerDown had no "already
@@ -18,6 +19,7 @@ import { installNarration } from './fixtures/narration'
 
 const LEZEN = '/#/les/fase1-m-s-k-r-t-l5'
 const FLITSEN = '/#/les/fase1-a-e-o-u-i-l1'
+const SPELLING = '/#/les/proef-spel-d-t'
 const THUMB_ID = 0
 const FINGER_ID = 1
 
@@ -172,4 +174,63 @@ test('Flitsen: a cancelled carry past the midpoint puts the card back on the dec
   await expect(page.locator('.kk-fly')).toHaveCount(0)
   await expect(page.locator('.kk-stack-wrap').nth(1).locator('.kk-face-front')).toHaveCount(0)
   expect(parseInt(await deck.locator('.kk-count').innerText(), 10), 'nothing counted').toBe(before)
+})
+
+/**
+ * Maak het woord af carries a *tile* rather than a card, and the pointer capture lives on
+ * the tile row rather than on either tile (docs/maak-het-woord-af.md §3) — precisely
+ * because a tile re-renders mid-drag. The guards are the same ones, and so is the failure
+ * mode if it lost them: a second finger anywhere on the row would take the gesture over and
+ * either finger lifting could drop a letter into the gap she never chose.
+ */
+test('Maak het woord af: a second finger cannot steal the tile', async ({ page, context }) => {
+  await installSpellingNarration(page)
+  await page.goto(SPELLING)
+  await page.waitForFunction(
+    () => document.querySelector('.spel-screen')?.getAttribute('data-beat') === 'choose',
+    null,
+    { timeout: 15_000 },
+  )
+  const word = await page.locator('.word-text').evaluate((el) => el.textContent ?? '')
+
+  const left = (await page.locator('.spel-tile').nth(0).boundingBox())!
+  const right = (await page.locator('.spel-tile').nth(1).boundingBox())!
+  const cdp = await context.newCDPSession(page)
+
+  const thumb = { x: left.x + left.width / 2, y: left.y + left.height / 2 }
+  const finger = { x: right.x + right.width / 2, y: right.y + right.height / 2 }
+
+  // Her thumb picks up the left tile and holds it, barely moving.
+  await touch(cdp, 'touchStart', [{ id: THUMB_ID, ...thumb }])
+  await page.waitForTimeout(80)
+  await touch(cdp, 'touchMove', [{ id: THUMB_ID, x: thumb.x, y: thumb.y - 12 }])
+  await page.waitForTimeout(80)
+
+  // A second finger lands on the *other* tile and makes what would, on its own, be a
+  // perfectly good commit: 200px straight up, then lifts. It must count for nothing —
+  // this drag belongs to the thumb.
+  await touch(cdp, 'touchStart', [
+    { id: THUMB_ID, x: thumb.x, y: thumb.y - 12 },
+    { id: FINGER_ID, ...finger },
+  ])
+  await page.waitForTimeout(60)
+  await touch(cdp, 'touchMove', [
+    { id: THUMB_ID, x: thumb.x, y: thumb.y - 12 },
+    { id: FINGER_ID, x: finger.x, y: finger.y - 200 },
+  ])
+  await page.waitForTimeout(60)
+  await touch(cdp, 'touchEnd', [{ id: FINGER_ID, x: finger.x, y: finger.y - 200 }])
+  await page.waitForTimeout(400)
+
+  expect(await page.locator('.pip-done').count(), 'the second finger grades nothing').toBe(0)
+
+  // The thumb then lifts, still 12px from where it started: under the 24px a flick needs
+  // and nowhere near the gap, so its own gesture commits nothing either.
+  await touch(cdp, 'touchEnd', [{ id: THUMB_ID, x: thumb.x, y: thumb.y - 12 }])
+  await page.waitForTimeout(900)
+
+  expect(await page.locator('.pip-done').count(), 'nothing may be graded').toBe(0)
+  expect(await page.getAttribute('.spel-screen', 'data-beat')).toBe('choose')
+  expect(await page.locator('.word-text').evaluate((el) => el.textContent ?? '')).toBe(word)
+  await expect(page.locator('.gap.filled')).toHaveCount(0)
 })

@@ -65,6 +65,20 @@ const PROFILES = {
     // review screen is the check, as it is for klanken (§4.4).
     verifiable: false,
   },
+  spelling: {
+    outDir: 'app/public/audio/spelling',
+    // Two of the cues are whole sentences (the pair rules) and the rest are single words
+    // ("honden"), so this sits between the word and the weetje profile: a word's burst
+    // minimum would cut a rule into pieces, a sentence's tail padding would leave 200ms of
+    // room after "honden".
+    minBurstMs: 150,
+    thresholdClamp: { min: -55, max: -30 },
+    padStartMs: 60,
+    padEndMs: 170,
+    // Same reason as weetjes: the cue sheet already says which clip is which, and half the
+    // set is sentences that ASR has nothing useful to say about.
+    verifiable: false,
+  },
   klanken: {
     outDir: 'app/public/audio/sounds',
     minBurstMs: 40,

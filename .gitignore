@@ -19,6 +19,11 @@ recordings/clips/
 !app/tests/e2e/fixtures/silent.mp3
 !docs/media/**
 
+# Local Piper install for tools/generate-word-audio.mjs (tools/piper/README.md): a venv and
+# a 63MB voice model, both reproducible from that README in a minute
+tools/piper/.venv/
+tools/piper/models/
+
 # raw takes from the recording studio — megabytes each, and not what ships; the app only
 # ever gets the mp3s split out of them
 recordings/*

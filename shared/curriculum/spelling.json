@@ -1,0 +1,1007 @@
+{
+  "pairs": [
+    {
+      "id": "d-t",
+      "title": "d of t?",
+      "options": [
+        "d",
+        "t"
+      ],
+      "strategy": "langer",
+      "rule": "Maak het woord langer. Hoor je een d? Dan schrijf je een d.",
+      "needs": [
+        "d",
+        "t"
+      ]
+    },
+    {
+      "id": "cht-gt",
+      "title": "cht of gt?",
+      "options": [
+        "cht",
+        "gt"
+      ],
+      "strategy": "regel",
+      "rule": "Hoor je /cht/? Dan schrijf je cht. Behalve bij een werkwoord met een g: ik lig, hij ligt.",
+      "needs": [
+        "ch",
+        "g",
+        "t"
+      ]
+    }
+  ],
+  "words": [
+    {
+      "wordId": "hond",
+      "pair": "d-t",
+      "stem": "hon",
+      "ending": "d",
+      "langer": "honden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "hand",
+      "pair": "d-t",
+      "stem": "han",
+      "ending": "d",
+      "langer": "handen",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "land",
+      "pair": "d-t",
+      "stem": "lan",
+      "ending": "d",
+      "langer": "landen",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kind",
+      "pair": "d-t",
+      "stem": "kin",
+      "ending": "d",
+      "langer": "kinderen",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "mond",
+      "pair": "d-t",
+      "stem": "mon",
+      "ending": "d",
+      "langer": "monden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "tand",
+      "pair": "d-t",
+      "stem": "tan",
+      "ending": "d",
+      "langer": "tanden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "rand",
+      "pair": "d-t",
+      "stem": "ran",
+      "ending": "d",
+      "langer": "randen",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "bord",
+      "pair": "d-t",
+      "stem": "bor",
+      "ending": "d",
+      "langer": "borden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "brand",
+      "pair": "d-t",
+      "stem": "bran",
+      "ending": "d",
+      "langer": "branden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "bed",
+      "pair": "d-t",
+      "stem": "be",
+      "ending": "d",
+      "langer": "bedden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "koud",
+      "pair": "d-t",
+      "stem": "kou",
+      "ending": "d",
+      "langer": "koude",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "blad",
+      "pair": "d-t",
+      "stem": "bla",
+      "ending": "d",
+      "langer": "bladen",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "brood",
+      "pair": "d-t",
+      "stem": "broo",
+      "ending": "d",
+      "langer": "broden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "hoofd",
+      "pair": "d-t",
+      "stem": "hoof",
+      "ending": "d",
+      "langer": "hoofden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "eend",
+      "pair": "d-t",
+      "stem": "een",
+      "ending": "d",
+      "langer": "eenden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vriend",
+      "pair": "d-t",
+      "stem": "vrien",
+      "ending": "d",
+      "langer": "vrienden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "hoed",
+      "pair": "d-t",
+      "stem": "hoe",
+      "ending": "d",
+      "langer": "hoeden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "draad",
+      "pair": "d-t",
+      "stem": "draa",
+      "ending": "d",
+      "langer": "draden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "oud",
+      "pair": "d-t",
+      "stem": "ou",
+      "ending": "d",
+      "langer": "oude",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "rood",
+      "pair": "d-t",
+      "stem": "roo",
+      "ending": "d",
+      "langer": "rode",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "goed",
+      "pair": "d-t",
+      "stem": "goe",
+      "ending": "d",
+      "langer": "goede",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "breed",
+      "pair": "d-t",
+      "stem": "bree",
+      "ending": "d",
+      "langer": "brede",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "dood",
+      "pair": "d-t",
+      "stem": "doo",
+      "ending": "d",
+      "langer": "dode",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "strand",
+      "pair": "d-t",
+      "stem": "stran",
+      "ending": "d",
+      "langer": "stranden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "mand",
+      "pair": "d-t",
+      "stem": "man",
+      "ending": "d",
+      "langer": "manden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "rond",
+      "pair": "d-t",
+      "stem": "ron",
+      "ending": "d",
+      "langer": "ronde",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "blond",
+      "pair": "d-t",
+      "stem": "blon",
+      "ending": "d",
+      "langer": "blonde",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "beeld",
+      "pair": "d-t",
+      "stem": "beel",
+      "ending": "d",
+      "langer": "beelden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "hemd",
+      "pair": "d-t",
+      "stem": "hem",
+      "ending": "d",
+      "langer": "hemden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zwaard",
+      "pair": "d-t",
+      "stem": "zwaar",
+      "ending": "d",
+      "langer": "zwaarden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "tijd",
+      "pair": "d-t",
+      "stem": "tij",
+      "ending": "d",
+      "langer": "tijden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "bad",
+      "pair": "d-t",
+      "stem": "ba",
+      "ending": "d",
+      "langer": "baden",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kat",
+      "pair": "d-t",
+      "stem": "ka",
+      "ending": "t",
+      "langer": "katten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "mat",
+      "pair": "d-t",
+      "stem": "ma",
+      "ending": "t",
+      "langer": "matten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "pot",
+      "pair": "d-t",
+      "stem": "po",
+      "ending": "t",
+      "langer": "potten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "put",
+      "pair": "d-t",
+      "stem": "pu",
+      "ending": "t",
+      "langer": "putten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "hut",
+      "pair": "d-t",
+      "stem": "hu",
+      "ending": "t",
+      "langer": "hutten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kast",
+      "pair": "d-t",
+      "stem": "kas",
+      "ending": "t",
+      "langer": "kasten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "slot",
+      "pair": "d-t",
+      "stem": "slo",
+      "ending": "t",
+      "langer": "sloten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "plat",
+      "pair": "d-t",
+      "stem": "pla",
+      "ending": "t",
+      "langer": "platte",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "sport",
+      "pair": "d-t",
+      "stem": "spor",
+      "ending": "t",
+      "langer": "sporten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "plant",
+      "pair": "d-t",
+      "stem": "plan",
+      "ending": "t",
+      "langer": "planten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "klant",
+      "pair": "d-t",
+      "stem": "klan",
+      "ending": "t",
+      "langer": "klanten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "krant",
+      "pair": "d-t",
+      "stem": "kran",
+      "ending": "t",
+      "langer": "kranten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "borst",
+      "pair": "d-t",
+      "stem": "bors",
+      "ending": "t",
+      "langer": "borsten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "worst",
+      "pair": "d-t",
+      "stem": "wors",
+      "ending": "t",
+      "langer": "worsten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "poot",
+      "pair": "d-t",
+      "stem": "poo",
+      "ending": "t",
+      "langer": "poten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "taart",
+      "pair": "d-t",
+      "stem": "taar",
+      "ending": "t",
+      "langer": "taarten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kaart",
+      "pair": "d-t",
+      "stem": "kaar",
+      "ending": "t",
+      "langer": "kaarten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "straat",
+      "pair": "d-t",
+      "stem": "straa",
+      "ending": "t",
+      "langer": "straten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "gat",
+      "pair": "d-t",
+      "stem": "ga",
+      "ending": "t",
+      "langer": "gaten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "net",
+      "pair": "d-t",
+      "stem": "ne",
+      "ending": "t",
+      "langer": "netten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "pet",
+      "pair": "d-t",
+      "stem": "pe",
+      "ending": "t",
+      "langer": "petten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "nat",
+      "pair": "d-t",
+      "stem": "na",
+      "ending": "t",
+      "langer": "natte",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "wit",
+      "pair": "d-t",
+      "stem": "wi",
+      "ending": "t",
+      "langer": "witte",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vet",
+      "pair": "d-t",
+      "stem": "ve",
+      "ending": "t",
+      "langer": "vette",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "groot",
+      "pair": "d-t",
+      "stem": "groo",
+      "ending": "t",
+      "langer": "grote",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "heet",
+      "pair": "d-t",
+      "stem": "hee",
+      "ending": "t",
+      "langer": "hete",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zoet",
+      "pair": "d-t",
+      "stem": "zoe",
+      "ending": "t",
+      "langer": "zoete",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "tent",
+      "pair": "d-t",
+      "stem": "ten",
+      "ending": "t",
+      "langer": "tenten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "punt",
+      "pair": "d-t",
+      "stem": "pun",
+      "ending": "t",
+      "langer": "punten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kist",
+      "pair": "d-t",
+      "stem": "kis",
+      "ending": "t",
+      "langer": "kisten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "feest",
+      "pair": "d-t",
+      "stem": "fees",
+      "ending": "t",
+      "langer": "feesten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "beest",
+      "pair": "d-t",
+      "stem": "bees",
+      "ending": "t",
+      "langer": "beesten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "nest",
+      "pair": "d-t",
+      "stem": "nes",
+      "ending": "t",
+      "langer": "nesten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kust",
+      "pair": "d-t",
+      "stem": "kus",
+      "ending": "t",
+      "langer": "kusten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "staart",
+      "pair": "d-t",
+      "stem": "staar",
+      "ending": "t",
+      "langer": "staarten",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "lucht",
+      "pair": "cht-gt",
+      "stem": "lu",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "nacht",
+      "pair": "cht-gt",
+      "stem": "na",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zacht",
+      "pair": "cht-gt",
+      "stem": "za",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kracht",
+      "pair": "cht-gt",
+      "stem": "kra",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "bocht",
+      "pair": "cht-gt",
+      "stem": "bo",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vocht",
+      "pair": "cht-gt",
+      "stem": "vo",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "echt",
+      "pair": "cht-gt",
+      "stem": "e",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "recht",
+      "pair": "cht-gt",
+      "stem": "re",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "slecht",
+      "pair": "cht-gt",
+      "stem": "sle",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vlecht",
+      "pair": "cht-gt",
+      "stem": "vle",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "knecht",
+      "pair": "cht-gt",
+      "stem": "kne",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "gracht",
+      "pair": "cht-gt",
+      "stem": "gra",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "wacht",
+      "pair": "cht-gt",
+      "stem": "wa",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "jacht",
+      "pair": "cht-gt",
+      "stem": "ja",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "dicht",
+      "pair": "cht-gt",
+      "stem": "di",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zicht",
+      "pair": "cht-gt",
+      "stem": "zi",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "tocht",
+      "pair": "cht-gt",
+      "stem": "to",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vrucht",
+      "pair": "cht-gt",
+      "stem": "vru",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vlucht",
+      "pair": "cht-gt",
+      "stem": "vlu",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "kocht",
+      "pair": "cht-gt",
+      "stem": "ko",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "dacht",
+      "pair": "cht-gt",
+      "stem": "da",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "bracht",
+      "pair": "cht-gt",
+      "stem": "bra",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zocht",
+      "pair": "cht-gt",
+      "stem": "zo",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "lacht",
+      "pair": "cht-gt",
+      "stem": "la",
+      "ending": "cht",
+      "langer": null,
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zegt",
+      "pair": "cht-gt",
+      "stem": "ze",
+      "ending": "gt",
+      "langer": "ik zeg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "legt",
+      "pair": "cht-gt",
+      "stem": "le",
+      "ending": "gt",
+      "langer": "ik leg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "draagt",
+      "pair": "cht-gt",
+      "stem": "draa",
+      "ending": "gt",
+      "langer": "ik draag",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vliegt",
+      "pair": "cht-gt",
+      "stem": "vlie",
+      "ending": "gt",
+      "langer": "ik vlieg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zaagt",
+      "pair": "cht-gt",
+      "stem": "zaa",
+      "ending": "gt",
+      "langer": "ik zaag",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "vraagt",
+      "pair": "cht-gt",
+      "stem": "vraa",
+      "ending": "gt",
+      "langer": "ik vraag",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "veegt",
+      "pair": "cht-gt",
+      "stem": "vee",
+      "ending": "gt",
+      "langer": "ik veeg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "buigt",
+      "pair": "cht-gt",
+      "stem": "bui",
+      "ending": "gt",
+      "langer": "ik buig",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zuigt",
+      "pair": "cht-gt",
+      "stem": "zui",
+      "ending": "gt",
+      "langer": "ik zuig",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "krijgt",
+      "pair": "cht-gt",
+      "stem": "krij",
+      "ending": "gt",
+      "langer": "ik krijg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "stijgt",
+      "pair": "cht-gt",
+      "stem": "stij",
+      "ending": "gt",
+      "langer": "ik stijg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "zwijgt",
+      "pair": "cht-gt",
+      "stem": "zwij",
+      "ending": "gt",
+      "langer": "ik zwijg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "jaagt",
+      "pair": "cht-gt",
+      "stem": "jaa",
+      "ending": "gt",
+      "langer": "ik jaag",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "klaagt",
+      "pair": "cht-gt",
+      "stem": "klaa",
+      "ending": "gt",
+      "langer": "ik klaag",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "weegt",
+      "pair": "cht-gt",
+      "stem": "wee",
+      "ending": "gt",
+      "langer": "ik weeg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "voegt",
+      "pair": "cht-gt",
+      "stem": "voe",
+      "ending": "gt",
+      "langer": "ik voeg",
+      "zin": null,
+      "reviewed": false
+    },
+    {
+      "wordId": "dreigt",
+      "pair": "cht-gt",
+      "stem": "drei",
+      "ending": "gt",
+      "langer": "ik dreig",
+      "zin": null,
+      "reviewed": false
+    }
+  ]
+}

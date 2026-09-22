@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import confetti from 'canvas-confetti'
-import type { AnswerRecord, LessonKind, WordResult } from '@shared/src/types'
+import type { AnswerRecord, LessonKind, SpellingResult, WordResult } from '@shared/src/types'
 import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
-import { haptic, playEffect, playWord } from '../audio/audio'
+import { allSpellingWords, langerClipId } from '../spelling'
+import { haptic, playEffect, playSpelling, playWord } from '../audio/audio'
 import { Frida } from '../components/Frida'
 import { TreasureChest } from '../components/TreasureChest'
 import { useProgress } from '../state/progress'
@@ -31,6 +32,8 @@ export interface DisplayReward extends Reward {
   score?: number
   /** Hardop lezen only — one entry per word she graded */
   wordResults?: WordResult[]
+  /** Maak het woord af only — one entry per distinct word she spelled */
+  spellingResults?: SpellingResult[]
   /**
    * Klank games — one record per klank she answered. The stat card needs a denominator, and
    * for everything that is not a reading round `answers.length` is the unit `computeReward`
@@ -75,6 +78,21 @@ const WEETJE_HEADLINE = 'Nu weet je dit ook!'
 const WEETJE_SUBLINE = 'Vertel het vanavond aan iemand thuis.'
 
 /**
+ * A missed-word chip, spoken.
+ *
+ * For a reading round that is the word. For a spelling round it is the word **and its
+ * longer form** — "hond… honden" — so the strategy rides along one last time for exactly
+ * the words she got wrong (docs/maak-het-woord-af.md §5). A `cht` word has no longer form
+ * and is simply spoken.
+ */
+async function playChip(wordId: string, spelling: boolean): Promise<void> {
+  await playWord(wordId, getWord(wordId).text)
+  if (!spelling) return
+  const langer = allSpellingWords.find((w) => w.wordId === wordId)?.langer
+  if (langer) await playSpelling(langerClipId(wordId), [langer])
+}
+
+/**
  * The end of a round: the celebration first, then what she earned, then — for a reading
  * round — which words went on "nog even", listed so she and a parent can see what to
  * practise. Tapping one plays it again.
@@ -101,15 +119,25 @@ export function RewardScreen({ reward, onDone }: Props) {
   const isWeetje = reward.kind === 'weetje'
 
   const wordResults = reward.wordResults ?? []
+  const spellingResults = reward.spellingResults ?? []
   const reading = wordResults.length > 0
-  const missed = wordResults.filter((r) => !r.correct)
+  const spelling = spellingResults.length > 0
+  /**
+   * The round's cards, whichever game produced them. A reading round and a spelling round
+   * are both scored per *word*, so the stat card, the tally and the chips read one list —
+   * which is what "the stat card works unchanged once spellingResults is mapped to the
+   * shape it reads" means (docs/maak-het-woord-af.md §5).
+   */
+  const perWord: { wordId: string; correct: boolean }[] = reading ? wordResults : spellingResults
+  const byWord = reading || spelling
+  const missed = perWord.filter((r) => !r.correct)
 
-  // A reading round is scored per word; every other game per klank — the same two units
+  // A word round is scored per word; every other game per klank — the same two units
   // computeReward branches on, so the percentage on the card can never tell a different
   // story from the gems underneath it.
-  const total = reading ? wordResults.length : (reward.answers?.length ?? 0)
-  const correct = reading
-    ? wordResults.filter((r) => r.correct).length
+  const total = byWord ? perWord.length : (reward.answers?.length ?? 0)
+  const correct = byWord
+    ? perWord.filter((r) => r.correct).length
     : (reward.answers?.filter((a) => a.correct).length ?? 0)
   const pct = pctFor(correct, total)
 
@@ -144,7 +172,7 @@ export function RewardScreen({ reward, onDone }: Props) {
         // would get.
         const particleCount = isWeetje
           ? confettiCount(100, false, undefined)
-          : confettiCount(pct, reward.newRecord, reading ? correct : undefined)
+          : confettiCount(pct, reward.newRecord, byWord ? correct : undefined)
         if (particleCount > 0) {
           confetti({
             particleCount,
@@ -157,7 +185,7 @@ export function RewardScreen({ reward, onDone }: Props) {
       }
       if (beat === 'card') playEffect('cardPop')
     },
-    [pct, correct, reading, quiet, isWeetje, reward.newRecord],
+    [pct, correct, byWord, quiet, isWeetje, reward.newRecord],
   )
 
   const handleTierUp = useCallback((step: number) => playEffect('tierUp', step), [])
@@ -276,7 +304,7 @@ export function RewardScreen({ reward, onDone }: Props) {
           </div>
           <div className="reward-pct">{shownPct}%</div>
           <div className="reward-tally">
-            {reading
+            {byWord
               ? `${correct} goed · ${missed.length} nog even`
               : `${correct} van ${total} goed`}
           </div>
@@ -349,7 +377,7 @@ export function RewardScreen({ reward, onDone }: Props) {
             <button
               key={`${r.wordId}-${i}`}
               className="word-chip"
-              onClick={() => void playWord(r.wordId, getWord(r.wordId).text)}
+              onClick={() => void playChip(r.wordId, spelling)}
             >
               🔊 {getWord(r.wordId).text}
             </button>

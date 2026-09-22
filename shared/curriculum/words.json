@@ -3486,6 +3486,980 @@
         "s"
       ],
       "reviewed": false
+    },
+    {
+      "id": "brood",
+      "text": "brood",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "r",
+        "oo",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hoofd",
+      "text": "hoofd",
+      "category": "lang",
+      "klanken": [
+        "h",
+        "oo",
+        "f",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "eend",
+      "text": "eend",
+      "category": "lang",
+      "klanken": [
+        "ee",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vriend",
+      "text": "vriend",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "r",
+        "ie",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hoed",
+      "text": "hoed",
+      "category": "twee",
+      "klanken": [
+        "h",
+        "oe",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "draad",
+      "text": "draad",
+      "category": "lang",
+      "klanken": [
+        "d",
+        "r",
+        "aa",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "oud",
+      "text": "oud",
+      "category": "twee",
+      "klanken": [
+        "ou",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "rood",
+      "text": "rood",
+      "category": "lang",
+      "klanken": [
+        "r",
+        "oo",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "goed",
+      "text": "goed",
+      "category": "twee",
+      "klanken": [
+        "g",
+        "oe",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "breed",
+      "text": "breed",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "r",
+        "ee",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dood",
+      "text": "dood",
+      "category": "lang",
+      "klanken": [
+        "d",
+        "oo",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "mand",
+      "text": "mand",
+      "category": "kort",
+      "klanken": [
+        "m",
+        "a",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "rond",
+      "text": "rond",
+      "category": "kort",
+      "klanken": [
+        "r",
+        "o",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "blond",
+      "text": "blond",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "l",
+        "o",
+        "n",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "beeld",
+      "text": "beeld",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "ee",
+        "l",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "hemd",
+      "text": "hemd",
+      "category": "kort",
+      "klanken": [
+        "h",
+        "e",
+        "m",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zwaard",
+      "text": "zwaard",
+      "category": "lang",
+      "klanken": [
+        "z",
+        "w",
+        "aa",
+        "r",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "tijd",
+      "text": "tijd",
+      "category": "twee",
+      "klanken": [
+        "t",
+        "ij",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "bad",
+      "text": "bad",
+      "category": "kort",
+      "klanken": [
+        "b",
+        "a",
+        "d"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "poot",
+      "text": "poot",
+      "category": "lang",
+      "klanken": [
+        "p",
+        "oo",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "taart",
+      "text": "taart",
+      "category": "lang",
+      "klanken": [
+        "t",
+        "aa",
+        "r",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kaart",
+      "text": "kaart",
+      "category": "lang",
+      "klanken": [
+        "k",
+        "aa",
+        "r",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "straat",
+      "text": "straat",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "t",
+        "r",
+        "aa",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "gat",
+      "text": "gat",
+      "category": "kort",
+      "klanken": [
+        "g",
+        "a",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "net",
+      "text": "net",
+      "category": "kort",
+      "klanken": [
+        "n",
+        "e",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "pet",
+      "text": "pet",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "e",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "nat",
+      "text": "nat",
+      "category": "kort",
+      "klanken": [
+        "n",
+        "a",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "wit",
+      "text": "wit",
+      "category": "kort",
+      "klanken": [
+        "w",
+        "i",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vet",
+      "text": "vet",
+      "category": "kort",
+      "klanken": [
+        "v",
+        "e",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "groot",
+      "text": "groot",
+      "category": "lang",
+      "klanken": [
+        "g",
+        "r",
+        "oo",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "heet",
+      "text": "heet",
+      "category": "lang",
+      "klanken": [
+        "h",
+        "ee",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zoet",
+      "text": "zoet",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "oe",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "tent",
+      "text": "tent",
+      "category": "kort",
+      "klanken": [
+        "t",
+        "e",
+        "n",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "punt",
+      "text": "punt",
+      "category": "kort",
+      "klanken": [
+        "p",
+        "u",
+        "n",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kist",
+      "text": "kist",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "i",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "feest",
+      "text": "feest",
+      "category": "lang",
+      "klanken": [
+        "f",
+        "ee",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "beest",
+      "text": "beest",
+      "category": "lang",
+      "klanken": [
+        "b",
+        "ee",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "nest",
+      "text": "nest",
+      "category": "kort",
+      "klanken": [
+        "n",
+        "e",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kust",
+      "text": "kust",
+      "category": "kort",
+      "klanken": [
+        "k",
+        "u",
+        "s",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "staart",
+      "text": "staart",
+      "category": "lang",
+      "klanken": [
+        "s",
+        "t",
+        "aa",
+        "r",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "lucht",
+      "text": "lucht",
+      "category": "twee",
+      "klanken": [
+        "l",
+        "u",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "nacht",
+      "text": "nacht",
+      "category": "twee",
+      "klanken": [
+        "n",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zacht",
+      "text": "zacht",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kracht",
+      "text": "kracht",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "r",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "bocht",
+      "text": "bocht",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "o",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vocht",
+      "text": "vocht",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "o",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "echt",
+      "text": "echt",
+      "category": "twee",
+      "klanken": [
+        "e",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "recht",
+      "text": "recht",
+      "category": "twee",
+      "klanken": [
+        "r",
+        "e",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "slecht",
+      "text": "slecht",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "l",
+        "e",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vlecht",
+      "text": "vlecht",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "l",
+        "e",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "knecht",
+      "text": "knecht",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "n",
+        "e",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "gracht",
+      "text": "gracht",
+      "category": "twee",
+      "klanken": [
+        "g",
+        "r",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "wacht",
+      "text": "wacht",
+      "category": "twee",
+      "klanken": [
+        "w",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "jacht",
+      "text": "jacht",
+      "category": "twee",
+      "klanken": [
+        "j",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dicht",
+      "text": "dicht",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "i",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zicht",
+      "text": "zicht",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "i",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "tocht",
+      "text": "tocht",
+      "category": "twee",
+      "klanken": [
+        "t",
+        "o",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vrucht",
+      "text": "vrucht",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "r",
+        "u",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vlucht",
+      "text": "vlucht",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "l",
+        "u",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "kocht",
+      "text": "kocht",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "o",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dacht",
+      "text": "dacht",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "bracht",
+      "text": "bracht",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "r",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zocht",
+      "text": "zocht",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "o",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "lacht",
+      "text": "lacht",
+      "category": "twee",
+      "klanken": [
+        "l",
+        "a",
+        "ch",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zegt",
+      "text": "zegt",
+      "category": "kort",
+      "klanken": [
+        "z",
+        "e",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "legt",
+      "text": "legt",
+      "category": "kort",
+      "klanken": [
+        "l",
+        "e",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "draagt",
+      "text": "draagt",
+      "category": "lang",
+      "klanken": [
+        "d",
+        "r",
+        "aa",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vliegt",
+      "text": "vliegt",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "l",
+        "ie",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zaagt",
+      "text": "zaagt",
+      "category": "lang",
+      "klanken": [
+        "z",
+        "aa",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "vraagt",
+      "text": "vraagt",
+      "category": "lang",
+      "klanken": [
+        "v",
+        "r",
+        "aa",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "veegt",
+      "text": "veegt",
+      "category": "lang",
+      "klanken": [
+        "v",
+        "ee",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "buigt",
+      "text": "buigt",
+      "category": "twee",
+      "klanken": [
+        "b",
+        "ui",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zuigt",
+      "text": "zuigt",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "ui",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "krijgt",
+      "text": "krijgt",
+      "category": "twee",
+      "klanken": [
+        "k",
+        "r",
+        "ij",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "stijgt",
+      "text": "stijgt",
+      "category": "twee",
+      "klanken": [
+        "s",
+        "t",
+        "ij",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "zwijgt",
+      "text": "zwijgt",
+      "category": "twee",
+      "klanken": [
+        "z",
+        "w",
+        "ij",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "jaagt",
+      "text": "jaagt",
+      "category": "lang",
+      "klanken": [
+        "j",
+        "aa",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "klaagt",
+      "text": "klaagt",
+      "category": "lang",
+      "klanken": [
+        "k",
+        "l",
+        "aa",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "weegt",
+      "text": "weegt",
+      "category": "lang",
+      "klanken": [
+        "w",
+        "ee",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "voegt",
+      "text": "voegt",
+      "category": "twee",
+      "klanken": [
+        "v",
+        "oe",
+        "g",
+        "t"
+      ],
+      "reviewed": false
+    },
+    {
+      "id": "dreigt",
+      "text": "dreigt",
+      "category": "twee",
+      "klanken": [
+        "d",
+        "r",
+        "ei",
+        "g",
+        "t"
+      ],
+      "reviewed": false
     }
   ]
 }
