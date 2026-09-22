@@ -56,3 +56,33 @@ export async function installLearnedSwipe(page: Page): Promise<void> {
     { dbName: DB_NAME, store: STORE, key: KEY, version: VERSION },
   )
 }
+
+/**
+ * Start the test with a wallet, so a purchase can be tested without playing for it.
+ *
+ * Same merge shape as installLearnedSwipe above, and for the same reason: this composes with
+ * skipOnboarding's flag in the one shared blob. Unlike that one it only writes when the
+ * balance has never been set — an init script runs on every navigation, and topping the
+ * wallet back up after a reload would hide a purchase that failed to persist.
+ */
+export async function installGems(page: Page, gems: number): Promise<void> {
+  await page.addInitScript(
+    ({ dbName, store, key, version, gems }) => {
+      const req = indexedDB.open(dbName, 1)
+      req.onupgradeneeded = () => req.result.createObjectStore(store)
+      req.onsuccess = () => {
+        const objectStore = req.result.transaction(store, 'readwrite').objectStore(store)
+        const read = objectStore.get(key)
+        read.onsuccess = () => {
+          const existing = typeof read.result === 'string' ? JSON.parse(read.result) : null
+          if (existing?.state?.gems !== undefined) return
+          objectStore.put(
+            JSON.stringify({ ...existing, state: { ...existing?.state, gems }, version }),
+            key,
+          )
+        }
+      }
+    },
+    { dbName: DB_NAME, store: STORE, key: KEY, version: VERSION, gems },
+  )
+}

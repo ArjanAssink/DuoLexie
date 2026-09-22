@@ -6,10 +6,12 @@ import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
 import { haptic, playEffect, playWord } from '../audio/audio'
 import { Frida } from '../components/Frida'
+import { TreasureChest } from '../components/TreasureChest'
 import { useProgress } from '../state/progress'
 import {
   BEATS,
   confettiCount,
+  gemSpriteCount,
   pctFor,
   praiseFor,
   showsStreak,
@@ -58,17 +60,19 @@ const GEM_TICK_MS = 90
 /** Gems per step up the tick scale, so a long count-up still ends on a musical note. */
 const GEMS_PER_TICK_STEP = 4
 
+/**
+ * The chest's drawn width. Small enough to sit on the same row as the two reward lines
+ * rather than adding a row of its own — an iPhone SE has about fifteen pixels of slack in
+ * this layout (§3) and a stacked chest would spend all of them.
+ */
+const CHEST_SIZE = 76
+
 /** Gold, the same three the hero's headline is built from. canvas-confetti needs literals. */
 const CONFETTI_COLORS = ['#F7C531', '#D9A616', '#FFF1B8']
 
 /** The Weetjes headline and the line under it (docs/weetjes.md §2) — copy is fixed. */
 const WEETJE_HEADLINE = 'Nu weet je dit ook!'
 const WEETJE_SUBLINE = 'Vertel het vanavond aan iemand thuis.'
-
-/** Beats in which the reward strip and its gem count-up are on screen. */
-function stripIsUp(beat: Beat): boolean {
-  return beat === 'strip' || beat === 'done'
-}
 
 /**
  * The end of a round: the celebration first, then what she earned, then — for a reading
@@ -158,11 +162,20 @@ export function RewardScreen({ reward, onDone }: Props) {
 
   const handleTierUp = useCallback((step: number) => playEffect('tierUp', step), [])
 
-  const { beat, progress, skipped, skip } = useCelebration({
+  // The lid, and the one thing on this screen she made happen herself. The haptic is the
+  // same length as the one a card landing gets: a chest is a bigger event than a card, but
+  // it is not a new record, and the phone in her hand should not say it is.
+  const handleChestOpen = useCallback(() => {
+    playEffect('chestOpen')
+    haptic(18)
+  }, [])
+
+  const { beat, progress, skipped, chestOpen, chestOpenedBy, openChest, skip } = useCelebration({
     pct,
     skipCard: isWeetje,
     onBeat: handleBeat,
     onTierUp: handleTierUp,
+    onChestOpen: handleChestOpen,
   })
 
   // The number and the bar are the same value rendered twice — see easeBar's note. Rounding
@@ -172,10 +185,14 @@ export function RewardScreen({ reward, onDone }: Props) {
   const tier = tierFor(shownPct)
 
   // Count the gems up one at a time rather than printing the total: the counting *is* the
-  // reward moment, and it costs a second and a half. It starts with the strip and is
-  // deliberately allowed to run on into `done` — under reduced motion the screen mounts in
-  // `done`, so this starts immediately and behaves exactly as it did before.
-  const countGems = stripIsUp(beat)
+  // reward moment, and it costs a second and a half. It is the *chest* that starts it, not
+  // the strip beat — the gems come out of the chest, so a number climbing beside a lid that
+  // is still shut would be the one thing on this screen that gives the game away
+  // (docs/kist-openen.md §3). The chest opens on its own shortly after the strip if she does
+  // not tap it, so this can be waited on without anything ever being stuck behind it, and it
+  // is deliberately allowed to run on past `done`. Under reduced motion the chest is open on
+  // the first frame, so this starts at mount exactly as it did before.
+  const countGems = chestOpen
   useEffect(() => {
     if (!countGems || reward.gems <= 0) return
     let n = 0
@@ -275,6 +292,47 @@ export function RewardScreen({ reward, onDone }: Props) {
       )}
 
       <div className="reward-strip">
+        {/*
+          The chest she taps. It is a real button rather than a tappable div because it is
+          the only thing on this screen that does something, and it must be reachable by
+          keyboard and announce itself — the sequence around it is decoration, this is not.
+
+          `stopPropagation` on both handlers is load-bearing: the screen's own tap-to-skip
+          sets `data-skipped`, which turns *every* animation off (theme.css), so without it
+          the one tap the whole feature exists for would be the one tap whose lid never
+          swings. Tapping anywhere else still skips, and a skip still opens the chest —
+          instantly, with the rest of the final state.
+        */}
+        {reward.gems > 0 && (
+          <button
+            type="button"
+            className="reward-chest"
+            data-open={chestOpen ? 'true' : 'false'}
+            data-opened-by={chestOpenedBy ?? 'shut'}
+            aria-label={chestOpen ? 'De schatkist is open' : 'Open de schatkist'}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              openChest()
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              openChest()
+            }}
+          >
+            <TreasureChest size={CHEST_SIZE} />
+            <span className="chest-burst" aria-hidden="true">
+              {Array.from({ length: gemSpriteCount(reward.gems) }, (_, i) => (
+                <span
+                  key={i}
+                  className="chest-gem"
+                  style={{ '--i': i, '--n': gemSpriteCount(reward.gems) } as CSSProperties}
+                >
+                  💎
+                </span>
+              ))}
+            </span>
+          </button>
+        )}
         {/* gems first: the existing e2e tests read the first .reward-line, and the gems are
             the line she is waiting for anyway */}
         <div className="reward-line">💎 +{shownGems}</div>

@@ -13,6 +13,11 @@ acceptance criterion; where it says *suggested*, use judgement.
 **Status:** built (PR *Beloningsscherm v2: viering na een ronde*). Deviations from what is
 written below are marked *(as built)* where they occur, and listed together in §13.
 
+**Amended by [kist-openen.md](kist-openen.md):** the gems in the strip now pour out of a
+schatkist she taps open, and the count-up starts with its lid rather than with the strip.
+Every beat, every timing and every guarantee below is unchanged — read that document
+alongside §2 and §6 rather than instead of them.
+
 ---
 
 ## 1. What changes and why
@@ -394,7 +399,9 @@ Unit: `rewardTimeline.test.ts` as in §8.
 ## 12. Out of scope
 
 - A second beat after Verder (quest progress, sticker, streak). Leave `onDone` as the
-  single exit so it can be added in front of `navigate('/')` later.
+  single exit so it can be added in front of `navigate('/')` later. *(Still true. The gem
+  landing in kist-openen.md §4 adds an argument to that `navigate`, not a beat in front of
+  it.)*
 - New Frida art. If a full-body celebrating pose is ever drawn, it slots into the hero as a
   different `expression`; nothing else changes.
 - Recorded sound assets.

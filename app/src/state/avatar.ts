@@ -9,21 +9,92 @@ const idbStateStorage: StateStorage = {
   removeItem: (name) => idbDel(name),
 }
 
-export const SKIN_COLORS = ['#F4C29C', '#E8A579', '#C98452', '#8D5A34', '#5C3A22'] as const
-export const EYE_COLORS = ['#4E7DD1', '#3F9B5C', '#8B5A2B', '#5B4636', '#2F2A26'] as const
-export const HAIR_COLORS = ['#2B2118', '#6B4226', '#B5651D', '#D9A441', '#7A4B9E', '#E85D75'] as const
-export const HAIRSTYLES: HairStyle[] = ['kort', 'krullen', 'staart', 'lang']
-export const HAIRSTYLE_LABELS: Record<HairStyle, string> = {
-  kort: 'Kort',
-  krullen: 'Krullen',
-  staart: 'Staart',
-  lang: 'Lang',
+/** One swatch: the colour itself plus the name behind it, which is also its button label. */
+export interface ColorChoice {
+  hex: string
+  name: string
 }
 
+/** Skin tones, light to dark — the five original ones are still in here, in place. */
+export const SKIN_COLORS: ColorChoice[] = [
+  { hex: '#FBDCC2', name: 'Heel licht' },
+  { hex: '#F4C29C', name: 'Licht' },
+  { hex: '#EDB088', name: 'Licht getint' },
+  { hex: '#E8A579', name: 'Getint' },
+  { hex: '#D89460', name: 'Goudbruin' },
+  { hex: '#C98452', name: 'Bruin' },
+  { hex: '#AE6E42', name: 'Warmbruin' },
+  { hex: '#8D5A34', name: 'Donkerbruin' },
+  { hex: '#6E4529', name: 'Diepbruin' },
+  { hex: '#5C3A22', name: 'Heel donker' },
+]
+
+export const EYE_COLORS: ColorChoice[] = [
+  { hex: '#4E7DD1', name: 'Blauw' },
+  { hex: '#7FB4E3', name: 'Lichtblauw' },
+  { hex: '#6F7E8C', name: 'Grijs' },
+  { hex: '#3F9B5C', name: 'Groen' },
+  { hex: '#87A86B', name: 'Grijsgroen' },
+  { hex: '#A07B3C', name: 'Amber' },
+  { hex: '#8B5A2B', name: 'Hazelnoot' },
+  { hex: '#5B4636', name: 'Bruin' },
+  { hex: '#2F2A26', name: 'Donkerbruin' },
+  { hex: '#8A5BD1', name: 'Paars' },
+]
+
+/** Haarkleuren die in het echt bestaan, donker naar licht. */
+export const NATURAL_HAIR_COLORS: ColorChoice[] = [
+  { hex: '#12100E', name: 'Zwart' },
+  { hex: '#2B2118', name: 'Donkerbruin' },
+  { hex: '#3E2B1C', name: 'Koffiebruin' },
+  { hex: '#6B4226', name: 'Bruin' },
+  { hex: '#8B5A3C', name: 'Kastanje' },
+  { hex: '#A9703F', name: 'Lichtbruin' },
+  { hex: '#B5651D', name: 'Roodbruin' },
+  { hex: '#C8531F', name: 'Koperrood' },
+  { hex: '#D9A441', name: 'Blond' },
+  { hex: '#E3BC66', name: 'Goudblond' },
+  { hex: '#EFD79B', name: 'Lichtblond' },
+  { hex: '#F5E9CE', name: 'Platinablond' },
+  { hex: '#9A938C', name: 'Grijs' },
+  { hex: '#E9E6E0', name: 'Wit' },
+]
+
+/** En de rest. Dit is een spelletje, dus blauw haar mag gewoon. */
+export const WILD_HAIR_COLORS: ColorChoice[] = [
+  { hex: '#FF4FA3', name: 'Knalroze' },
+  { hex: '#F79AC8', name: 'Zachtroze' },
+  { hex: '#E85D75', name: 'Framboos' },
+  { hex: '#E2342F', name: 'Vuurrood' },
+  { hex: '#FF7A29', name: 'Oranje' },
+  { hex: '#F7C531', name: 'Knalgeel' },
+  { hex: '#BFE03A', name: 'Limegroen' },
+  { hex: '#3FC55C', name: 'Grasgroen' },
+  { hex: '#00C2A8', name: 'Mint' },
+  { hex: '#1F9E86', name: 'Zeegroen' },
+  { hex: '#2FD0E0', name: 'Turquoise' },
+  { hex: '#37A0F0', name: 'Hemelsblauw' },
+  { hex: '#2B4FD6', name: 'Kobaltblauw' },
+  { hex: '#6B3FD1', name: 'Violet' },
+  { hex: '#7A4B9E', name: 'Paars' },
+  { hex: '#B06BE8', name: 'Lila' },
+]
+
+/** The two shelves the haarkleur picker shows, in order. */
+export const HAIR_COLOR_GROUPS: { label: string; colors: ColorChoice[] }[] = [
+  { label: 'Gewoon', colors: NATURAL_HAIR_COLORS },
+  { label: 'Gek', colors: WILD_HAIR_COLORS },
+]
+
+/** Every preset haarkleur, for anything that just wants the flat list. */
+export const HAIR_COLORS: ColorChoice[] = [...NATURAL_HAIR_COLORS, ...WILD_HAIR_COLORS]
+
+// Spelled out rather than taken from the arrays above: those grew (and may grow again) and
+// the starting look should not drift with them.
 const defaultConfig: AvatarConfig = {
-  skinColor: SKIN_COLORS[0],
-  eyeColor: EYE_COLORS[0],
-  hairColor: HAIR_COLORS[0],
+  skinColor: '#F4C29C',
+  eyeColor: '#4E7DD1',
+  hairColor: '#2B2118',
   hairstyle: 'kort',
   equipped: {},
 }

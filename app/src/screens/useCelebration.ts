@@ -15,7 +15,26 @@ interface Options {
   onBeat?: (beat: Beat) => void
   /** the filling bar has crossed into a new tier; `step` is 1 for Goed, 2 for Super, 3 for Perfect */
   onTierUp?: (step: number) => void
+  /**
+   * The chest has just swung open — she tapped it, or the auto-open fired. Called at most
+   * once, and on the same terms as `onBeat`: not for a `skip()`, and never under reduced
+   * motion, where the chest is already open on the first frame and nothing has happened for
+   * a sound to belong to.
+   */
+  onChestOpen?: () => void
 }
+
+/**
+ * How the chest came to be open. Mirrored to `data-opened-by` on the chest.
+ *
+ * It exists because the three paths are indistinguishable from the outside — an open chest
+ * is an open chest — and the difference between them is the whole feature. A test cannot
+ * infer it from the clock either: Playwright's actionability wait drives a paused clock
+ * forward, by about a second on Chromium and nearly three on WebKit, which is enough for the
+ * auto-open to fire *inside* the `click()` that was meant to beat it. That is a real flake
+ * this attribute is the fix for, not a hypothetical.
+ */
+export type ChestOpener = 'tap' | 'auto' | 'skip' | 'reduced'
 
 export interface Celebration {
   /** which stage is on screen; the reward screen mirrors it to `data-beat` */
@@ -24,6 +43,17 @@ export interface Celebration {
   progress: number
   /** true once `skip()` has run, so CSS can suppress every entrance animation at once */
   skipped: boolean
+  /**
+   * The schatkist is open — the gems are out, and the count-up has started
+   * (docs/kist-openen.md). Not a beat: the chest is the one thing on this screen she can
+   * make happen early, so its state has to be able to run ahead of the schedule rather than
+   * be a position in it.
+   */
+  chestOpen: boolean
+  /** which of the three ways it opened, or null while it is still shut */
+  chestOpenedBy: ChestOpener | null
+  /** she tapped the chest. Idempotent, and safe to call after the auto-open has fired. */
+  openChest: () => void
   /** jump to the final state: everything at its final value, nothing left mid-animation */
   skip: () => void
 }
@@ -31,7 +61,7 @@ export interface Celebration {
 /**
  * The celebration's clock (docs/reward-celebration.md §2).
  *
- * Every timer in the sequence lives here — four `setTimeout`s and one `requestAnimationFrame`
+ * Every timer in the sequence lives here — five `setTimeout`s and one `requestAnimationFrame`
  * loop — because the gate that matters most is that *none of them survives the screen*.
  * `tests/e2e/quit-mid-animation.spec.ts` exists because an earlier generation of this app
  * left game timers running after unmount and credited a lesson she had quit; a five-timer
@@ -46,9 +76,16 @@ export interface Celebration {
  * `progress` already 1, so the screen's first paint *is* the final state. No timers are
  * created, so `onBeat` and `onTierUp` never fire and none of the new sounds play either —
  * the gem count-up, which is numbers changing rather than motion, is the reward screen's own
- * effect and keeps running (§7).
+ * effect and keeps running (§7) — the chest it pours from mounts already open, so there is
+ * nothing for it to wait on.
  */
-export function useCelebration({ pct, skipCard = false, onBeat, onTierUp }: Options): Celebration {
+export function useCelebration({
+  pct,
+  skipCard = false,
+  onBeat,
+  onTierUp,
+  onChestOpen,
+}: Options): Celebration {
   // Read once at mount. A media query that flips mid-celebration would otherwise strand the
   // sequence halfway, which is worse for the person who asked for less motion than finishing.
   const [reduced] = useState(prefersReducedMotion)
@@ -56,6 +93,12 @@ export function useCelebration({ pct, skipCard = false, onBeat, onTierUp }: Opti
   // With no card there is nothing to fill, so the fill is over before it starts.
   const [progress, setProgress] = useState(reduced || skipCard ? 1 : 0)
   const [skipped, setSkipped] = useState(false)
+  // Reduced motion mounts every part of the screen in its final state, and for the chest
+  // that is open — there is no hinge swing to watch and no reason to make her tap for a
+  // number the screen could simply be showing her.
+  const [chestOpenedBy, setChestOpenedBy] = useState<ChestOpener | null>(
+    reduced ? 'reduced' : null,
+  )
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const frame = useRef<number | null>(null)
@@ -66,8 +109,17 @@ export function useCelebration({ pct, skipCard = false, onBeat, onTierUp }: Opti
   // which is to say on every frame of the count-up.
   const beatRef = useRef(onBeat)
   const tierRef = useRef(onTierUp)
+  const chestRef = useRef(onChestOpen)
   beatRef.current = onBeat
   tierRef.current = onTierUp
+  chestRef.current = onChestOpen
+
+  /**
+   * The chest's state, shadowed in a ref. A ref rather than reading `chestOpenedBy`, because
+   * a tap landing in the same frame as the auto-open timer would see the old state in both
+   * handlers — and open the chest twice, which is once too many creaks.
+   */
+  const openedRef = useRef<ChestOpener | null>(reduced ? 'reduced' : null)
 
   const clearAll = useCallback(() => {
     for (const t of timers.current) clearTimeout(t)
@@ -76,12 +128,34 @@ export function useCelebration({ pct, skipCard = false, onBeat, onTierUp }: Opti
     frame.current = null
   }, [])
 
+  /**
+   * Opening the chest is one-way and idempotent: the auto-open timer, a tap and a skip all
+   * come through here, and on a slow frame two of them can land together — whichever is
+   * first is the one recorded, and the sound is spent once.
+   *
+   * A skip is silent, on the same terms as `onBeat`: the chest is open because the screen
+   * jumped, and nothing happened for a sound to belong to.
+   */
+  const open = useCallback((by: ChestOpener) => {
+    if (openedRef.current) return
+    openedRef.current = by
+    setChestOpenedBy(by)
+    if (by !== 'skip') chestRef.current?.()
+  }, [])
+
+  const openChest = useCallback(() => open('tap'), [open])
+
   const skip = useCallback(() => {
     clearAll()
     setSkipped(true)
     setBeat('done')
     setProgress(1)
-  }, [clearAll])
+    // A skip means *everything* at its final value, and a closed chest is not one: leaving
+    // it shut would make the tap she just made the one thing on the screen that did nothing.
+    // It opens without its hinge swing, because `data-skipped` turns every animation off —
+    // which is the guarantee, not an oversight.
+    open('skip')
+  }, [clearAll, open])
 
   useEffect(() => {
     if (reduced) return
@@ -101,16 +175,23 @@ export function useCelebration({ pct, skipCard = false, onBeat, onTierUp }: Opti
     at(BEATS.heroAt, () => enter('hero'))
     at(BEATS.settleAt, () => enter('settle'))
 
+    // How much earlier everything after the settle happens when there is no card to pop in.
+    const cardGap = BEATS.stripAt - BEATS.cardAt
+
     if (skipCard) {
       // settle -> strip -> done, with the card's window closed up rather than left empty.
       at(BEATS.cardAt, () => enter('strip'))
-      at(BEATS.cardAt + (BEATS.doneAt - BEATS.stripAt), () => enter('done'))
+      at(BEATS.doneAt - cardGap, () => enter('done'))
+      // The chest is timed off the strip, not off the clock, so a Weetje's shorter sequence
+      // does not leave it hanging 1.3s longer than every other round's.
+      at(BEATS.chestAt - cardGap, () => open('auto'))
       return clearAll
     }
 
     at(BEATS.cardAt, () => enter('card'))
     at(BEATS.stripAt, () => enter('strip'))
     at(BEATS.doneAt, () => enter('done'))
+    at(BEATS.chestAt, () => open('auto'))
 
     at(BEATS.cardAt + BEATS.barDelay, () => {
       const started = performance.now()
@@ -139,7 +220,15 @@ export function useCelebration({ pct, skipCard = false, onBeat, onTierUp }: Opti
     })
 
     return clearAll
-  }, [pct, reduced, skipCard, clearAll])
+  }, [pct, reduced, skipCard, clearAll, open])
 
-  return { beat, progress, skipped, skip }
+  return {
+    beat,
+    progress,
+    skipped,
+    chestOpen: chestOpenedBy !== null,
+    chestOpenedBy,
+    openChest,
+    skip,
+  }
 }

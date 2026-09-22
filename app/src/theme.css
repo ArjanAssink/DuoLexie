@@ -1260,28 +1260,36 @@ button:disabled { cursor: default; }
   letter-spacing: 1px;
   margin: 0 0 10px;
 }
+.avatar-picker h3 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+.hairstyle-group + .hairstyle-group,
+.swatch-group + .swatch-group { margin-top: 12px; }
+/* Wraps rather than scrolls: with eleven kapsels per groep a scrolling strip would hide
+   most of the shelf off the right edge, and she has to be able to see what there is. */
 .hairstyle-row {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 7px;
 }
 .hairstyle-btn {
-  width: 64px;
-  height: 56px;
+  aspect-ratio: 1;
   border-radius: 14px;
   border: 2px solid var(--hairline);
   background: white;
-  flex: 0 0 auto;
   display: grid;
   place-items: center;
+  padding: 2px;
 }
-.hairstyle-btn svg { width: 46px; height: 36px; }
+.hairstyle-btn svg { width: 100%; height: 100%; }
 .hairstyle-btn.selected { border-color: var(--teal-pill-border); background: var(--teal-pill); }
-.swatch-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.swatch-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .swatch {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: 3px solid transparent;
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
@@ -1290,12 +1298,45 @@ button:disabled { cursor: default; }
   border-color: var(--teal);
   box-shadow: 0 0 0 3px var(--teal-pill), 0 3px 0 rgba(0, 0, 0, 0.12);
 }
+.custom-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 24px;
+  border: 2px solid var(--hairline);
+  background: white;
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+}
+.custom-color.selected { border-color: var(--teal-pill-border); background: var(--teal-pill); }
+/* The native swatch is the tap target; it sits under the dot so the control looks like the
+   other swatches instead of like a browser widget. */
+.custom-color input[type='color'] {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+}
+.custom-color-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  flex: 0 0 auto;
+}
 
 /* ---------- winkel (shop) ---------- */
-.shop-tabs { display: flex; gap: 8px; }
+/* Five tabs do not fit one phone-wide row, so they run three-and-two rather than shrink to
+   unreadable — "Op je hoofd" has to stay legible at a glance. A grid keeps the second row's
+   two tabs the same width as the first row's three, instead of letting them stretch. */
+.shop-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .shop-tab {
-  flex: 1;
-  padding: 10px;
+  padding: 10px 6px;
   border-radius: 12px;
   border: 2px solid var(--hairline);
   background: white;
@@ -1322,7 +1363,7 @@ button:disabled { cursor: default; }
   border: 2px solid var(--hairline);
   background: white;
 }
-.shop-item svg { width: 64px; height: 48px; }
+.shop-item svg { width: 72px; height: 72px; }
 .shop-item-name { font-weight: 800; font-size: 14px; }
 .shop-item-price {
   display: flex;
@@ -1631,7 +1672,7 @@ button:disabled { cursor: default; }
 }
 
 /* ----- the reward strip, the chips, and Verder ----- */
-.reward-strip { display: flex; gap: 22px; align-items: baseline; }
+.reward-strip { display: flex; gap: 18px; align-items: center; }
 .reward-screen .reward-line { font-size: 22px; font-weight: 900; }
 .reward-score { font-size: 17px; font-weight: 800; color: var(--muted); }
 .reward-chips {
@@ -1666,6 +1707,186 @@ button:disabled { cursor: default; }
 }
 .reward-screen[data-beat="strip"] .reward-score { animation-delay: 80ms; }
 .reward-screen[data-beat="strip"] .reward-chips { animation-delay: 160ms; }
+
+/*
+ * ----- the schatkist (docs/kist-openen.md) -----
+ *
+ * The one thing on this screen she does rather than watches. It obeys the same two rules as
+ * everything above it: nothing animates a box-model property, and the *open* chest is the
+ * default state with the closed one written as what it takes away — so the chest a skip
+ * jumps to, and the chest reduced motion mounts, need no rules of their own and cannot drift
+ * from the one the sequence ends on.
+ */
+.reward-chest {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  /* every tap target in this app clears 44px; the chest is comfortably over it */
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.reward-chest .chest {
+  display: block;
+  /* the lid swings past the top of the viewBox, and the gems fly out of it */
+  overflow: visible;
+}
+.reward-chest:active { transform: translateY(2px); }
+
+/* `view-box` so the origin below is in the same 120x96 units the drawing is in — the hinge
+   is the lid's back-bottom corner (12, 46), which is where a real chest's is. */
+.chest-lid,
+.chest-glow {
+  transform-box: view-box;
+}
+.chest-lid {
+  transform-origin: 6.7% 43.75%;
+  transform: rotate(-46deg);
+}
+.reward-chest[data-open="false"] .chest-lid { transform: rotate(0); }
+
+/* Past the resting angle and back: a lid that stops dead where it opens to reads as a
+   drawer, and the overshoot is the whole difference between the two. */
+@keyframes chestLidOpen {
+  from { transform: rotate(0); }
+  60% { transform: rotate(-56deg); }
+  to { transform: rotate(-46deg); }
+}
+.reward-chest[data-open="true"] .chest-lid {
+  animation: chestLidOpen 380ms cubic-bezier(.34,1.56,.64,1) both;
+}
+
+.chest-glow {
+  opacity: 0.45;
+  transform-origin: 50% 43%;
+}
+.reward-chest[data-open="false"] .chest-glow { opacity: 0; }
+@keyframes chestGlowIn {
+  from { opacity: 0; transform: scale(0.55); }
+  to { opacity: 0.45; transform: scale(1); }
+}
+.reward-chest[data-open="true"] .chest-glow {
+  animation: chestGlowIn 420ms ease-out both;
+}
+
+/*
+ * The invitation. A closed chest that just sits there is scenery; this is the only thing
+ * that says it is a button, to a child who cannot be told so in a tooltip. It stops the
+ * moment she opens it, which is also the moment `data-open` flips.
+ *
+ * It wobbles the *drawing*, not the button. A transform on a descendant leaves the button's
+ * own layout box alone, which matters twice over: a tap target that physically moves is
+ * harder for a nine-year-old to land on, and Playwright will not dispatch a click until an
+ * element's box has held still for two frames — with the animation on the button itself
+ * that wait ran to 2.7s on CI's WebKit, long enough for the auto-open to fire inside the
+ * very click meant to beat it (docs/kist-openen.md §6).
+ */
+@keyframes chestNudge {
+  0%, 62%, 100% { transform: none; }
+  70% { transform: rotate(-5deg) scale(1.05); }
+  78% { transform: rotate(5deg) scale(1.05); }
+  86% { transform: rotate(-3deg) scale(1.03); }
+}
+.reward-chest[data-open="false"] .chest { animation: chestNudge 2.2s ease-in-out infinite; }
+
+/*
+ * The gems coming out. `--i` and `--n` come from the component (screens/RewardScreen.tsx):
+ * `--i` fans them evenly across the spread and staggers their start, `--n` is the divisor
+ * that makes the fan even for any count `gemSpriteCount` returns. The resting state is
+ * gone — opacity 0, at the end of the arc — so a skip leaves no gem frozen in the air.
+ */
+.chest-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.chest-gem {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  font-size: 19px;
+  line-height: 1;
+  opacity: 0;
+  --spread: 108px;
+  --dx: calc((var(--i) / max(var(--n) - 1, 1) - 0.5) * var(--spread));
+}
+@keyframes gemFly {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.4); }
+  20% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -62px) scale(1); }
+}
+.reward-chest[data-open="true"] .chest-gem {
+  animation: gemFly 900ms cubic-bezier(.22,.9,.35,1) both;
+  animation-delay: calc(110ms + var(--i) * 55ms);
+}
+
+/*
+ * ----- and where they land: the gem counter on the leerpad (docs/kist-openen.md §4) -----
+ *
+ * Not on the reward screen at all — this is what she sees a frame after Verder. The sprites
+ * are `position: fixed` and fly from low on the screen, roughly where the chest stood, to a
+ * destination the component measures off the real counter (`--tx`/`--ty`, viewport pixels).
+ * There is a hard route cut between the two halves; what makes them read as one gesture is
+ * that the gems leave where the chest was and land on the number that then changes.
+ */
+.gem-flight {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* over the path and its coins, under nothing that can be interacted with */
+  z-index: 40;
+}
+.gem-flight-gem {
+  position: fixed;
+  left: 50%;
+  top: 78%;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0;
+  animation: gemLand 900ms cubic-bezier(.4, 0, .3, 1) both;
+  animation-delay: calc(var(--i) * 45ms);
+}
+/*
+ * Out, then in. The middle keyframe fans the gems apart and lifts them — without it they
+ * travel in one straight line and read as a slide rather than a throw. `--i` centred on
+ * `--n` is what spreads them symmetrically whatever the count.
+ */
+@keyframes gemLand {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.45); }
+  14% { opacity: 1; }
+  40% {
+    opacity: 1;
+    transform: translate(
+      calc(-50% + (var(--i) - (var(--n) - 1) / 2) * 26px),
+      calc(-50% - 96px)
+    ) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(var(--tx) - 50vw - 50%),
+      calc(var(--ty) - 78vh - 50%)
+    ) scale(0.5);
+  }
+}
+
+/* The counter taking them. `data-landing` is the hold — the number is deliberately the old
+   total while the gems are in the air — and `data-landed` is the half-second after, which is
+   the only moment the pop may fire. */
+.statbar .stat.gems[data-landing="true"] { opacity: 0.75; }
+@keyframes gemStatPop {
+  0% { transform: none; }
+  38% { transform: scale(1.3); }
+  100% { transform: none; }
+}
+.statbar .stat.gems[data-landed="true"] {
+  animation: gemStatPop 600ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
 
 @keyframes riseIn {
   from { opacity: 0; transform: translateY(26px); }
@@ -1722,6 +1943,10 @@ button:disabled { cursor: default; }
   .reward-bar { margin: 8px 16px 6px; }
   .reward-pct { font-size: 34px; }
   .word-chip { font-size: 16px; padding: 6px 11px; }
+  /* The chest is the one thing this layout gained since the measurement in the note above,
+     so it is the first thing to give back the height. 60px still reads as a chest. */
+  .reward-chest .chest { width: 60px; height: 48px; }
+  .reward-strip { gap: 14px; }
 }
 
 /*
@@ -1771,6 +1996,15 @@ button:disabled { cursor: default; }
     .reward-pct) { transition: none !important; }
   /* a band sweeping across is the one thing here with no still version worth showing */
   .reward-streak { display: none; }
+
+  /*
+   * The leerpad half of the chest. `useGemLanding` already declines to hold the counter back
+   * or to put anything in the air for someone who asked for less motion, so there should be
+   * nothing here to switch off — this is the belt to that braces, for the same reason the
+   * rules above are.
+   */
+  .gem-flight { display: none; }
+  .statbar .stat.gems[data-landed="true"] { animation: none !important; }
 }
 
 /* ---------- recording studio ---------- */

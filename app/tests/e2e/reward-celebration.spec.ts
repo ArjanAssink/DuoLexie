@@ -93,11 +93,37 @@ function label(page: Page) {
  * retry, which is the worst way for a test to be wrong.
  *
  * The beats are at least 600ms apart, so a 200ms step can never merge two of them.
+ *
+ * The bound is `chestAt`, not `doneAt`: the schatkist (docs/kist-openen.md §3) opens *after*
+ * the last beat, and the gem count-up now starts with its lid rather than with the strip, so
+ * a walk that stopped at `doneAt` would freeze the clock with the gems still counting. It
+ * did: the Weetje test below asserts the gems reach +8, and at the old bound it had 680ms of
+ * slack instead of the two seconds it used to have — which showed up as two failed attempts
+ * on CI's ipad profile and a pass on the third.
  */
 async function walkTheClock(page: Page) {
-  for (let elapsed = 0; elapsed < BEATS.doneAt + 1000; elapsed += 200) {
+  for (let elapsed = 0; elapsed < BEATS.chestAt + 2000; elapsed += 200) {
     await page.clock.runFor(200)
   }
+}
+
+/**
+ * Keep feeding a paused clock until the gem line reads what it is going to read.
+ *
+ * A fixed walk cannot do this, and two CI runs proved it twice over. The count-up is an
+ * interval whose ticks have to be flushed by React between `runFor` calls, it starts with
+ * the chest rather than with the strip (docs/kist-openen.md §3) and so lands *after* the
+ * last beat, and where the clock stood when the screen mounted is not knowable — enough
+ * unknowns that "walk 7.2 seconds and look" came back with `💎 +3` on a contended ipad.
+ * Waiting for the value and stopping when it arrives has none of those unknowns: the only
+ * way this loop ends late is if the count-up genuinely never finishes.
+ */
+async function runUntilGems(page: Page, want: string) {
+  for (let i = 0; i < 60; i++) {
+    if ((await page.locator('.reward-line').first().innerText()).includes(want)) return
+    await page.clock.runFor(200)
+  }
+  throw new Error(`the gem line never reached "${want}"`)
 }
 
 /** The bar's actual rendered scaleX, read off the computed matrix rather than the inline style. */
@@ -375,7 +401,7 @@ test('a Weetje round is celebrated with no card, and no card beat either', async
   await expect(page.locator('.reward-card')).toHaveCount(0)
   await expect(page.locator('.reward-tally')).toHaveCount(0)
   await expect(page.locator('.reward-chips')).toHaveCount(0)
-  await expect(page.locator('.reward-line').first()).toContainText('+8')
+  await runUntilGems(page, '+8')
 })
 
 test.describe('on an iPhone SE', () => {

@@ -89,6 +89,7 @@ Principles: reward effort and self-beating, never social comparison; no punitive
 
 **v1:**
 - **Edelstenen (gems):** +10 per les, +5 perfect, +10 new Flits record, +20 Eindbaas. Accumulate in a visible treasure jar on the home screen (shop comes in v2).
+- **Kist openen (schatkist-moment):** de edelstenen op het beloningsscherm komen uit een **schatkist die ze zelf opentikt** — deksel klapt open, edelstenen vliegen eruit, en de telling loopt mee met het deksel in plaats van vanzelf. Daarna vliegen ze op het leerpad de edelstenenteller in, die net zo lang op het oude totaal blijft staan: `completeLesson` boekt de stenen al vóór het beloningsscherm bestaat, dus zonder die overdracht landen ze nergens. Geldt voor elk spel, niet alleen Eindbaas, en staat los van de (nog ongebouwde) **Schatkist**-padnode in §3 — dezelfde tekening, ander mechanisme. Zie [docs/kist-openen.md](docs/kist-openen.md). De "treasure jar" hieronder is voorlopig de teller in de statusbalk; een echte vullende pot is eigen werk met eigen tekeningen.
 - **Weekdoel, not a daily streak:** RID prescribes 5 days/week → a weekly ring "5 van de 7 dagen"; full rings build a streak of *weeks*. Missing a day is never shown negatively. (Deliberate divergence from Duolingo's guilt-streak.)
 - **Mascot:** one character — suggestion "Flits de vos" (pick with her!). 4 states: idle, cheering, gentle encouragement, party. Static images + CSS/Lottie.
 - **Celebrations:** canvas-confetti, full-screen "NIEUW RECORD" in Tijdrit, crown animation, and **family-recorded voice clips** for milestones ("Nieuw record!" in dad's voice).
@@ -202,8 +203,14 @@ Two crop levels of the *same* rig, not two separately drawn assets:
 
 ### Customizable traits (v1)
 - Huidskleur, oogkleur, haarkleur — swatches, applied as an SVG fill on the relevant layer(s).
-- Kapsel — a small set of interchangeable hair shapes, each recolorable.
-- Accessoires — oorbellen, bril, hoed(en) — one optional overlay layer per slot (or none equipped).
+  Shipped as 10 skin tones, 10 eye colours and 30 hair colours (natural plus a "Gek" shelf of
+  pink/blue/green/…), with a colour input for anything outside those.
+- Kapsel — interchangeable hair shapes, each recolorable. Shipped as 22 of them on two shelves
+  (jongens/meisjes), catalogued in `app/src/components/hair.tsx`.
+- Accessoires — one optional layer per slot (or none equipped). Shipped as five slots and 30
+  items: oorbellen, bril and hoed as overlays, plus sjaal and jas, where a jas replaces the
+  torso's own colours rather than covering it. Catalogued in
+  `app/src/components/accessories.tsx`.
 
 ### Technical approach: layered SVG rig
 Mirrors how Frida was built (hand-drawn SVG, layered groups) rather than a new rendering stack:
