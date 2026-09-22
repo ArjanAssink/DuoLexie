@@ -169,13 +169,13 @@ describe('shared/curriculum/spelling.json', () => {
   })
 
   // rule 5
-  it('ships every seed word unreviewed, so nothing is dealt on the path yet', () => {
+  it('carries an explicit reviewed flag on every word', () => {
+    // Deliberately *not* asserting that they are all still false. Reviewing the seed list
+    // is Arjan's next move (§12.1), and a test that went red the day he did it would be a
+    // tripwire across the one path this feature is waiting on.
     for (const word of allSpellingWords) {
       expect(typeof word.reviewed, word.wordId).toBe('boolean')
     }
-    // If this ever fails it is good news and the line should simply go: it means Arjan has
-    // been through the list (§12.1) and the nodes are live.
-    expect(allSpellingWords.every((w) => !w.reviewed)).toBe(true)
   })
 
   it('ships no zin items in the first release (§6 rule 3)', () => {
@@ -241,11 +241,20 @@ describe('buildSpellingRound', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('deals nothing for a lesson with no pair, and nothing when nothing is reviewed', () => {
+  it('deals nothing for a lesson with no pair', () => {
     const noPair: Lesson = { ...spellingLesson('d-t'), spellingPair: undefined }
     expect(buildSpellingRound(noPair, {}, none, allSpellingWords)).toEqual([])
-    // the default word set is the *reviewed* one, which is empty until Arjan says otherwise
-    expect(buildSpellingRound(spellingLesson('d-t'), {}, none)).toEqual([])
+  })
+
+  it('deals only reviewed words by default', () => {
+    // The default word set is `dealableSpellingWords`, which is empty while the whole seed
+    // list is still drafts — so today this reads "nothing at all". Written as a subset
+    // check rather than as `toEqual([])` so that it keeps meaning the same thing, rather
+    // than going red, on the day Arjan reviews some of them (§12.1).
+    const reviewed = new Set(allSpellingWords.filter((w) => w.reviewed).map((w) => w.wordId))
+    const ids = buildSpellingRound(spellingLesson('d-t'), {}, none)
+    expect(ids.every((id) => reviewed.has(id))).toBe(true)
+    expect(ids.length).toBeLessThanOrEqual(reviewed.size)
   })
 
   it('puts recorded words ahead of un-recorded ones', () => {

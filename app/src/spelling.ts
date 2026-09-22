@@ -5,13 +5,12 @@ import type {
   SpellingWord,
 } from '@shared/src/types'
 import { getWord } from './words'
-import { hasRecording } from './audio/recorded'
 
 /** Everything in the file, including the words that are not cleared to be dealt. */
-export const spellingCurriculum = spellingJson as SpellingCurriculum
+const curriculum = spellingJson as SpellingCurriculum
 
-export const spellingPairs: SpellingPair[] = spellingCurriculum.pairs
-export const allSpellingWords: SpellingWord[] = spellingCurriculum.words
+export const spellingPairs: SpellingPair[] = curriculum.pairs
+export const allSpellingWords: SpellingWord[] = curriculum.words
 
 const pairById = new Map(spellingPairs.map((p) => [p.id, p]))
 const wordByIdAndPair = new Map(allSpellingWords.map((w) => [`${w.pair}/${w.wordId}`, w]))
@@ -70,11 +69,6 @@ export const LANGER_PROMPT = 'Maak het woord langer. Zeg het maar.'
  */
 export function strategyLine(pair: SpellingPair): string {
   return pair.strategy === 'langer' ? LANGER_PROMPT : pair.rule
-}
-
-/** Clip ids with a recorded take under `public/audio/spelling/`. */
-export function hasSpellingRecording(clipId: string): boolean {
-  return hasRecording('spelling', clipId)
 }
 
 /** `<wordId>-langer` — the clip that speaks a word's longer form (§10). */

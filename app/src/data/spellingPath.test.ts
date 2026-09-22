@@ -7,7 +7,7 @@ import {
   spellingDraftCount,
   spellingLessonsFor,
 } from './path'
-import { allSpellingWords, spellingWordsForPool } from '../spelling'
+import { allSpellingWords, dealableSpellingWords, spellingWordsForPool } from '../spelling'
 
 /** Every unit on the path, in the order she meets them, with the pool she has by then. */
 const units = path.flatMap((f) => f.units)
@@ -60,10 +60,19 @@ describe('the Maak het woord af node on the path (docs/maak-het-woord-af.md §7)
     expect(lessons[0].kind).toBe('les')
   })
 
-  it('puts nothing on the real path while every seed word is still unreviewed', () => {
-    // The reviewed gate (§6 rule 5), asserted rather than assumed: this is why the
-    // /proberen entry exists, and the line to delete once Arjan has been through the list.
-    expect(allLessons.filter((l) => l.gameType === 'maak-het-woord-af')).toEqual([])
+  it('puts a node on the path only where the reviewed words can fill a round', () => {
+    const nodes = allLessons.filter((l) => l.gameType === 'maak-het-woord-af')
+    for (const node of nodes) {
+      expect(
+        spellingWordsForPool(node.spellingPair!, node.soundPool).length,
+        node.id,
+      ).toBeGreaterThanOrEqual(8)
+    }
+    // While the whole seed list is still drafts (§6 rule 5) there are no nodes at all,
+    // which is exactly why the /proberen entry exists. Written as a conditional rather
+    // than as a flat `toEqual([])` so that reviewing the words — the one move this feature
+    // is waiting on — does not turn this red (§12.1).
+    if (dealableSpellingWords.length === 0) expect(nodes).toEqual([])
   })
 })
 
@@ -95,10 +104,12 @@ describe('the /proberen entries (§7, §12.1)', () => {
     }
   })
 
-  it('counts the drafts the probeermenu warns about', () => {
-    expect(spellingDraftCount('d-t')).toBe(
-      allSpellingWords.filter((w) => w.pair === 'd-t').length,
-    )
+  it('counts the drafts the probeermenu warns about — per pair, unreviewed only', () => {
+    for (const pair of ['d-t', 'cht-gt']) {
+      expect(spellingDraftCount(pair), pair).toBe(
+        allSpellingWords.filter((w) => w.pair === pair && !w.reviewed).length,
+      )
+    }
     expect(spellingDraftCount('nope')).toBe(0)
   })
 })

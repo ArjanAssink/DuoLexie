@@ -17,10 +17,11 @@ four rounds of design questions with Arjan; the decisions those settled are mark
 *(decided)* below, the ones still open are collected in §12. It replaces plan.md's v2 row
 "Woordenvangst (hear word → tap correct spelling; trains ei/ij, au/ou)".
 
-Everywhere the build departed from this document is marked ***(as built)*** inline, and
-§15 collects the departures that are worth reading on their own. The one that matters
-most: **fourteen of §6.1's draft words are not in the shipped file**, because their other
-spelling is also a real Dutch word — which is this spec's own §6 rule 3.
+Everywhere the build departed from this document, or settled something it left open, is
+marked ***(as built)*** inline, in the section it belongs to — §4, §5, §6, §6.1, §7, §8,
+§9, §10, §11, §12, §13 and §14 each have one. The departure that matters most is in §6.1:
+**fourteen of its draft words are not in the shipped file**, because their other spelling
+is also a real Dutch word, which is this spec's own §6 rule 3.
 
 **Not built, deliberately, and waiting on Arjan:** the seed words are all
 `reviewed: false`, so *no spelling node is on the path yet* — the way in is
