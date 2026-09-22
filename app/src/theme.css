@@ -3141,6 +3141,23 @@ html[data-welkom] .app { height: 100dvh; min-height: 100dvh; }
    word that is already finished. */
 .spel-tile.spent { opacity: 0; transition: opacity 160ms ease; }
 
+/* Never waiting on a beat she has already understood. It keeps its place in the layout at
+   all times — `visibility`, not `display` — so the tile row does not jump the moment a
+   verdict lands. Hidden this way it is also not hit-testable, so a tap aimed at a tile
+   during the deal cannot land on it. */
+.spel-verder {
+  align-self: center;
+  min-height: 44px;
+  padding: 0 26px;
+  border-radius: 14px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+}
+.spel-screen[data-beat='deal'] .spel-verder,
+.spel-screen[data-beat='choose'] .spel-verder { visibility: hidden; }
+
 /* Up to the gap, a knock, and back. Deliberately short of the gap at its furthest point:
    the wrong tile must never look as though it went in. */
 @keyframes tileBump {
