@@ -403,17 +403,21 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
     const wasLifted = lifted.current
     const drag = samples.current
     samples.current = []
-    const held = carry
     setCarry(null)
     setTargeted(false)
     if (tile === null) return
+    // Measured off the release event, not off `carry`: that is render state, and a fast
+    // drag can put the last move and the release in one task, leaving the closure a few
+    // pixels behind where her finger actually let go.
+    const x = e.clientX - startX.current
+    const y = e.clientY - startY.current
 
     // A tap: the tile slides itself into the gap and commits. Never the lesser option —
     // there is no taught tap here as in Hardop lezen, because the tile visibly travelling
     // *is* the demonstration, and it happens every single time (§3).
     if (!wasLifted) return void slideIn(tile)
 
-    if (held && isOverGap(tile, held.x, held.y)) return void commit(tile)
+    if (isOverGap(tile, x, y)) return void commit(tile)
     // A flick towards the word. Both tiles sit below the card, so "up" can only mean "into
     // the word"; a mostly-sideways flick means nothing here and springs back.
     if (resolveDrag(drag, 'y') === -1) return void slideIn(tile)
