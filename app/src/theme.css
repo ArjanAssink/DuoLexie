@@ -1243,6 +1243,8 @@ button:disabled { cursor: default; }
 }
 .shop-cta { align-self: center; }
 .test-menu-btn { display: block; width: 100%; text-align: center; text-decoration: none; margin-bottom: 10px; }
+/* which haptic backend this device took, above the three sample buzzes (docs/haptics.md §3) */
+.test-menu-note { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
 .test-menu-btn:disabled { opacity: 0.4; }
 .avatar-stage {
   display: flex;
