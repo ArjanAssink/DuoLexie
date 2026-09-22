@@ -94,3 +94,27 @@ export function clearSpoken(page: Page): Promise<void> {
     ;(window as unknown as { __spoken: string[] }).__spoken = []
   })
 }
+
+/**
+ * The opposite of `installSpellingNarration`: no clips, and a speech engine that accepts an
+ * utterance and then never says another word about it.
+ *
+ * This is not a contrived case, it is **production**. `/audio/**` is a 404 on the live site
+ * until the clips are put somewhere, so every word falls back to `utter()` — and `onend`
+ * never fires on a device with no nl-NL voice installed, nor in Playwright's WebKit (see
+ * the note in fixtures/narration.ts). The only thing that resolves an utterance there is
+ * audio.ts's six-second backstop, and a verdict that awaits two of them in a row is a card
+ * that sits on screen for fourteen seconds with nothing to press.
+ */
+export async function installDeadNarration(page: Page): Promise<void> {
+  // `*/*.mp3*`, not `**`: a bare `audio/**` also matches the app's own src/audio/*.ts
+  // modules in dev, and the page then never boots at all.
+  await page.route('**/audio/*/*.mp3*', (route) =>
+    route.fulfill({ status: 404, contentType: 'text/html', body: 'not found' }),
+  )
+  await page.addInitScript(() => {
+    window.speechSynthesis.speak = () => {}
+    window.speechSynthesis.cancel = () => {}
+    window.speechSynthesis.getVoices = () => []
+  })
+}

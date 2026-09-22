@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import {
   clearSpoken,
+  installDeadNarration,
   installSpellingNarration,
   langerFor,
   ruleFor,
@@ -209,8 +210,95 @@ test('after a miss the strategy opens by itself, straight at the reveal', async 
   // Straight to the reveal, never to the question: a correction is not the moment to quiz
   // her (§4). So the longer form is on the card and the prompt was never said.
   await expect(page.locator('.spel-langer')).toHaveText(langer, { timeout: 5000 })
-  await expect.poll(() => spoken(page), { timeout: 10_000 }).toEqual([
-    `words/${wordId}`,
+  await expect.poll(() => spoken(page), { timeout: 10_000 }).toContain(
     `spelling/${wordId}-langer`,
-  ])
+  )
+
+  /*
+   * Order and absence, not an exact list. The card speaks its word when it deals, and that
+   * utterance can still be in flight when `clearSpoken` runs — so on a loaded runner a
+   * third entry legitimately appears and an exact-array match fails for a reason that has
+   * nothing to do with the behaviour. What §2 and §4 actually promise is that the longer
+   * form follows the word, and that the *prompt* — the "zeg het maar" question — is never
+   * asked during a correction.
+   */
+  const said = await spoken(page)
+  expect(said).toContain(`words/${wordId}`)
+  expect(said.indexOf(`words/${wordId}`)).toBeLessThan(
+    said.indexOf(`spelling/${wordId}-langer`),
+  )
+  expect(said, 'a correction never quizzes her').not.toContain(`spelling/${PAIR}-regel`)
+})
+
+/*
+ * The two faults behind "it gets stuck and there is no way to move on", reported after this
+ * shipped and reproduced at 14.9 seconds on a wrong answer.
+ *
+ * Production serves a 404 for every clip, so each word falls back to speech; where speech
+ * never reports back, the correction was awaiting *two* six-second backstops in a row with
+ * every tile disabled. Audio must never be the reason a card holds her up, and she must
+ * never be stuck watching a beat she has already understood.
+ */
+test('a verdict never waits on speech that never answers', async ({ page }) => {
+  await installDeadNarration(page)
+  await page.goto(TRY_DT)
+  await waitForBeat(page, 'choose')
+  const { wrong } = await tilesFor(page)
+
+  const started = Date.now()
+  await page.locator('.spel-tile').nth(wrong).click()
+  await waitForBeat(page, 'wrong')
+  // The correction still plays out in full — bump, the right tile sliding in, the longer
+  // form on the card — and then the round moves on by itself.
+  await expect(page.locator('.spel-langer')).toBeVisible({ timeout: 8000 })
+  await page.waitForFunction(
+    () => document.querySelector('.spel-screen')?.getAttribute('data-beat') === 'deal',
+    null,
+    { timeout: 12_000 },
+  )
+  const elapsed = Date.now() - started
+  expect(elapsed, `a miss took ${(elapsed / 1000).toFixed(1)}s`).toBeLessThan(9000)
+})
+
+test('Verder moves on at once, and the missed word still comes back', async ({ page }) => {
+  test.setTimeout(120_000)
+  await installDeadNarration(page)
+  await page.goto(TRY_DT)
+  await waitForBeat(page, 'choose')
+  const { stem: missed, wrong } = await tilesFor(page)
+
+  await page.locator('.spel-tile').nth(wrong).click()
+  await waitForBeat(page, 'wrong')
+  await expect(page.locator('.spel-verder')).toBeVisible()
+
+  const tapped = Date.now()
+  await page.locator('.spel-verder').click()
+  await waitForBeat(page, 'choose')
+  expect(Date.now() - tapped, 'Verder is immediate').toBeLessThan(2500)
+
+  // Skipping the *showing* of the correction costs her nothing: the miss is still scored…
+  await expect(page.locator('.pip-done')).toHaveCount(1)
+  await expect(page.locator('.pip')).toHaveCount(10)
+
+  // …and the word still comes back as the third card after it (§5).
+  const after: string[] = []
+  for (let i = 0; i < 3; i++) {
+    await waitForBeat(page, 'choose')
+    const { stem, right } = await tilesFor(page)
+    after.push(stem)
+    await page.locator('.spel-tile').nth(right).click()
+    await waitForBeat(page, 'right')
+    await page.locator('.spel-verder').click()
+  }
+  expect(after[after.length - 1], 'the re-queue survives the skip').toBe(missed)
+})
+
+test('Verder is not there to be pressed while she is still choosing', async ({ page }) => {
+  await installDeadNarration(page)
+  await page.goto(TRY_DT)
+  await waitForBeat(page, 'choose')
+  // In the layout from the first frame so the tile row never shifts, but hidden — and
+  // hidden with `visibility`, so a tap aimed at a tile cannot land on it either.
+  await expect(page.locator('.spel-verder')).toBeHidden()
+  await expect(page.locator('.pip-done')).toHaveCount(0)
 })

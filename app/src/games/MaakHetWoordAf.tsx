@@ -62,6 +62,26 @@ const NEXT_RIGHT_MS = 900
 const NEXT_WRONG_MS = 1600
 /** Beat after the last card, so the final landing reads before the reward screen. */
 const END_PAUSE_MS = 600
+/**
+ * How long a verdict may wait on speech before it stops waiting.
+ *
+ * Audio must never be the reason a card holds her up. Nothing here is served in
+ * production yet — `/audio/**` is a 404 — so every word falls back to `utter()`, and on a
+ * device with no nl-NL voice (or WebKit, where `speak()` never fires `onend`) the only
+ * thing that resolves an utterance is audio.ts's 6s backstop. The correction awaits *two*
+ * of them, so a miss sat on screen for fourteen seconds with the tiles disabled. These
+ * budgets are a ceiling, not a delay: when speech reports back — which it does the moment
+ * there is a real voice or a recorded clip — the beat moves on immediately.
+ */
+const SPEAK_BUDGET_MS = 2500
+/**
+ * The same ceiling, applied to each half of the correction separately.
+ *
+ * Separately, and not as one budget over the pair, because the longer form is the whole
+ * point of the correction: a shared ceiling that the word happened to use up would drop
+ * "honden" — the half that carries the strategy — and keep the half she already got wrong.
+ */
+const CORRECTION_BUDGET_MS = 2000
 /** The `langer` badge reveals by itself this long after the prompt, if she does not tap (§4). */
 const LANGER_REVEAL_MS = 2000
 /** Consecutive first-time-right cards that earn a Bliksemsprint — the rule Tijdrit set. */
@@ -78,6 +98,15 @@ const COACH: Record<Beat, { expr: FridaExpression; text: string }> = {
 
 function wait(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms))
+}
+
+/**
+ * Whichever finishes first — the work, or the clock. The work is never cancelled, only
+ * stopped being waited on: an utterance that is still going when the next card deals is
+ * silenced by the `speechSynthesis.cancel()` at the top of the next `utter()`.
+ */
+function within<T>(ms: number, work: Promise<T>): Promise<unknown> {
+  return Promise.race([work, wait(ms)])
 }
 
 function boxOf(el: Element): Box {
@@ -156,6 +185,17 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
   const beatRef = useRef<Beat>('deal')
   const busy = useRef(false)
   const cancelled = useRef(false)
+  /**
+   * Which verdict chain is the current one. *Verder* bumps it, and every `await` in the
+   * chain checks it on the way out — so tapping through a correction orphans the rest of
+   * it instead of letting it advance a second card behind her.
+   */
+  const commitSeq = useRef(0)
+  /**
+   * The queue the next card comes from, including a word the miss just put back. Held in a
+   * ref because *Verder* advances from outside the chain that computed it.
+   */
+  const pendingQueue = useRef<string[]>([])
   const streak = useRef(0)
   /** Every timer this component starts, so one unmount clears all of them. */
   const timers = useRef<number[]>([])
@@ -181,6 +221,7 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
   /** Choosing a tile from the keyboard — the same travel a tap gets, not a shortcut past it. */
   const chooseRef = useRef<(tile: number) => void>(() => {})
   const strategyRef = useRef<() => void>(() => {})
+  const skipRef = useRef<() => void>(() => {})
   const replayRef = useRef<() => void>(() => {})
 
   function later(ms: number, fn: () => void): void {
@@ -275,6 +316,7 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
   useLayoutEffect(() => {
     chooseRef.current = (tile) => slideIn(tile)
     strategyRef.current = () => void tapStrategy()
+    skipRef.current = () => skipVerdict()
     replayRef.current = () => void speakWord()
   })
 
@@ -289,6 +331,11 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
       }
       if (e.key === 'l' || e.key === 'L') {
         strategyRef.current()
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        skipRef.current()
         return
       }
       if (beatRef.current !== 'choose') return
@@ -493,6 +540,10 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
     pair: SpellingPair,
     current: SpellingWord,
   ): Promise<void> {
+    const mine = ++commitSeq.current
+    /** She has left, or tapped *Verder* past this chain — either way it stops here. */
+    const stale = () => cancelled.current || commitSeq.current !== mine
+
     const correct = pair.options[tile] === current.ending
     const first = !results.current.some((r) => r.wordId === current.wordId)
     // Only the first attempt is scored. A word she missed comes back three cards later with
@@ -501,6 +552,20 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
       results.current.push({ wordId: current.wordId, correct })
       setDone(results.current.length)
     }
+
+    /*
+     * Every change to the round happens *now*, before a single animation runs: the result
+     * is recorded above, and a miss puts the word back below. Bookkeeping first is what
+     * makes *Verder* safe — tapping through the correction skips the *showing* of it and
+     * can never cost her the second go at the word.
+     */
+    let nextQueue = queue
+    if (!correct && first && !requeued.current.has(current.wordId)) {
+      requeued.current.add(current.wordId)
+      nextQueue = requeue(queue, index, current.wordId)
+      setQueue(nextQueue)
+    }
+    pendingQueue.current = nextQueue
 
     goBeat(correct ? 'right' : 'wrong')
     setSliding(null)
@@ -515,11 +580,11 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
         if (streak.current === STREAK_FOR_BURST) setBurst((b) => b + 1)
       }
       confettiPuff()
-      await speakWord()
-      if (cancelled.current) return
+      await within(SPEAK_BUDGET_MS, speakWord())
+      if (stale()) return
       await wait(NEXT_RIGHT_MS)
-      if (cancelled.current) return
-      return advance(queue)
+      if (stale()) return
+      return advance(nextQueue)
     }
 
     // ---- the miss (§2) ----
@@ -532,7 +597,7 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
     setFlashing(true)
     later(FLASH_MS, () => setFlashing(false))
     await wait(BUMP_MS)
-    if (cancelled.current) return
+    if (stale()) return
     setBumping(null)
 
     // Then the *correct* tile slides in on its own and the word turns green.
@@ -542,7 +607,7 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
       if (t) {
         setSliding(flightTo(t.gap, t.tiles[rightTile], rightTile))
         await wait(SLIDE_MS)
-        if (cancelled.current) return
+        if (stale()) return
       }
     }
     setSliding(null)
@@ -551,27 +616,43 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
     // The strategy opens by itself, straight at the reveal step: a correction is not the
     // moment to quiz her (§4).
     setStrategy('reveal')
-    await playWord(current.wordId, getWord(current.wordId).text)
-    if (cancelled.current) return
-    if (current.langer) {
-      await playSpelling(langerClipId(current.wordId), [current.langer])
-      if (cancelled.current) return
-    }
-
-    // One more go, three cards later — and only ever one (§5).
-    let nextQueue = queue
-    if (first && !requeued.current.has(current.wordId)) {
-      requeued.current.add(current.wordId)
-      nextQueue = requeue(queue, index, current.wordId)
-      setQueue(nextQueue)
-    }
+    // "hond… honden" — in that order, because the order is the strategy.
+    await speakCorrection(current)
+    if (stale()) return
 
     await wait(NEXT_WRONG_MS)
-    if (cancelled.current) return
+    if (stale()) return
     // The *grown* queue, not this render's: re-queueing the round's last word appends it,
     // and asking the stale queue whether there is a card left would end the round on the
     // very card the miss just added.
     advance(nextQueue)
+  }
+
+  /**
+   * The word, then its longer form — the correction, spoken (§2). Each half gets its own
+   * ceiling, so a word that never reports back cannot cost the longer form its turn.
+   */
+  async function speakCorrection(word: SpellingWord): Promise<void> {
+    await within(CORRECTION_BUDGET_MS, playWord(word.wordId, getWord(word.wordId).text))
+    if (cancelled.current || !word.langer) return
+    await within(CORRECTION_BUDGET_MS, playSpelling(langerClipId(word.wordId), [word.langer]))
+  }
+
+  /**
+   * *Verder*: stop showing the verdict and deal the next card.
+   *
+   * She is never waiting on a beat she has already understood. The chain that is running
+   * is orphaned rather than cancelled — `commitSeq` makes its remaining checkpoints fall
+   * through — and everything it would still have *done* is already done: the result is
+   * recorded and a missed word is back in the queue before the first animation starts.
+   */
+  function skipVerdict(): void {
+    if (beatRef.current !== 'right' && beatRef.current !== 'wrong') return
+    commitSeq.current += 1
+    stopNarration()
+    clearTimers()
+    busy.current = false
+    advance(pendingQueue.current)
   }
 
   /** The "balloons" of §2: a small puff of round pieces from the card. */
@@ -635,6 +716,8 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
 
   if (!pair || !current) return null
 
+  /** The verdict is playing out: nothing to answer, and *Verder* is hers to take. */
+  const verdict = beat === 'right' || beat === 'wrong'
   const coach = COACH[beat]
   const bubble =
     strategy === 'prompt'
@@ -800,6 +883,21 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
             </button>
           ))}
         </div>
+
+        {/*
+          Below the tiles, and always in the layout — only hidden. Above them it pushed the
+          tile row down the instant a verdict landed, which is the one moment her finger is
+          still on its way to a tile. Hidden with `visibility`, so it is not hit-testable
+          either. Same trick, and same reason, as the reward screen's Verder.
+        */}
+        <button
+          className="btn-primary spel-verder"
+          onClick={skipVerdict}
+          aria-hidden={verdict ? undefined : true}
+          tabIndex={verdict ? undefined : -1}
+        >
+          Verder
+        </button>
       </div>
 
       {burst > 0 && <Bliksemsprint key={burst} onDone={() => setBurst(0)} />}
