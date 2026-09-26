@@ -123,6 +123,28 @@ export function BulbIcon({ size = 28, fill }: IconProps) {
   )
 }
 
+/**
+ * Maak het woord af — a tile dropping into a gap in a word. Two strokes for the stem, a
+ * dashed box where the ending belongs, and the tile on its way in (docs/maak-het-woord-af.md).
+ */
+export function TileIcon({ size = 28, fill }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="2" y="10" width="4" height="4" rx="1" fill={fill} />
+      <rect x="7.5" y="10" width="4" height="4" rx="1" fill={fill} />
+      <rect
+        x="13" y="9" width="8" height="6" rx="1.4"
+        fill="none" stroke={fill} strokeWidth="1.6" strokeDasharray="2.2 1.8"
+      />
+      <path
+        d="M17 2.5 L17 6.6 M14.6 4.8 L17 7.2 L19.4 4.8"
+        fill="none" stroke={fill} strokeWidth="1.9"
+        strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function LessonIcon({ title, fill, size }: { title: string; fill: string; size?: number }) {
   switch (title) {
     case 'Tijdrit':
@@ -135,6 +157,8 @@ export function LessonIcon({ title, fill, size }: { title: string; fill: string;
       return <BookIcon fill={fill} size={size ?? 28} />
     case 'Weetje':
       return <BulbIcon fill={fill} size={size ?? 28} />
+    case 'Maak het woord af':
+      return <TileIcon fill={fill} size={size ?? 28} />
     default:
       return <StarIcon fill={fill} size={size ?? 30} />
   }

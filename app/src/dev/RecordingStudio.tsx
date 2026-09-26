@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { allSounds } from '../curriculum'
 import { wordsInRecordingOrder } from '../data/path'
 import { dealableWeetjes, narrationLines, type WeetjePart } from '../weetjes'
+import {
+  allSpellingWords, langerClipId, regelClipId, spellingPairs, strategyLine,
+} from '../spelling'
 import { clipSrc } from '../audio/recorded'
 import {
   DEFAULT_PACE_MS, PACE_RANGE, folderFor, takeBasename, type AudioFolder, type TakeKind,
@@ -28,7 +31,7 @@ import {
 /** Words worth recording first — the shortest ones (docs/hardop-lezen-rework.md §8). */
 const STARTER_SET_SIZE = 20
 
-type SetChoice = 'klanken' | 'woorden-startset' | 'woorden' | 'weetjes'
+type SetChoice = 'klanken' | 'woorden-startset' | 'woorden' | 'weetjes' | 'spelling'
 type Stage = 'setup' | 'recording' | 'saved'
 
 const SET_KIND: Record<SetChoice, TakeKind> = {
@@ -36,6 +39,7 @@ const SET_KIND: Record<SetChoice, TakeKind> = {
   'woorden-startset': 'woorden',
   woorden: 'woorden',
   weetjes: 'weetjes',
+  spelling: 'spelling',
 }
 
 /** The three parts of a card, each its own cue and its own mp3 (docs/weetjes.md §7). */
@@ -64,6 +68,36 @@ function weetjeCues(): { ids: string[]; labels: Record<string, string> } {
       ids.push(id)
       labels[id] = narrationLines(card, part).join(' … ')
     }
+  }
+  return { ids, labels }
+}
+
+/**
+ * The Spelling set: one cue per pair rule and one per longer form
+ * (docs/maak-het-woord-af.md §10).
+ *
+ * The rules come first, because there are two of them and they are the cues most likely to
+ * need a second take — a rule is a sentence with a colon in it, read to a nine-year-old.
+ * A `cht` word has no longer form and so no cue; `licht`/`ligt` are not in the file at all.
+ *
+ * Every word, not only the reviewed ones. The Weetjes set deliberately leaves unreviewed
+ * cards out because their *copy* may still change; a longer form is not copy — `honden` is
+ * `honden` whether or not the card has been signed off, and the review that is pending is
+ * of the word list, not of the Dutch. Recording ahead is a take well spent here.
+ */
+function spellingCues(): { ids: string[]; labels: Record<string, string> } {
+  const ids: string[] = []
+  const labels: Record<string, string> = {}
+  for (const pair of spellingPairs) {
+    const id = regelClipId(pair.id)
+    ids.push(id)
+    labels[id] = strategyLine(pair)
+  }
+  for (const word of allSpellingWords) {
+    if (!word.langer) continue
+    const id = langerClipId(word.wordId)
+    ids.push(id)
+    labels[id] = word.langer
   }
   return { ids, labels }
 }
@@ -128,7 +162,7 @@ export function RecordingStudio() {
   const [paceMs, setPaceMs] = useState(DEFAULT_PACE_MS.woorden)
   const [stage, setStage] = useState<Stage>('setup')
   const [probes, setProbes] = useState<Record<AudioFolder, Record<string, ClipProbe>>>({
-    sounds: {}, words: {}, weetjes: {},
+    sounds: {}, words: {}, weetjes: {}, spelling: {},
   })
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [deviceId, setDeviceId] = useState<string | null>(null)
@@ -155,6 +189,7 @@ export function RecordingStudio() {
   const folder = folderFor(kind)
   const pathWords = useMemo(() => wordsInRecordingOrder(), [])
   const weetjes = useMemo(() => weetjeCues(), [])
+  const spelling = useMemo(() => spellingCues(), [])
 
   const sets = useMemo((): Record<SetChoice, { ids: string[]; kind: TakeKind; folder: AudioFolder }> => {
     const words = pathWords.map((w) => w.id)
@@ -164,8 +199,21 @@ export function RecordingStudio() {
       'woorden-startset': set(words.slice(0, STARTER_SET_SIZE), 'woorden'),
       woorden: set(words, 'woorden'),
       weetjes: set(weetjes.ids, 'weetjes'),
+      spelling: set(spelling.ids, 'spelling'),
     }
-  }, [pathWords, weetjes])
+  }, [pathWords, weetjes, spelling])
+
+  /**
+   * What the teleprompter shows instead of the bare id. Words are their own label, so the
+   * two sets whose ids are not words (`slim-doe`, `hond-langer`) carry one and the rest
+   * pass `undefined` (§2.8).
+   */
+  const cueLabels =
+    kind === 'weetjes' ? weetjes.labels : kind === 'spelling' ? spelling.labels : undefined
+  const reportLabels = (reportKind: TakeKind) =>
+    reportKind === 'weetjes' ? weetjes.labels
+      : reportKind === 'spelling' ? spelling.labels
+      : undefined
 
   const fullSet = sets[choice].ids
   const folderProbes = probes[folder]
@@ -204,7 +252,9 @@ export function RecordingStudio() {
       }
     }
 
-    const found: Record<AudioFolder, Record<string, ClipProbe>> = { sounds: {}, words: {}, weetjes: {} }
+    const found: Record<AudioFolder, Record<string, ClipProbe>> = {
+      sounds: {}, words: {}, weetjes: {}, spelling: {},
+    }
     let cursor = 0
     const worker = async () => {
       for (let i = cursor++; i < wanted.length; i = cursor++) {
@@ -429,7 +479,7 @@ export function RecordingStudio() {
       <div className="studio">
         <Teleprompter
           ids={ids}
-          labels={kind === 'weetjes' ? weetjes.labels : undefined}
+          labels={cueLabels}
           kind={kind}
           paceMs={paceMs}
           deviceId={deviceId}
@@ -487,7 +537,7 @@ export function RecordingStudio() {
       {report && (
         <TakeReview
           report={report}
-          labels={report.kind === 'weetjes' ? weetjes.labels : undefined}
+          labels={reportLabels(report.kind)}
           store={store}
           probes={probes[folderFor(report.kind)]}
           onVerdict={(id, v) => void onVerdict(folderFor(report.kind), id, v)}
@@ -534,7 +584,8 @@ export function RecordingStudio() {
               const name = value === 'klanken' ? 'Klanken'
                 : value === 'woorden-startset' ? 'Woorden, startset'
                 : value === 'woorden' ? 'Woorden, alle'
-                : 'Weetjes'
+                : value === 'weetjes' ? 'Weetjes'
+                : 'Spelling'
               return (
                 <button
                   key={value}
@@ -653,6 +704,12 @@ export function RecordingStudio() {
                 Lees elke zin één keer, rustig, zodra hij verschijnt. Bij een vraag: eerst de
                 vraag, dan de drie antwoorden, met een adempauze ertussen.{' '}
               </>
+            ) : kind === 'spelling' ? (
+              <>
+                De twee regels zijn zinnen; lees ze zoals je ze tegen haar zou zeggen. De rest
+                zijn losse woorden — het langere woord alleen, dus <b>honden</b>, niet
+                {' '}<i>hond, honden</i>.{' '}
+              </>
             ) : (
               <>Lees elk woord één keer, rustig, zodra het verschijnt. </>
             )}
@@ -664,7 +721,7 @@ export function RecordingStudio() {
             ids={fullSet}
             activeIds={ids}
             kind={kind}
-            labels={kind === 'weetjes' ? weetjes.labels : undefined}
+            labels={cueLabels}
             probes={folderProbes}
             store={store}
             onVerdict={(id, v) => void onVerdict(folder, id, v)}

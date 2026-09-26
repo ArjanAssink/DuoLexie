@@ -45,12 +45,30 @@ export default defineConfig({
       // pointerId-isolation logic it exercises is plain React/DOM event handling with no
       // engine-specific behaviour, so Chromium-only coverage is a test-tooling limitation,
       // not a gap in coverage of what actually differs on her real device.
-      testIgnore: ['**/recording-studio.spec.ts', '**/studio-*.spec.ts', '**/pointer-isolation.spec.ts'],
+      // maak-het-woord-af-round is desktop-only for weight, not for coverage: it is two
+      // ten-card rounds, and a round is the most expensive shape in this suite on a
+      // two-core WebKit runner. What differs between engines — the carry, the CSS bump,
+      // the pseudo-element gap — is in maak-het-woord-af.spec.ts and runs here.
+      // shots-spelling drives the device sizes itself with test.use, so running it as a
+      // project too would take the same screenshots twice.
+      testIgnore: [
+        '**/recording-studio.spec.ts',
+        '**/studio-*.spec.ts',
+        '**/pointer-isolation.spec.ts',
+        '**/maak-het-woord-af-round.spec.ts',
+        '**/shots-spelling.spec.ts',
+      ],
       use: { ...devices['iPad Pro 11'] },
     },
     {
       name: 'iphone',
-      testIgnore: ['**/recording-studio.spec.ts', '**/studio-*.spec.ts', '**/pointer-isolation.spec.ts'],
+      testIgnore: [
+        '**/recording-studio.spec.ts',
+        '**/studio-*.spec.ts',
+        '**/pointer-isolation.spec.ts',
+        '**/maak-het-woord-af-round.spec.ts',
+        '**/shots-spelling.spec.ts',
+      ],
       use: { ...devices['iPhone 13'] },
     },
   ],

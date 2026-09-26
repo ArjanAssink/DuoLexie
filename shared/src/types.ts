@@ -35,6 +35,7 @@ export type GameType =
   | 'woordbouwer'
   | 'hardop-lezen'
   | 'weetjes'
+  | 'maak-het-woord-af'
 
 export type LessonKind = 'les' | 'tijdrit-uitdaging' | 'herhaling' | 'eindbaas' | 'weetje'
 
@@ -49,6 +50,12 @@ export interface Lesson {
   /** All sounds this lesson may draw from */
   soundPool: string[]
   exerciseCount: number
+  /**
+   * Maak het woord af only — which spelling pair this node drills
+   * (`shared/curriculum/spelling.json`, docs/maak-het-woord-af.md §7). One node per pair
+   * per unit, so the pair is what tells two nodes on the same unit apart.
+   */
+  spellingPair?: string
 }
 
 export interface Unit {
@@ -133,6 +140,14 @@ export interface SessionResult {
   answers: AnswerRecord[]
   /** Hardop lezen only — one entry per word she graded */
   wordResults?: WordResult[]
+  /**
+   * Maak het woord af only — one entry per distinct word she spelled.
+   *
+   * Deliberately *not* folded into `wordResults`: `applySession` feeds those into the
+   * reading-speed Leitner boxes (`wordStats`), and how she spells a word says nothing about
+   * how fast she reads it (docs/maak-het-woord-af.md §5).
+   */
+  spellingResults?: SpellingResult[]
   xpEarned: number
   gemsEarned: number
   /** klanken per minuut, for Tijdrit rounds */
@@ -244,4 +259,81 @@ export interface Weetje {
 
 export interface WeetjeCurriculum {
   weetjes: Weetje[]
+}
+
+/**
+ * How a pair's strategy badge behaves (docs/maak-het-woord-af.md §4).
+ *
+ * - `langer` — two steps: Frida asks her to say the longer word herself, and only then is
+ *   it shown and spoken. RID's move is that *she* produces it.
+ * - `regel` — one step: the pair's `rule` is spoken. There is nothing for her to produce.
+ */
+export type SpellingStrategy = 'langer' | 'regel'
+
+/**
+ * One confusable spelling pair — `d`/`t`, `cht`/`gt`, and later `ei`/`ij` and `au`/`ou`
+ * without any new code. A pair is data, which is the whole point of the file.
+ */
+export interface SpellingPair {
+  id: string
+  title: string
+  /** Tile order, fixed: left, right. ArrowLeft/ArrowRight follow it (§6). */
+  options: string[]
+  strategy: SpellingStrategy
+  /** What the badge says out loud, and what the bubble shows. */
+  rule: string
+  /** klanken that must all be taught before a node for this pair appears (§7). */
+  needs: string[]
+}
+
+/**
+ * One word she spells, as the game needs it: the stem that is shown, the ending that is
+ * missing, and the strategy's raw material.
+ *
+ * `wordId` is a word in `words.json` — a spelling word is a word, with `klanken` for the
+ * pool filter and a place in the recording order (§6 rule 1).
+ */
+export interface SpellingWord {
+  wordId: string
+  /** `SpellingPair.id` */
+  pair: string
+  /** What stays on the card. `stem + ending` is the word's own text (§6 rule 2). */
+  stem: string
+  /** One of the pair's `options`. */
+  ending: string
+  /**
+   * The longer form the `langer` strategy reveals — a plural or inflected form for a `d-t`
+   * word, the `ik`-form for a `gt` verb, and null for a `cht` word, which has no longer
+   * form to make (§6 rule 4).
+   */
+  langer: string | null
+  /**
+   * A short context sentence, for the case where *both* spellings are real words and the
+   * spoken word alone cannot say which is meant (§6 rule 3). Null on every word in the
+   * first release: the words that would need one are simply left out instead.
+   */
+  zin: string | null
+  /** Arjan has checked the word and its longer form. Only reviewed words are ever dealt. */
+  reviewed: boolean
+}
+
+export interface SpellingCurriculum {
+  pairs: SpellingPair[]
+  words: SpellingWord[]
+}
+
+/**
+ * One graded spelling, as reported by Maak het woord af. `correct` is the *first* attempt
+ * only — a word she missed is shown the right answer and comes back later in the round,
+ * and that second pass is teaching, not a second chance at the score (§5).
+ */
+export interface SpellingResult {
+  wordId: string
+  correct: boolean
+}
+
+/** How she has done on one word's spelling. The selector prefers what she has missed. */
+export interface SpellingStats {
+  seen: number
+  missed: number
 }

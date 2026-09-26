@@ -3,6 +3,7 @@ import {
   BEATS,
   confettiCount,
   easeBar,
+  gemSpriteCount,
   pctFor,
   praiseFor,
   showsStreak,
@@ -184,5 +185,43 @@ describe('BEATS', () => {
     expect(BEATS.stripAt).toBeLessThan(BEATS.doneAt)
     // the bar must have finished filling before the strip pulls her eye off the card
     expect(BEATS.cardAt + BEATS.barDelay + BEATS.barFillMs).toBeLessThanOrEqual(BEATS.stripAt)
+  })
+
+  it('opens the chest after the strip it sits in, and after Verder is up', () => {
+    // docs/kist-openen.md §3. The chest cannot auto-open before the strip has brought it on
+    // screen — she would never see it shut, which is the half that makes it hers to open.
+    expect(BEATS.stripAt).toBeLessThan(BEATS.chestAt)
+    // And it must not be something she waits on: Verder is up and usable first, so a child
+    // who is not interested in the chest is never held by it.
+    expect(BEATS.doneAt).toBeLessThanOrEqual(BEATS.chestAt)
+  })
+
+  it('leaves a real window for her to open it herself', () => {
+    // A floor rather than an exact figure — the tuning may move, the point may not. Under
+    // about a second the auto-open beats a nine-year-old's hand to the chest, which turns
+    // the one interactive thing on the screen into another thing that happened at her.
+    expect(BEATS.chestAt - BEATS.stripAt).toBeGreaterThanOrEqual(1000)
+  })
+})
+
+describe('gemSpriteCount', () => {
+  it('never draws more gems than she earned', () => {
+    // Four gems throwing seven sprites is a small lie, and the kind a child checks.
+    expect(gemSpriteCount(1)).toBe(1)
+    expect(gemSpriteCount(4)).toBe(4)
+  })
+
+  it('caps the burst, however big the round was', () => {
+    // The count-up says how much it was worth; the burst is a gesture, and eighteen
+    // animating elements is where a cheap tablet starts dropping frames.
+    expect(gemSpriteCount(18)).toBe(7)
+    expect(gemSpriteCount(2000)).toBe(7)
+  })
+
+  it('draws nothing for a round worth nothing', () => {
+    // computeReward always pays something today, so this is the guard rather than a case:
+    // a chest that opens on an empty burst is worse than a chest that never opens.
+    expect(gemSpriteCount(0)).toBe(0)
+    expect(gemSpriteCount(-3)).toBe(0)
   })
 })

@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import confetti from 'canvas-confetti'
-import type { AnswerRecord, LessonKind, WordResult } from '@shared/src/types'
+import type { AnswerRecord, LessonKind, SpellingResult, WordResult } from '@shared/src/types'
 import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
-import { playEffect, playWord } from '../audio/audio'
+import { allSpellingWords, langerClipId } from '../spelling'
+import { haptic, playEffect, playSpelling, playWord } from '../audio/audio'
 import { Frida } from '../components/Frida'
+import { TreasureChest } from '../components/TreasureChest'
 import { useProgress } from '../state/progress'
 import {
   BEATS,
   confettiCount,
+  gemSpriteCount,
   pctFor,
   praiseFor,
   showsStreak,
@@ -29,6 +32,8 @@ export interface DisplayReward extends Reward {
   score?: number
   /** Hardop lezen only — one entry per word she graded */
   wordResults?: WordResult[]
+  /** Maak het woord af only — one entry per distinct word she spelled */
+  spellingResults?: SpellingResult[]
   /**
    * Klank games — one record per klank she answered. The stat card needs a denominator, and
    * for everything that is not a reading round `answers.length` is the unit `computeReward`
@@ -36,6 +41,17 @@ export interface DisplayReward extends Reward {
    */
   answers?: AnswerRecord[]
 }
+
+/**
+ * The buzz as Frida bursts in (the hero beat, §2). Long on purpose — three rising pulses and
+ * a held rumble, ~450ms in all — where every other haptic in the app is a tick of 4–25ms:
+ * this is the one moment that is *meant* to be big. A quiet round (§5, under 50%) gets a
+ * single soft pulse instead, the way it gets the pop-in instead of the burst. Distinct from
+ * the short round-end tap in GameScreen.handleComplete, which belongs to the game finishing;
+ * this one belongs to the celebration, and is skipped with it under reduced motion.
+ */
+const HERO_HAPTIC = [40, 50, 60, 50, 240]
+const HERO_HAPTIC_QUIET = 40
 
 interface Props {
   reward: DisplayReward
@@ -47,6 +63,13 @@ const GEM_TICK_MS = 90
 /** Gems per step up the tick scale, so a long count-up still ends on a musical note. */
 const GEMS_PER_TICK_STEP = 4
 
+/**
+ * The chest's drawn width. Small enough to sit on the same row as the two reward lines
+ * rather than adding a row of its own — an iPhone SE has about fifteen pixels of slack in
+ * this layout (§3) and a stacked chest would spend all of them.
+ */
+const CHEST_SIZE = 76
+
 /** Gold, the same three the hero's headline is built from. canvas-confetti needs literals. */
 const CONFETTI_COLORS = ['#F7C531', '#D9A616', '#FFF1B8']
 
@@ -54,9 +77,19 @@ const CONFETTI_COLORS = ['#F7C531', '#D9A616', '#FFF1B8']
 const WEETJE_HEADLINE = 'Nu weet je dit ook!'
 const WEETJE_SUBLINE = 'Vertel het vanavond aan iemand thuis.'
 
-/** Beats in which the reward strip and its gem count-up are on screen. */
-function stripIsUp(beat: Beat): boolean {
-  return beat === 'strip' || beat === 'done'
+/**
+ * A missed-word chip, spoken.
+ *
+ * For a reading round that is the word. For a spelling round it is the word **and its
+ * longer form** — "hond… honden" — so the strategy rides along one last time for exactly
+ * the words she got wrong (docs/maak-het-woord-af.md §5). A `cht` word has no longer form
+ * and is simply spoken.
+ */
+async function playChip(wordId: string, spelling: boolean): Promise<void> {
+  await playWord(wordId, getWord(wordId).text)
+  if (!spelling) return
+  const langer = allSpellingWords.find((w) => w.wordId === wordId)?.langer
+  if (langer) await playSpelling(langerClipId(wordId), [langer])
 }
 
 /**
@@ -86,15 +119,25 @@ export function RewardScreen({ reward, onDone }: Props) {
   const isWeetje = reward.kind === 'weetje'
 
   const wordResults = reward.wordResults ?? []
+  const spellingResults = reward.spellingResults ?? []
   const reading = wordResults.length > 0
-  const missed = wordResults.filter((r) => !r.correct)
+  const spelling = spellingResults.length > 0
+  /**
+   * The round's cards, whichever game produced them. A reading round and a spelling round
+   * are both scored per *word*, so the stat card, the tally and the chips read one list —
+   * which is what "the stat card works unchanged once spellingResults is mapped to the
+   * shape it reads" means (docs/maak-het-woord-af.md §5).
+   */
+  const perWord: { wordId: string; correct: boolean }[] = reading ? wordResults : spellingResults
+  const byWord = reading || spelling
+  const missed = perWord.filter((r) => !r.correct)
 
-  // A reading round is scored per word; every other game per klank — the same two units
+  // A word round is scored per word; every other game per klank — the same two units
   // computeReward branches on, so the percentage on the card can never tell a different
   // story from the gems underneath it.
-  const total = reading ? wordResults.length : (reward.answers?.length ?? 0)
-  const correct = reading
-    ? wordResults.filter((r) => r.correct).length
+  const total = byWord ? perWord.length : (reward.answers?.length ?? 0)
+  const correct = byWord
+    ? perWord.filter((r) => r.correct).length
     : (reward.answers?.filter((a) => a.correct).length ?? 0)
   const pct = pctFor(correct, total)
 
@@ -123,12 +166,13 @@ export function RewardScreen({ reward, onDone }: Props) {
     (beat: Beat) => {
       if (beat === 'hero') {
         if (!quiet) playEffect('whoosh')
+        haptic(quiet ? HERO_HAPTIC_QUIET : HERO_HAPTIC)
         // A Weetje has no percentage to size the burst by, and is never a bad round — she
         // learned the thing however she guessed — so it gets the default burst a klank game
         // would get.
         const particleCount = isWeetje
           ? confettiCount(100, false, undefined)
-          : confettiCount(pct, reward.newRecord, reading ? correct : undefined)
+          : confettiCount(pct, reward.newRecord, byWord ? correct : undefined)
         if (particleCount > 0) {
           confetti({
             particleCount,
@@ -141,16 +185,25 @@ export function RewardScreen({ reward, onDone }: Props) {
       }
       if (beat === 'card') playEffect('cardPop')
     },
-    [pct, correct, reading, quiet, isWeetje, reward.newRecord],
+    [pct, correct, byWord, quiet, isWeetje, reward.newRecord],
   )
 
   const handleTierUp = useCallback((step: number) => playEffect('tierUp', step), [])
 
-  const { beat, progress, skipped, skip } = useCelebration({
+  // The lid, and the one thing on this screen she made happen herself. The haptic is the
+  // same length as the one a card landing gets: a chest is a bigger event than a card, but
+  // it is not a new record, and the phone in her hand should not say it is.
+  const handleChestOpen = useCallback(() => {
+    playEffect('chestOpen')
+    haptic(18)
+  }, [])
+
+  const { beat, progress, skipped, chestOpen, chestOpenedBy, openChest, skip } = useCelebration({
     pct,
     skipCard: isWeetje,
     onBeat: handleBeat,
     onTierUp: handleTierUp,
+    onChestOpen: handleChestOpen,
   })
 
   // The number and the bar are the same value rendered twice — see easeBar's note. Rounding
@@ -160,10 +213,14 @@ export function RewardScreen({ reward, onDone }: Props) {
   const tier = tierFor(shownPct)
 
   // Count the gems up one at a time rather than printing the total: the counting *is* the
-  // reward moment, and it costs a second and a half. It starts with the strip and is
-  // deliberately allowed to run on into `done` — under reduced motion the screen mounts in
-  // `done`, so this starts immediately and behaves exactly as it did before.
-  const countGems = stripIsUp(beat)
+  // reward moment, and it costs a second and a half. It is the *chest* that starts it, not
+  // the strip beat — the gems come out of the chest, so a number climbing beside a lid that
+  // is still shut would be the one thing on this screen that gives the game away
+  // (docs/kist-openen.md §3). The chest opens on its own shortly after the strip if she does
+  // not tap it, so this can be waited on without anything ever being stuck behind it, and it
+  // is deliberately allowed to run on past `done`. Under reduced motion the chest is open on
+  // the first frame, so this starts at mount exactly as it did before.
+  const countGems = chestOpen
   useEffect(() => {
     if (!countGems || reward.gems <= 0) return
     let n = 0
@@ -247,7 +304,7 @@ export function RewardScreen({ reward, onDone }: Props) {
           </div>
           <div className="reward-pct">{shownPct}%</div>
           <div className="reward-tally">
-            {reading
+            {byWord
               ? `${correct} goed · ${missed.length} nog even`
               : `${correct} van ${total} goed`}
           </div>
@@ -263,6 +320,47 @@ export function RewardScreen({ reward, onDone }: Props) {
       )}
 
       <div className="reward-strip">
+        {/*
+          The chest she taps. It is a real button rather than a tappable div because it is
+          the only thing on this screen that does something, and it must be reachable by
+          keyboard and announce itself — the sequence around it is decoration, this is not.
+
+          `stopPropagation` on both handlers is load-bearing: the screen's own tap-to-skip
+          sets `data-skipped`, which turns *every* animation off (theme.css), so without it
+          the one tap the whole feature exists for would be the one tap whose lid never
+          swings. Tapping anywhere else still skips, and a skip still opens the chest —
+          instantly, with the rest of the final state.
+        */}
+        {reward.gems > 0 && (
+          <button
+            type="button"
+            className="reward-chest"
+            data-open={chestOpen ? 'true' : 'false'}
+            data-opened-by={chestOpenedBy ?? 'shut'}
+            aria-label={chestOpen ? 'De schatkist is open' : 'Open de schatkist'}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              openChest()
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              openChest()
+            }}
+          >
+            <TreasureChest size={CHEST_SIZE} />
+            <span className="chest-burst" aria-hidden="true">
+              {Array.from({ length: gemSpriteCount(reward.gems) }, (_, i) => (
+                <span
+                  key={i}
+                  className="chest-gem"
+                  style={{ '--i': i, '--n': gemSpriteCount(reward.gems) } as CSSProperties}
+                >
+                  💎
+                </span>
+              ))}
+            </span>
+          </button>
+        )}
         {/* gems first: the existing e2e tests read the first .reward-line, and the gems are
             the line she is waiting for anyway */}
         <div className="reward-line">💎 +{shownGems}</div>
@@ -279,7 +377,7 @@ export function RewardScreen({ reward, onDone }: Props) {
             <button
               key={`${r.wordId}-${i}`}
               className="word-chip"
-              onClick={() => void playWord(r.wordId, getWord(r.wordId).text)}
+              onClick={() => void playChip(r.wordId, spelling)}
             >
               🔊 {getWord(r.wordId).text}
             </button>

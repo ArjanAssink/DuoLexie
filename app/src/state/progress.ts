@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { get as idbGet, set as idbSet, del as idbDel } from './idbStorage'
-import type { AnswerRecord, Lesson, SessionResult, WordResult } from '@shared/src/types'
+import type { AnswerRecord, Lesson, SessionResult, SpellingResult, WordResult } from '@shared/src/types'
 import { emptyAggregates, applySession, type Aggregates, type LessonCompletion } from '../engine/recompute'
 import { computeReward, type Reward } from '../engine/reward'
 import { LEGACY_UNIT_ID_MAP } from '../data/path'
@@ -126,6 +126,8 @@ interface ProgressState extends Aggregates {
     score?: number
     /** Hardop lezen only — per-word reads, one per swiped card */
     wordResults?: WordResult[]
+    /** Maak het woord af only — one entry per distinct word she spelled */
+    spellingResults?: SpellingResult[]
   }) => Reward
 }
 
@@ -189,13 +191,20 @@ export const useProgress = create<ProgressState>()(
         return true
       },
 
-      completeLesson: ({ lesson, answers, score, wordResults }) => {
+      completeLesson: ({ lesson, answers, score, wordResults, spellingResults }) => {
         const s = get()
         const prevRecord = s.records[lesson.id] ?? 0
         // The only formula for what a session is worth (engine/reward.ts) — completeLesson
         // no longer takes gems/xp from the caller, so there's nowhere left for a second,
         // silently-divergent copy of this arithmetic to be written.
-        const reward = computeReward(lesson, answers, prevRecord, score, wordResults)
+        const reward = computeReward(
+          lesson,
+          answers,
+          prevRecord,
+          score,
+          wordResults,
+          spellingResults,
+        )
 
         const session: SessionResult = {
           id: crypto.randomUUID(),
@@ -203,6 +212,7 @@ export const useProgress = create<ProgressState>()(
           completedAt: new Date().toISOString(),
           answers,
           wordResults,
+          spellingResults,
           xpEarned: reward.xp,
           gemsEarned: reward.gems,
           score,
@@ -219,7 +229,7 @@ export const useProgress = create<ProgressState>()(
     {
       name: 'duolexie-progress',
       storage: createJSONStorage(() => idbStateStorage),
-      version: 4,
+      version: 5,
       // Cascading, not else-if: an old-enough profile needs every fixup below it applied
       // in order, not just the one matching its exact stored version.
       migrate: (persisted, version) => {
@@ -243,6 +253,14 @@ export const useProgress = create<ProgressState>()(
           // truthful starting point for an existing profile: she has not seen a card yet.
           p = { ...p, collectedWeetjes: [] }
         }
+        if (version < 5) {
+          // v0-v4 predate Maak het woord af (docs/maak-het-woord-af.md §5). Empty is the
+          // truthful start: she has not spelled a word yet. It could equally be replayed
+          // out of `sessions` (recomputeFrom does exactly that), but no session before
+          // this version carries a spellingResults field, so the replay would produce {}
+          // and cost a fold over her whole history to say so.
+          p = { ...p, spellingStats: {} }
+        }
         return p
       },
       // zustand's default merge is shallow, so a nested object gained later would
@@ -255,6 +273,7 @@ export const useProgress = create<ProgressState>()(
           ...p,
           settings: { ...current.settings, ...p.settings },
           wordStats: p.wordStats ?? {},
+          spellingStats: p.spellingStats ?? {},
           sessions: p.sessions ?? [],
           collectedWeetjes: p.collectedWeetjes ?? [],
         }

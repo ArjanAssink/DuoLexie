@@ -13,6 +13,11 @@ acceptance criterion; where it says *suggested*, use judgement.
 **Status:** built (PR *Beloningsscherm v2: viering na een ronde*). Deviations from what is
 written below are marked *(as built)* where they occur, and listed together in §13.
 
+**Amended by [kist-openen.md](kist-openen.md):** the gems in the strip now pour out of a
+schatkist she taps open, and the count-up starts with its lid rather than with the strip.
+Every beat, every timing and every guarantee below is unchanged — read that document
+alongside §2 and §6 rather than instead of them.
+
 ---
 
 ## 1. What changes and why
@@ -217,6 +222,14 @@ formula **move** from `GameScreen` into the reward screen's hero beat (§2) so t
 with Frida and are skipped under reduced motion and when tapped through. Haptics stay in
 `GameScreen`.
 
+*(Added after the merge, on request: the hero beat also has a haptic of its own, longer than
+anything else in the app — three rising pulses and a held rumble, ~450ms — because this is
+the one moment meant to feel big; a quiet round gets a single soft 40ms pulse, as it gets the
+pop-in instead of the burst. It fires from `handleBeat` alongside the whoosh and the confetti,
+so it goes through the same reduced-motion and skip gates; the short round-end tap in
+`GameScreen` stays where it is. On an iPhone it arrives as a rattle of six light ticks through
+the switch trick in docs/haptics.md; an iPad has no motor and feels nothing.)*
+
 Volume: none of the new effects louder than `ding`. Nothing plays after `done` except the
 gem ticks that were already running.
 
@@ -386,7 +399,9 @@ Unit: `rewardTimeline.test.ts` as in §8.
 ## 12. Out of scope
 
 - A second beat after Verder (quest progress, sticker, streak). Leave `onDone` as the
-  single exit so it can be added in front of `navigate('/')` later.
+  single exit so it can be added in front of `navigate('/')` later. *(Still true. The gem
+  landing in kist-openen.md §4 adds an argument to that `navigate`, not a beat in front of
+  it.)*
 - New Frida art. If a full-body celebrating pose is ever drawn, it slots into the hero as a
   different `expression`; nothing else changes.
 - Recorded sound assets.

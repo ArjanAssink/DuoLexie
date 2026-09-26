@@ -51,7 +51,7 @@ Direction: **Lezen** = see letters → produce/recognize sound. **Luisteren** = 
 | 4 | **Woordbouwer** | Luisteren | woord | Accuracy | v1 |
 | 5 | **Hardop lezen** | Lezen | woord | Accuracy | v1 |
 | 6 | **Klankzoeker** (find the sound in a word) | Beide | woord | Accuracy | v2 |
-| 7 | **Woordenvangst** (hear word → tap correct spelling; trains ei/ij, au/ou) | Luisteren | woord | Accuracy | v2 |
+| 7 | **Maak het woord af** (slide the missing ending into `hon▢`; d/t and cht/gt, ei/ij and au/ou later) | Beide | woord | Spelling | v2 |
 | 8 | **Verdwijnzinnen** (RAP-style disappearing text) | Lezen | zin | Fluency | v2–v3 |
 | 9 | **Zinnenbouwer** (arrange word tiles into heard sentence) | Luisteren | zin | Accuracy | v3 |
 
@@ -60,6 +60,7 @@ v1 game details:
 - **Flitsen** — replaced Klankenjacht (tap-the-right-tile drill; wasn't landing as fun). Ported from the [CardFlash](https://github.com/ArjanAssink/CardFlash) repo: tap the deck, the top card 3D-flips and flies to the discard pile, running timer, until the deck is flipped. No grading, no narration (pure exposure — deliberately lighter than the app's other drills), restyled to DuoLexie's palette/tokens. **A round is a fixed 20 cards**, not "the whole pool": the pool runs from 5 klanken (the opening unit) to 45, which made the round five taps long at the start and a slog at the end. Under 20 klanken the pool repeats — whole shuffled copies, so every klank gets the same number of turns; over 20 it is sampled, always including the klanken that unit introduces.
 - **Welke klank?** — mirror: see one grapheme → tap the speaker button that plays the matching sound (3–4 audio options). Fully self-checking, no speech needed.
 - **Woordbouwer** — hear a word → assemble it from **klank-chunk tiles** (`b · oo · m`, segmented by klank, never by letter — the RID-aligned detail). Scales: mkm → clusters → two syllables; distractor tiles from confusion pairs.
+- **Maak het woord af** — the one spelling game, and the fourth CODE pillar (built; plan: [docs/maak-het-woord-af.md](docs/maak-het-woord-af.md)). It replaces the old **Woordenvangst** row, which was "hear the word → tap the right spelling": that puts a misspelled word image in front of her on every card, which is the one thing the methods this app follows avoid. Here the word is spoken and shown with its last sound *missing* (`hon▢`) and she carries one of two ending tiles (`d` · `t`) into the gap — a wrong tile bumps against it and bounces back, so `hont` is never formed. Every item comes with a **strategy** rather than a rule to remember: *Maak langer* (hond → honden) for d/t, the cht/gt rule for the other. Pairs are data (`shared/curriculum/spelling.json`), so ei/ij and au/ou follow without code.
 - **Hardop lezen** — word card appears; she reads it aloud; shortly after, it's pronounced (family recording once available, TTS fallback for now) as her self-check; she **swipes the card right (goed) or left (nog even)** to grade herself, Tinder-style. Swipe right plays a cheerful "ding"; swipe left plays a silly "fart" buzz — playful, not punitive, matching design principle 5. Untimed, no re-queue on miss (unlike Klankenjacht) — it's a read-through, not a drill-to-mastery loop. Each word's answer is recorded against *all* its constituent klanken (not just one), so word-reading performance also feeds the per-klank mastery/EWMA system. Only appears once a unit's cumulative sound pool covers ≥4 words from `shared/curriculum/words.json`.
 
 ---
@@ -89,6 +90,7 @@ Principles: reward effort and self-beating, never social comparison; no punitive
 
 **v1:**
 - **Edelstenen (gems):** +10 per les, +5 perfect, +10 new Flits record, +20 Eindbaas. Accumulate in a visible treasure jar on the home screen (shop comes in v2).
+- **Kist openen (schatkist-moment):** de edelstenen op het beloningsscherm komen uit een **schatkist die ze zelf opentikt** — deksel klapt open, edelstenen vliegen eruit, en de telling loopt mee met het deksel in plaats van vanzelf. Daarna vliegen ze op het leerpad de edelstenenteller in, die net zo lang op het oude totaal blijft staan: `completeLesson` boekt de stenen al vóór het beloningsscherm bestaat, dus zonder die overdracht landen ze nergens. Geldt voor elk spel, niet alleen Eindbaas, en staat los van de (nog ongebouwde) **Schatkist**-padnode in §3 — dezelfde tekening, ander mechanisme. Zie [docs/kist-openen.md](docs/kist-openen.md). De "treasure jar" hieronder is voorlopig de teller in de statusbalk; een echte vullende pot is eigen werk met eigen tekeningen.
 - **Weekdoel, not a daily streak:** RID prescribes 5 days/week → a weekly ring "5 van de 7 dagen"; full rings build a streak of *weeks*. Missing a day is never shown negatively. (Deliberate divergence from Duolingo's guilt-streak.)
 - **Mascot:** one character — suggestion "Flits de vos" (pick with her!). 4 states: idle, cheering, gentle encouragement, party. Static images + CSS/Lottie.
 - **Celebrations:** canvas-confetti, full-screen "NIEUW RECORD" in Tijdrit, crown animation, and **family-recorded voice clips** for milestones ("Nieuw record!" in dad's voice).
@@ -137,7 +139,7 @@ DuoLexie/
 │   └── src/functions/{auth,profiles,progress}.ts + lib/ (cosmos, jwt, cookies, bcryptjs)
 ├── shared/
 │   ├── src/types.ts          # DTOs shared app↔api
-│   └── curriculum/           # sounds.json (45 klanken/6 categories), words/{soundId}.json, sentences/
+│   └── curriculum/           # sounds.json (45 klanken/6 categories), words.json, weetjes.json, spelling.json
 └── tools/convert-audio.mjs   # ffmpeg webm→mp3 + loudness normalize
 ```
 
@@ -176,7 +178,7 @@ Dev-only route `/opnemen` (mounted when `import.meta.env.DEV`): lists every need
 
 **Phase 3 — Accounts & sync:** Cosmos free-tier account, `api/` package (auth/profiles/progress), register/login + profile picker with avatar/PIN, outbox sync engine, migrate existing local progress into the first profile.
 
-**Phase 4 — v2 content & parent dashboard:** Fases 4–7, **Klankzoeker** + **Woordenvangst**, parent dashboard (per-sound accuracy/speed heatmap, active-sound configuration), stickerboek + winkeltje, **speler-avatar & shop** (§12).
+**Phase 4 — v2 content & parent dashboard:** Fases 4–7, **Klankzoeker** (Maak het woord af shipped early, in Phase 2), parent dashboard (per-sound accuracy/speed heatmap, active-sound configuration), stickerboek + winkeltje, **speler-avatar & shop** (§12).
 
 **Later:** Fase 8 zinnen (**Verdwijnzinnen**, **Zinnenbouwer**), speech recognition silently scored alongside self-grading, placement flow refinements.
 

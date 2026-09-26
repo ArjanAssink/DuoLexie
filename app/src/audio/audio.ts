@@ -7,7 +7,7 @@
  * docs/private-audio.md — which moves every clip out of `public/` and behind the API — is a
  * change to one function instead of to every player in the app.
  */
-import { clipSrc } from './recorded'
+import { clipSrc, type ClipKind } from './recorded'
 
 const clipCache = new Map<string, HTMLAudioElement | null>()
 
@@ -176,28 +176,33 @@ export async function playWord(wordId: string, text: string): Promise<void> {
 /** A shade under natural speed — the pace docs/weetjes.md §7 asks these sentences to be read at. */
 const WEETJE_SPEECH_RATE = 0.9
 
-const weetjeClipCache = new Map<string, HTMLAudioElement | null>()
+const narrationClipCache = new Map<string, HTMLAudioElement | null>()
 
 /**
- * The Weetjes clip that is playing right now, so `stopNarration` can silence it.
+ * The narration clip that is playing right now, so `stopNarration` can silence it.
  *
  * Words never needed this: a reading round awaits one word at a time and nothing else may
  * start while it does. A Weetje card narrates on its own, from an effect, and she can tap
  * 🔊 or leave the screen in the middle of it — so there has to be something to stop, and
- * exactly one thing may ever be speaking (docs/weetjes.md §7).
+ * exactly one thing may ever be speaking (docs/weetjes.md §7). The spelling strategy badge
+ * is the same shape: she can tap it twice, or answer, while it is still talking.
  */
-let currentWeetjeClip: HTMLAudioElement | null = null
+let currentNarrationClip: HTMLAudioElement | null = null
 
-async function loadWeetjeClip(clipId: string): Promise<HTMLAudioElement | null> {
-  const cached = weetjeClipCache.get(clipId)
+async function loadNarrationClip(
+  kind: ClipKind,
+  clipId: string,
+): Promise<HTMLAudioElement | null> {
+  const key = `${kind}/${clipId}`
+  const cached = narrationClipCache.get(key)
   if (cached) return cached
-  const audio = new Audio(clipSrc('weetjes', clipId, __AUDIO_VERSION__))
+  const audio = new Audio(clipSrc(kind, clipId, __AUDIO_VERSION__))
   const result = await new Promise<HTMLAudioElement | null>((resolve) => {
     audio.oncanplaythrough = () => resolve(audio)
     audio.onerror = () => resolve(null)
     audio.load()
   })
-  if (result) weetjeClipCache.set(clipId, result)
+  if (result) narrationClipCache.set(key, result)
   return result
 }
 
@@ -241,13 +246,35 @@ async function speakLines(lines: string[], gapMs: number): Promise<void> {
  * @param clipId `<card id>-fact` | `-doe` | `-reveal`
  */
 export async function playWeetje(clipId: string, lines: string[], gapMs = 0): Promise<void> {
-  const clip = await loadWeetjeClip(clipId)
+  return playNarration('weetjes', clipId, lines, gapMs)
+}
+
+/**
+ * The spelling strategy badge, read aloud: a word's longer form (`<wordId>-langer`) or a
+ * pair's rule (`<pairId>-regel`), from `public/audio/spelling/` if it has been recorded and
+ * from browser speech otherwise (docs/maak-het-woord-af.md §10).
+ *
+ * The same function as a Weetje beat, at the same rate and under the same `stopNarration`,
+ * because it is the same thing: a sentence Frida says, which the child may interrupt.
+ */
+export async function playSpelling(clipId: string, lines: string[]): Promise<void> {
+  return playNarration('spelling', clipId, lines, 0)
+}
+
+/** The shared body of the two above — one clip, one fallback, one thing ever speaking. */
+async function playNarration(
+  kind: ClipKind,
+  clipId: string,
+  lines: string[],
+  gapMs: number,
+): Promise<void> {
+  const clip = await loadNarrationClip(kind, clipId)
   if (!clip) return speakLines(lines, gapMs)
-  currentWeetjeClip = clip
+  currentNarrationClip = clip
   try {
     return await playWithFallback(clip, () => speakLines(lines, gapMs))
   } finally {
-    if (currentWeetjeClip === clip) currentWeetjeClip = null
+    if (currentNarrationClip === clip) currentNarrationClip = null
   }
 }
 
@@ -261,8 +288,8 @@ export async function playWeetje(clipId: string, lines: string[], gapMs = 0): Pr
  */
 export function stopNarration(): void {
   narrationGeneration += 1
-  const clip = currentWeetjeClip
-  currentWeetjeClip = null
+  const clip = currentNarrationClip
+  currentNarrationClip = null
   try {
     if (clip) {
       clip.pause()
@@ -296,6 +323,8 @@ export type EffectKind =
   | 'cardPop'
   /** the stat card's label upgrading a tier; `step` raises it a whole tone per tier */
   | 'tierUp'
+  /** the schatkist's lid swinging open — a wooden creak with a gold shimmer over it */
+  | 'chestOpen'
 
 /** Short celebratory blip using WebAudio (no asset needed) */
 let audioCtx: AudioContext | null = null
@@ -442,6 +471,47 @@ export function playEffect(kind: EffectKind, step = 0): void {
       return
     }
 
+    if (kind === 'chestOpen') {
+      // Two halves, because a chest opening is two things: the lid (a low, short noise thump
+      // through a low-pass, the wood) and what is inside it (a fast rising arpeggio, the
+      // gold). Played together they read as one event; either alone reads as a door or a
+      // menu blip. It has to sit under the gem ticks that follow a beat later, so the
+      // shimmer is deliberately quieter than `tick`.
+      const now = ctx.currentTime
+
+      const length = Math.floor(ctx.sampleRate * 0.18)
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length)
+      const src = ctx.createBufferSource()
+      src.buffer = buffer
+      const wood = ctx.createBiquadFilter()
+      wood.type = 'lowpass'
+      wood.frequency.setValueAtTime(900, now)
+      wood.frequency.exponentialRampToValueAtTime(320, now + 0.18)
+      const woodGain = ctx.createGain()
+      woodGain.gain.setValueAtTime(0.14, now)
+      woodGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
+      src.connect(wood).connect(woodGain).connect(ctx.destination)
+      src.start(now)
+
+      // C6-E6-G6, 45ms apart — up and gone before the first gem tick lands
+      const shimmer = [1046.5, 1318.5, 1568]
+      shimmer.forEach((freq, i) => {
+        const at = now + i * 0.045
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'triangle'
+        osc.frequency.value = freq
+        gain.gain.setValueAtTime(0.055, at)
+        gain.gain.exponentialRampToValueAtTime(0.001, at + 0.16)
+        osc.connect(gain).connect(ctx.destination)
+        osc.start(at)
+        osc.stop(at + 0.18)
+      })
+      return
+    }
+
     if (kind === 'tierUp') {
       // Two partials a fifth apart, struck like `ding` but half as long, so a run of three
       // during one bar fill stays a run of chimes rather than a chord. `step` raises the
@@ -507,11 +577,6 @@ export function playEffect(kind: EffectKind, step = 0): void {
   }
 }
 
-/** Light haptic buzz where supported (Android Chrome); no-op on iOS Safari, which lacks the API. */
-export function haptic(pattern: number | number[] = 12): void {
-  try {
-    navigator.vibrate?.(pattern)
-  } catch {
-    // vibration is a nice-to-have, never worth crashing a game over
-  }
-}
+// Haptics moved to their own module once iOS needed a workaround (docs/haptics.md); the
+// games keep importing `haptic` from here.
+export { haptic } from './haptics'

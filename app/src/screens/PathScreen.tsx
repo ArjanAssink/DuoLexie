@@ -7,6 +7,8 @@ import { useAvatar } from '../state/avatar'
 import { AvatarView } from '../components/AvatarView'
 import { FridaTap } from '../components/FridaTap'
 import { BosCanopy, BosLog, BosScenery } from '../components/Bos'
+import { GemFlight } from '../components/GemFlight'
+import { useGemLanding } from './gemLanding'
 import {
   LessonIcon,
   GemIcon,
@@ -167,6 +169,16 @@ export function PathScreen() {
   const onboardedAt = useProgress((s) => s.settings.onboardedAt)
   const avatarConfig = useAvatar((s) => s.config)
 
+  /*
+   * The second half of the chest (docs/kist-openen.md §4). Arriving here straight from a
+   * round, the counter holds at the old total for as long as the gems are in the air, then
+   * takes them — because `completeLesson` credited them before the reward screen even
+   * mounted, so without this the jar is already full when the gems she watched come out of
+   * the chest get here, and they land nowhere.
+   */
+  const gemsRef = useRef<HTMLSpanElement>(null)
+  const { shown: shownGems, flying: flyingGems, landed: gemsLanded } = useGemLanding(gems)
+
   const firstOpenIdx = allLessons.findIndex((l) => !completedLessons[l.id])
   const activeLessonId = firstOpenIdx === -1 ? null : allLessons[firstOpenIdx].id
   // ?test=true (see /proberen) unlocks every lesson for trying out game modes without
@@ -207,8 +219,13 @@ export function PathScreen() {
   return (
     <>
       <header className="statbar">
-        <span className="stat gems">
-          <GemIcon /> {gems}
+        <span
+          ref={gemsRef}
+          className="stat gems"
+          data-landing={flyingGems > 0 ? 'true' : undefined}
+          data-landed={gemsLanded ? 'true' : undefined}
+        >
+          <GemIcon /> {shownGems}
         </span>
         <button className="avatar-btn" aria-label="Mijn avatar" onClick={() => navigate('/avatar')}>
           <AvatarView config={avatarConfig} crop="topbar" className="avatar-head" />
@@ -265,6 +282,8 @@ export function PathScreen() {
           )),
         )}
       </main>
+
+      <GemFlight count={flyingGems} targetRef={gemsRef} />
 
       <nav className="bottomnav">
         <button className="nav-active" aria-label="Leerpad">

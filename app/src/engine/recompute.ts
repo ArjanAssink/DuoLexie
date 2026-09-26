@@ -1,4 +1,4 @@
-import type { SessionResult, SoundStats, WordStats } from '@shared/src/types'
+import type { SessionResult, SoundStats, SpellingStats, WordStats } from '@shared/src/types'
 import { applyAnswer, emptyStats } from './stats'
 import { applyWordResult, emptyWordStats } from './wordStats'
 import { localDay } from '../date'
@@ -16,6 +16,12 @@ export interface Aggregates {
   completedLessons: Record<string, LessonCompletion>
   soundStats: Record<string, SoundStats>
   wordStats: Record<string, WordStats>
+  /**
+   * Per-word spelling history (docs/maak-het-woord-af.md §5). Deliberately not part of
+   * `wordStats`: those are the reading-speed Leitner boxes, and how she spells a word says
+   * nothing about how fast she reads it. Only `buildSpellingRound` reads this so far.
+   */
+  spellingStats: Record<string, SpellingStats>
   records: Record<string, number>
   practiceDays: string[]
 }
@@ -27,6 +33,7 @@ export function emptyAggregates(): Aggregates {
     completedLessons: {},
     soundStats: {},
     wordStats: {},
+    spellingStats: {},
     records: {},
     practiceDays: [],
   }
@@ -60,6 +67,15 @@ export function applySession(agg: Aggregates, session: SessionResult): Aggregate
     )
   }
 
+  const spellingStats = { ...agg.spellingStats }
+  for (const result of session.spellingResults ?? []) {
+    const prevWord = spellingStats[result.wordId] ?? { seen: 0, missed: 0 }
+    spellingStats[result.wordId] = {
+      seen: prevWord.seen + 1,
+      missed: prevWord.missed + (result.correct ? 0 : 1),
+    }
+  }
+
   const prev = agg.completedLessons[session.lessonId]
 
   return {
@@ -67,6 +83,7 @@ export function applySession(agg: Aggregates, session: SessionResult): Aggregate
     xp: agg.xp + session.xpEarned,
     soundStats,
     wordStats,
+    spellingStats,
     completedLessons: {
       ...agg.completedLessons,
       [session.lessonId]: {

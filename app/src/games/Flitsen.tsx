@@ -23,6 +23,12 @@ const RETURN_MS = 320
 /** Movement under this is still a tap; past it the card lifts off the deck. */
 const LIFT_SLOP_PX = 8
 /**
+ * The buzz as a carried card turns over — the moment it passes edge-on, halfway to the
+ * other stack. Short, because it can fire twice on one card (she can turn it back), and
+ * because the landing has its own, longer buzz right after.
+ */
+const FLIP_HAPTIC_MS = 8
+/**
  * Pointer samples kept per gesture. Enough tail for the flick velocity without letting a
  * long, slow carry grow unbounded — same figure and same eviction rule as Hardop lezen.
  */
@@ -89,6 +95,8 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
   const lifted = useRef(false)
   /** The air card under her finger, if any. */
   const heldId = useRef<number | null>(null)
+  /** Which side of edge-on the held card is: true once its front faces her. Buzz on change. */
+  const faceUp = useRef(false)
   /** Read once at mount, like Hardop lezen: it decides a JS branch, not only which CSS applies. */
   const [reducedMotion] = useState(prefersReducedMotion)
 
@@ -244,11 +252,20 @@ export function Flitsen({ lesson, onComplete, onQuit }: Props) {
       heldId.current = id
       const sound = deck[idx]
       setAir((a) => [...a, { id, sound, mode: 'held', x, y }])
+      faceUp.current = false
       haptic(4)
       return
     }
     const id = heldId.current
     setAir((a) => a.map((c) => (c.id === id ? { ...c, x, y } : c)))
+    // The card turns over as it travels (airStyles); the instant it passes edge-on is the
+    // flip, and a flip she makes by hand should be felt as well as seen. Both ways, since
+    // carrying it back turns it face-down again.
+    const nowFaceUp = dx !== 0 && x / dx >= 0.5
+    if (nowFaceUp !== faceUp.current) {
+      faceUp.current = nowFaceUp
+      haptic(FLIP_HAPTIC_MS)
+    }
   }
   function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
     if (e.pointerId !== activePointerId.current) return

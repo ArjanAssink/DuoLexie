@@ -1,6 +1,9 @@
 import type { Fase, Lesson, Unit, Word } from '@shared/src/types'
 import { curriculum } from '../curriculum'
 import { wordsForPool } from '../words'
+import {
+  allSpellingWords, dealableSpellingWords, spellingPairs, spellingWordsForPool,
+} from '../spelling'
 
 interface UnitDef {
   title: string
@@ -96,6 +99,18 @@ const MIN_WORDS_FOR_LEZEN = 9
 /** Cards one Weetje node hands her (docs/weetjes.md §1). */
 export const WEETJE_CARD_COUNT = 2
 
+/** Cards in one Maak het woord af round (docs/maak-het-woord-af.md §5). */
+export const SPELLING_ROUND_SIZE = 10
+
+/**
+ * Readable, reviewed words a pair needs before it earns a node on a unit.
+ *
+ * Eight rather than the full ten: a round is allowed to be short (`buildSpellingRound`
+ * never repeats a word to pad one out), and eight cards of d/t is still a real round.
+ * Below that it is a drill of the same handful of words and belongs one unit later.
+ */
+const MIN_WORDS_FOR_SPELLING = 8
+
 /**
  * The sound pool a Lezen node reads from: what she has been taught, topped up with the next
  * unit's sounds when that isn't enough to fill a round (docs/hardop-lezen-rework.md §4).
@@ -190,6 +205,9 @@ function buildLessons(
     })
   }
 
+  // A spelling node per pair, after Lezen and before the Weetje (§7).
+  lessons.push(...spellingLessonsFor(unitId, pool))
+
   /*
    * The Weetje node goes last, after Lezen (docs/weetjes.md §5).
    *
@@ -214,6 +232,50 @@ function buildLessons(
   })
 
   return lessons
+}
+
+/**
+ * The Maak het woord af nodes a unit earns (docs/maak-het-woord-af.md §7).
+ *
+ * Two conditions, both about her and not about the data: every klank the pair is *about*
+ * has been taught (`needs` — spelling `d` or `t` before either letter has been introduced
+ * is a guess, not a choice), and there are enough words she can already read to fill a
+ * round. The second is what keeps the node off a unit whose pool happens to contain the
+ * letters but almost none of the words.
+ *
+ * Both are recomputed per unit, so a pair's node reappears on every later unit with a wider
+ * pool rather than being a one-off — the pairs are exactly the thing that needs coming back
+ * to.
+ *
+ * Exported, and with the word set injectable, because it is the interesting rule in this
+ * file and the shipped data cannot exercise it: every seed word is `reviewed: false` until
+ * Arjan says otherwise (§6 rule 5), so the real path has no spelling node on it yet and a
+ * test over `path` would be asserting the gate rather than the rule.
+ */
+export function spellingLessonsFor(
+  unitId: string,
+  pool: string[],
+  words = dealableSpellingWords,
+): Lesson[] {
+  const out: Lesson[] = []
+  for (const pair of spellingPairs) {
+    if (!pair.needs.every((k) => pool.includes(k))) continue
+    if (spellingWordsForPool(pair.id, pool, words).length < MIN_WORDS_FOR_SPELLING) continue
+    out.push({
+      // unit sounds + pair id: stable under any reorder of FASE_DEFS or of the pairs, the
+      // same property unitSlug exists for.
+      id: `${unitId}-spel-${pair.id}`,
+      unitId,
+      kind: 'les',
+      title: 'Maak het woord af',
+      gameType: 'maak-het-woord-af',
+      newSounds: [],
+      soundPool: pool,
+      exerciseCount: SPELLING_ROUND_SIZE,
+      spellingPair: pair.id,
+    })
+  }
+  return out
 }
 
 /**
@@ -294,9 +356,15 @@ export const allLessons: Lesson[] = path.flatMap((f) => f.units.flatMap((u) => u
  * interaction can be tried with her before the word level is tuned to where she actually is
  * (docs/hardop-lezen-rework.md §4).
  */
+/**
+ * The `unitId` every off-path try-round carries. A spelling try-round is allowed to deal
+ * unreviewed drafts, and this is how the game knows it is one (§12.1).
+ */
+export const TRY_UNIT_ID = 'proefronde'
+
 export const PROEFRONDE_LESSON: Lesson = {
   id: 'proef-hardop-lezen',
-  unitId: 'proefronde',
+  unitId: TRY_UNIT_ID,
   kind: 'les',
   title: 'Proefronde lezen',
   gameType: 'hardop-lezen',
@@ -308,9 +376,70 @@ export const PROEFRONDE_LESSON: Lesson = {
   exerciseCount: LEZEN_ROUND_SIZE,
 }
 
+/**
+ * One direct-launch Maak het woord af round per pair, reachable from `/#/proberen` only.
+ *
+ * Like the Proefronde, deliberately *not* in `allLessons`: these must not appear on the
+ * path or wait on her progress. Unlike it, they exist for a second reason — a path node
+ * only appears once the pair's seed words are `reviewed: true` (docs/maak-het-woord-af.md
+ * §6 rule 5, §12.1), and until Arjan has been through the list there is no other way in.
+ * So these deal the **drafts**, and the probeermenu's label says so.
+ *
+ * The pool is every klank up to and including the fase the pair first becomes readable in,
+ * which for `d-t` is fase 1 and for `cht-gt` is everything up to `ch · ng · nk`.
+ */
+export const SPELLING_TRY_LESSONS: Lesson[] = spellingPairs.map((pair) => ({
+  id: `proef-spel-${pair.id}`,
+  unitId: TRY_UNIT_ID,
+  kind: 'les',
+  title: 'Maak het woord af',
+  gameType: 'maak-het-woord-af',
+  newSounds: [],
+  soundPool: tryPoolFor(pair.needs),
+  exerciseCount: SPELLING_ROUND_SIZE,
+  spellingPair: pair.id,
+}))
+
+/**
+ * The widest pool a try-round may draw from: every klank the path has introduced by the
+ * end of the **fase** that completes `needs` — all of fase 1 for `d-t`, everything up to
+ * and including `ch · ng · nk` for `cht-gt` (§7).
+ *
+ * A whole fase rather than a whole path, so a try-round is still made of words she has a
+ * chance at; a whole fase rather than the exact unit, so the pool is wide enough to be a
+ * real round rather than the eight words the node itself first appears on.
+ *
+ * Derived rather than written out, so adding `ei`/`ij` to spelling.json gives its
+ * try-round the right pool without anyone remembering to widen a constant here.
+ */
+function tryPoolFor(needs: string[]): string[] {
+  const cumulative: string[] = []
+  const missing = new Set(needs)
+  for (const faseDef of FASE_DEFS) {
+    for (const unitDef of faseDef.units) {
+      cumulative.push(...unitDef.sounds)
+      for (const sound of unitDef.sounds) missing.delete(sound)
+    }
+    // checked per fase, not per unit: the pool runs to the end of the fase that completes
+    // the pair, which is what makes fase 1's `d-t` round the whole of fase 1
+    if (missing.size === 0) return [...cumulative]
+  }
+  return [...cumulative]
+}
+
+/** Every lesson reachable by URL that is not on the path. */
+const OFF_PATH_LESSONS: Lesson[] = [PROEFRONDE_LESSON, ...SPELLING_TRY_LESSONS]
+
 export function lessonById(id: string): Lesson | undefined {
-  if (id === PROEFRONDE_LESSON.id) return PROEFRONDE_LESSON
-  return allLessons.find((l) => l.id === id)
+  return OFF_PATH_LESSONS.find((l) => l.id === id) ?? allLessons.find((l) => l.id === id)
+}
+
+/**
+ * How many of a pair's seed words are still `reviewed: false` — the probeermenu says so on
+ * the button, because a try-round of unreviewed drafts is exactly what it is.
+ */
+export function spellingDraftCount(pairId: string): number {
+  return allSpellingWords.filter((w) => w.pair === pairId && !w.reviewed).length
 }
 
 /** Linear unlock: a lesson is unlocked when all earlier lessons are completed */

@@ -1406,6 +1406,8 @@ main.bos { flex: 1; background: var(--bos-grond); }
 }
 .shop-cta { align-self: center; }
 .test-menu-btn { display: block; width: 100%; text-align: center; text-decoration: none; margin-bottom: 10px; }
+/* which haptic backend this device took, above the three sample buzzes (docs/haptics.md §3) */
+.test-menu-note { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
 .test-menu-btn:disabled { opacity: 0.4; }
 .avatar-stage {
   display: flex;
@@ -1833,7 +1835,7 @@ main.bos { flex: 1; background: var(--bos-grond); }
 }
 
 /* ----- the reward strip, the chips, and Verder ----- */
-.reward-strip { display: flex; gap: 22px; align-items: baseline; }
+.reward-strip { display: flex; gap: 18px; align-items: center; }
 .reward-screen .reward-line { font-size: 22px; font-weight: 900; }
 .reward-score { font-size: 17px; font-weight: 800; color: var(--muted); }
 .reward-chips {
@@ -1868,6 +1870,186 @@ main.bos { flex: 1; background: var(--bos-grond); }
 }
 .reward-screen[data-beat="strip"] .reward-score { animation-delay: 80ms; }
 .reward-screen[data-beat="strip"] .reward-chips { animation-delay: 160ms; }
+
+/*
+ * ----- the schatkist (docs/kist-openen.md) -----
+ *
+ * The one thing on this screen she does rather than watches. It obeys the same two rules as
+ * everything above it: nothing animates a box-model property, and the *open* chest is the
+ * default state with the closed one written as what it takes away — so the chest a skip
+ * jumps to, and the chest reduced motion mounts, need no rules of their own and cannot drift
+ * from the one the sequence ends on.
+ */
+.reward-chest {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  /* every tap target in this app clears 44px; the chest is comfortably over it */
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.reward-chest .chest {
+  display: block;
+  /* the lid swings past the top of the viewBox, and the gems fly out of it */
+  overflow: visible;
+}
+.reward-chest:active { transform: translateY(2px); }
+
+/* `view-box` so the origin below is in the same 120x96 units the drawing is in — the hinge
+   is the lid's back-bottom corner (12, 46), which is where a real chest's is. */
+.chest-lid,
+.chest-glow {
+  transform-box: view-box;
+}
+.chest-lid {
+  transform-origin: 6.7% 43.75%;
+  transform: rotate(-46deg);
+}
+.reward-chest[data-open="false"] .chest-lid { transform: rotate(0); }
+
+/* Past the resting angle and back: a lid that stops dead where it opens to reads as a
+   drawer, and the overshoot is the whole difference between the two. */
+@keyframes chestLidOpen {
+  from { transform: rotate(0); }
+  60% { transform: rotate(-56deg); }
+  to { transform: rotate(-46deg); }
+}
+.reward-chest[data-open="true"] .chest-lid {
+  animation: chestLidOpen 380ms cubic-bezier(.34,1.56,.64,1) both;
+}
+
+.chest-glow {
+  opacity: 0.45;
+  transform-origin: 50% 43%;
+}
+.reward-chest[data-open="false"] .chest-glow { opacity: 0; }
+@keyframes chestGlowIn {
+  from { opacity: 0; transform: scale(0.55); }
+  to { opacity: 0.45; transform: scale(1); }
+}
+.reward-chest[data-open="true"] .chest-glow {
+  animation: chestGlowIn 420ms ease-out both;
+}
+
+/*
+ * The invitation. A closed chest that just sits there is scenery; this is the only thing
+ * that says it is a button, to a child who cannot be told so in a tooltip. It stops the
+ * moment she opens it, which is also the moment `data-open` flips.
+ *
+ * It wobbles the *drawing*, not the button. A transform on a descendant leaves the button's
+ * own layout box alone, which matters twice over: a tap target that physically moves is
+ * harder for a nine-year-old to land on, and Playwright will not dispatch a click until an
+ * element's box has held still for two frames — with the animation on the button itself
+ * that wait ran to 2.7s on CI's WebKit, long enough for the auto-open to fire inside the
+ * very click meant to beat it (docs/kist-openen.md §6).
+ */
+@keyframes chestNudge {
+  0%, 62%, 100% { transform: none; }
+  70% { transform: rotate(-5deg) scale(1.05); }
+  78% { transform: rotate(5deg) scale(1.05); }
+  86% { transform: rotate(-3deg) scale(1.03); }
+}
+.reward-chest[data-open="false"] .chest { animation: chestNudge 2.2s ease-in-out infinite; }
+
+/*
+ * The gems coming out. `--i` and `--n` come from the component (screens/RewardScreen.tsx):
+ * `--i` fans them evenly across the spread and staggers their start, `--n` is the divisor
+ * that makes the fan even for any count `gemSpriteCount` returns. The resting state is
+ * gone — opacity 0, at the end of the arc — so a skip leaves no gem frozen in the air.
+ */
+.chest-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.chest-gem {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  font-size: 19px;
+  line-height: 1;
+  opacity: 0;
+  --spread: 108px;
+  --dx: calc((var(--i) / max(var(--n) - 1, 1) - 0.5) * var(--spread));
+}
+@keyframes gemFly {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.4); }
+  20% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), -62px) scale(1); }
+}
+.reward-chest[data-open="true"] .chest-gem {
+  animation: gemFly 900ms cubic-bezier(.22,.9,.35,1) both;
+  animation-delay: calc(110ms + var(--i) * 55ms);
+}
+
+/*
+ * ----- and where they land: the gem counter on the leerpad (docs/kist-openen.md §4) -----
+ *
+ * Not on the reward screen at all — this is what she sees a frame after Verder. The sprites
+ * are `position: fixed` and fly from low on the screen, roughly where the chest stood, to a
+ * destination the component measures off the real counter (`--tx`/`--ty`, viewport pixels).
+ * There is a hard route cut between the two halves; what makes them read as one gesture is
+ * that the gems leave where the chest was and land on the number that then changes.
+ */
+.gem-flight {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* over the path and its coins, under nothing that can be interacted with */
+  z-index: 40;
+}
+.gem-flight-gem {
+  position: fixed;
+  left: 50%;
+  top: 78%;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0;
+  animation: gemLand 900ms cubic-bezier(.4, 0, .3, 1) both;
+  animation-delay: calc(var(--i) * 45ms);
+}
+/*
+ * Out, then in. The middle keyframe fans the gems apart and lifts them — without it they
+ * travel in one straight line and read as a slide rather than a throw. `--i` centred on
+ * `--n` is what spreads them symmetrically whatever the count.
+ */
+@keyframes gemLand {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.45); }
+  14% { opacity: 1; }
+  40% {
+    opacity: 1;
+    transform: translate(
+      calc(-50% + (var(--i) - (var(--n) - 1) / 2) * 26px),
+      calc(-50% - 96px)
+    ) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(var(--tx) - 50vw - 50%),
+      calc(var(--ty) - 78vh - 50%)
+    ) scale(0.5);
+  }
+}
+
+/* The counter taking them. `data-landing` is the hold — the number is deliberately the old
+   total while the gems are in the air — and `data-landed` is the half-second after, which is
+   the only moment the pop may fire. */
+.statbar .stat.gems[data-landing="true"] { opacity: 0.75; }
+@keyframes gemStatPop {
+  0% { transform: none; }
+  38% { transform: scale(1.3); }
+  100% { transform: none; }
+}
+.statbar .stat.gems[data-landed="true"] {
+  animation: gemStatPop 600ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
 
 @keyframes riseIn {
   from { opacity: 0; transform: translateY(26px); }
@@ -1924,6 +2106,10 @@ main.bos { flex: 1; background: var(--bos-grond); }
   .reward-bar { margin: 8px 16px 6px; }
   .reward-pct { font-size: 34px; }
   .word-chip { font-size: 16px; padding: 6px 11px; }
+  /* The chest is the one thing this layout gained since the measurement in the note above,
+     so it is the first thing to give back the height. 60px still reads as a chest. */
+  .reward-chest .chest { width: 60px; height: 48px; }
+  .reward-strip { gap: 14px; }
 }
 
 /*
@@ -1973,6 +2159,15 @@ main.bos { flex: 1; background: var(--bos-grond); }
     .reward-pct) { transition: none !important; }
   /* a band sweeping across is the one thing here with no still version worth showing */
   .reward-streak { display: none; }
+
+  /*
+   * The leerpad half of the chest. `useGemLanding` already declines to hold the counter back
+   * or to put anything in the air for someone who asked for less motion, so there should be
+   * nothing here to switch off — this is the belt to that braces, for the same reason the
+   * rules above are.
+   */
+  .gem-flight { display: none; }
+  .statbar .stat.gems[data-landed="true"] { animation: none !important; }
 }
 
 /* ---------- recording studio ---------- */
@@ -2937,3 +3132,209 @@ html[data-welkom] .app { height: 100dvh; min-height: 100dvh; }
   box-shadow: 0 3px 0 var(--gold-shadow);
 }
 .coin-item[data-kind='weetje'].active .coin-label { color: var(--gold-shadow); }
+
+/* ---------- Maak het woord af (docs/maak-het-woord-af.md §8) ----------
+   A word with its last sound missing, and two tiles to carry into the gap. The card is the
+   `.word-card` look — white, 24px radius, hairline shadow — with a border that is always
+   there and only ever changes colour, so a verdict can never move the word by a pixel. */
+
+.spel-stage { gap: clamp(12px, 2.2vh, 22px); }
+
+.spel-card {
+  position: relative;
+  width: min(80vw, 340px);
+  min-height: clamp(150px, 26vh, 190px);
+  background: #fff;
+  border: 3px solid transparent;
+  border-radius: 24px;
+  box-shadow: 0 8px 0 var(--hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  /* The bottom padding is the strategy badge's row. The badge is positioned rather than
+     laid out, so that the word stays centred in the card whether or not the longer form is
+     showing — but the space under it has to be reserved, or the two collide the moment the
+     reveal step prints `bedden`. */
+  padding: 14px 14px 46px;
+  color: var(--text);
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+.spel-card.dealing { animation: cardDeal 260ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+/* The card lifts a touch while a tile is over the gap — the same "this is the target"
+   language the piles speak in Hardop lezen. */
+.spel-card.lifted { transform: translateY(-5px); }
+.spel-card.landed { border-color: var(--teal); }
+.spel-card.landed .word-text { color: var(--teal); }
+/* Orange, never red: red is never used on her work (§8). Last, so a miss wins over the
+   green the correction is about to paint. */
+.spel-card.flashing { border-color: var(--orange); }
+
+/* The one line of the card. `.word-text` carries the display font, the size and — through
+   `.app.font-dyslexie` — the letter-spacing, exactly as the reading card's does; this only
+   turns it from a centred grid cell into a row, so the stem and the gap sit side by side. */
+.spel-card .word-text {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: clamp(36px, 11vw, 60px);
+}
+
+/* The gap is exactly as wide as the pair's widest option (`cht`), so nothing moves
+   sideways when the tile lands. Two things make that work:
+
+   - the width comes from `::before`, whose text is a CSS variable and so never reaches
+     `textContent` — which is what lets a test ask the DOM whether the wrong spelling was
+     ever on screen and get a straight answer;
+   - the dashed box is `::after`, drawn *outside* the flow. Giving the gap its own border
+     and padding would add about eighteen pixels of inline width, and a landed word would
+     read "tan d" instead of "tand" — which is the one thing this card exists to show. */
+.gap {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+.gap::before {
+  content: var(--gap-ghost, 'x');
+  visibility: hidden;
+}
+.gap::after {
+  content: '';
+  position: absolute;
+  inset: -2px -6px;
+  border: 3px dashed var(--hairline);
+  border-radius: 10px;
+  pointer-events: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.gap-letter {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.gap.targeted::after {
+  border-color: var(--teal);
+  background: var(--teal-pill);
+}
+/* Gone once the letter is in it: a box drawn round one letter of a finished word would
+   keep saying "something is missing here". */
+.gap.filled::after { border-color: transparent; }
+
+/* The longer form, under the stem — the `langer` badge's second step (§4). */
+.spel-langer {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(18px, 5vw, 24px);
+  color: var(--teal);
+}
+
+/* Bottom-right of the card, opposite the speaker badge. Outlined rather than solid: it is
+   help, always available and never the thing she is meant to press first (§4). */
+.strategy-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 2px solid var(--teal-pill-border);
+  border-radius: 999px;
+  background: var(--teal-pill);
+  color: var(--teal-shadow);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.strategy-btn.open {
+  background: var(--teal);
+  border-color: var(--teal-shadow);
+  color: #fff;
+}
+
+/* `touch-action: none` on the row, not on a tile: the row owns the pointer capture, so it
+   is the row that must not hand the gesture to the scroller. */
+.spel-tiles {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 4px;
+  touch-action: none;
+}
+.spel-tile {
+  min-width: 96px;
+  min-height: 80px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--teal);
+  box-shadow: 0 5px 0 var(--teal-shadow);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 44px;
+  line-height: 1;
+  cursor: grab;
+  will-change: transform;
+}
+/* Not dimmed while the verdict plays out: the tile is still travelling, and a control that
+   fades halfway through its own journey reads as a glitch. */
+.spel-tile:disabled { opacity: 1; cursor: default; }
+.spel-tile.carrying {
+  transition: none;
+  z-index: 5;
+  cursor: grabbing;
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.18);
+}
+.spel-tile.sliding {
+  transition: transform 260ms cubic-bezier(0.2, 0.9, 0.35, 1);
+  z-index: 5;
+}
+/* The Hardop lezen spring curve, so a tile that did not commit comes back the way a card
+   that was not sorted does. */
+.spel-tile.returning { transition: transform 320ms cubic-bezier(0.2, 1.4, 0.4, 1); }
+.spel-tile.bumping { animation: tileBump 420ms cubic-bezier(0.3, 0.9, 0.4, 1) both; }
+/* The tile that landed is spent. It leaves rather than snapping back into the row behind a
+   word that is already finished. */
+.spel-tile.spent { opacity: 0; transition: opacity 160ms ease; }
+
+/* Never waiting on a beat she has already understood. It keeps its place in the layout at
+   all times — `visibility`, not `display` — so the tile row does not jump the moment a
+   verdict lands. Hidden this way it is also not hit-testable, so a tap aimed at a tile
+   during the deal cannot land on it. */
+.spel-verder {
+  align-self: center;
+  min-height: 44px;
+  padding: 0 26px;
+  border-radius: 14px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 18px;
+}
+.spel-screen[data-beat='deal'] .spel-verder,
+.spel-screen[data-beat='choose'] .spel-verder { visibility: hidden; }
+
+/* Up to the gap, a knock, and back. Deliberately short of the gap at its furthest point:
+   the wrong tile must never look as though it went in. */
+@keyframes tileBump {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(-26px); }
+  45% { transform: translateY(-20px) rotate(-4deg); }
+  55% { transform: translateY(-20px) rotate(4deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No travel and no lift — a chosen tile simply appears in the gap (§8). The drag itself
+     still follows her finger: that is not decoration, it is the control. */
+  .spel-card, .spel-card.dealing, .spel-tile.bumping { animation: none; }
+  .spel-card.lifted { transform: none; }
+  .spel-tile.sliding, .spel-tile.returning { transition: none; }
+}

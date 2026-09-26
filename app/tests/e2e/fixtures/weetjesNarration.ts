@@ -77,7 +77,7 @@ export async function installAutoReadOff(page: Page): Promise<void> {
         }
       }
     },
-    { dbName: 'duolexie', store: 'kv', key: 'duolexie-progress', version: 4 },
+    { dbName: 'duolexie', store: 'kv', key: 'duolexie-progress', version: 5 },
   )
 }
 
@@ -110,7 +110,7 @@ export async function installCollected(page: Page, ids: string[]): Promise<void>
         }
       }
     },
-    { dbName: 'duolexie', store: 'kv', key: 'duolexie-progress', version: 4, collected: ids },
+    { dbName: 'duolexie', store: 'kv', key: 'duolexie-progress', version: 5, collected: ids },
   )
 }
 

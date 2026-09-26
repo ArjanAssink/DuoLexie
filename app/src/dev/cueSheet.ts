@@ -104,6 +104,9 @@ export const DEFAULT_PACE_MS: Record<TakeKind, number> = {
   woorden: 2500,
   klanken: 2000,
   weetjes: 7000,
+  // "honden" and "Hoor je /cht/? Dan schrijf je cht. Behalve bij een werkwoord met een g:
+  // ik lig, hij ligt." are in the same set; the pace has to fit the sentence, not the word.
+  spelling: 5000,
 }
 
 /** `woorden-2026-09-14-1902` — sorts chronologically, and says what it is at a glance. */

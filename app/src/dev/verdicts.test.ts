@@ -20,10 +20,11 @@ describe('folderFor', () => {
     expect(folderFor('klanken')).toBe('sounds')
     expect(folderFor('woorden')).toBe('words')
     expect(folderFor('weetjes')).toBe('weetjes')
+    expect(folderFor('spelling')).toBe('spelling')
   })
 
   it('has an answer for every kind there is', () => {
-    const kinds: TakeKind[] = ['klanken', 'woorden', 'weetjes']
+    const kinds: TakeKind[] = ['klanken', 'woorden', 'weetjes', 'spelling']
     expect(kinds.map(folderFor).filter(Boolean)).toHaveLength(kinds.length)
     expect(new Set(kinds.map(folderFor)).size).toBe(kinds.length)
   })
