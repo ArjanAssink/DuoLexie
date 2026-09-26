@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import type { Lesson, Unit } from '@shared/src/types'
 import { path, allLessons, seasonOf } from '../data/path'
@@ -63,6 +63,32 @@ function UnitPath({ unit, seed, activeLessonId, coinState, iconFill, navigate }:
   const itemRefs = useRef<(HTMLDivElement | null)[]>([])
   const [points, setPoints] = useState<Point[]>([])
 
+  /*
+   * The forest grows in around a unit only once it is near the screen. Twenty-odd units of
+   * scenery rendered up front doubled the time between tapping Verder on the reward screen
+   * and the coins appearing (docs/bospad.md §7), and on CI's starved iPad profile that was
+   * enough to lose the leerpad altogether. The coins are never gated on this — a section with
+   * no scenery yet is a section on plain moss — and once a unit has been near, it stays
+   * dressed. The margin is generous so it is in place before she scrolls to it.
+   */
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined')
+  useEffect(() => {
+    if (near) return
+    const el = containerRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '600px 0px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [near])
+
   // no dep array: re-measure after every render (coin size/label changes with state), guarded
   // against redundant setState by pointsEqual so it can't loop.
   useLayoutEffect(() => {
@@ -102,7 +128,7 @@ function UnitPath({ unit, seed, activeLessonId, coinState, iconFill, navigate }:
         <path className="dirt-2" d={buildTrackPath(points)} />
         <path className="pebbles" d={buildTrackPath(points)} />
       </svg>
-      <BosScenery seed={seed} />
+      {near && <BosScenery seed={seed} />}
       {hasActive && (
         <>
           <BosLog />

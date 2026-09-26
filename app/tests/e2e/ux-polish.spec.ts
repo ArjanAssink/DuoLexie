@@ -51,12 +51,14 @@ test('the leerpad runs through the forest, one season per deel', async ({ page }
   expect(perFase.slice(0, 4)).toEqual(['lente', 'zomer', 'herfst', 'winter'])
   expect(seasons[seasons.length - 1]).toBeTruthy()
 
-  // every unit has its scenery, and none of it can get in the way of a tap on a coin
-  for (const section of await page.locator('.path-section').all()) {
-    expect(await section.locator('.bos-sprite').count()).toBeGreaterThan(8)
-  }
+  // the units near the screen have their scenery, and none of it can get in the way of a
+  // tap on a coin; the units far below grow theirs when she scrolls there (docs/bospad.md §7)
+  const sections = page.locator('.path-section')
+  await expect.poll(() => sections.first().locator('.bos-sprite').count()).toBeGreaterThan(8)
   const sprite = page.locator('.bos-sprite').first()
   expect(await sprite.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none')
+  await sections.last().scrollIntoViewIfNeeded()
+  await expect.poll(() => sections.last().locator('.bos-sprite').count()).toBeGreaterThan(8)
 
   // the path is three strokes of one curve, all drawn from the same measured points
   const strokes = page.locator('.path-section').first().locator('.path-track path')
