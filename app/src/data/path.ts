@@ -343,3 +343,15 @@ export function wordsInRecordingOrder(): Word[] {
   // stable sort, so words of equal length keep the path order established above
   return out.sort((a, b) => a.text.length - b.text.length)
 }
+
+/**
+ * Which season a fase walks through. Four fases make a year; the fifth starts a new one.
+ * The season is the outward sign of progress: scrolling down the path looks like walking
+ * further into the woods, and the woods change as you go.
+ */
+export type Season = 'lente' | 'zomer' | 'herfst' | 'winter'
+const SEASONS: Season[] = ['lente', 'zomer', 'herfst', 'winter']
+
+export function seasonOf(faseIndex: number): Season {
+  return SEASONS[faseIndex % SEASONS.length]
+}

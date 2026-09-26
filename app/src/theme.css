@@ -240,6 +240,7 @@ button:disabled { cursor: default; }
 .path-section {
   position: relative;
   z-index: 0; /* contains .path-track's negative z-index so it stays behind the coins, not the whole app */
+  overflow: hidden; /* the big trees bleed off the edges on purpose; the next unit's forest is its own */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -253,7 +254,8 @@ button:disabled { cursor: default; }
   width: 128px;
 }
 
-/* dotted road connecting the lesson coins, measured from real DOM positions */
+/* the dirt path connecting the lesson coins, measured from real DOM positions — three
+   strokes of one curve (see UnitPath): the dirt, its worn middle and the pebbles on it */
 .path-track {
   position: absolute;
   inset: 0;
@@ -262,13 +264,10 @@ button:disabled { cursor: default; }
   pointer-events: none;
   z-index: -1;
 }
-.path-track path {
-  fill: none;
-  stroke: var(--locked-shadow);
-  stroke-width: 8;
-  stroke-linecap: round;
-  stroke-dasharray: 0.1 22;
-}
+.path-track path { fill: none; stroke-linecap: round; }
+.path-track .dirt { stroke: var(--bos-aarde); stroke-width: 46; }
+.path-track .dirt-2 { stroke: var(--bos-aarde-licht); stroke-width: 34; }
+.path-track .pebbles { stroke: var(--bos-kiezel); stroke-width: 6; stroke-dasharray: 0.1 26; }
 
 /* Tappable Frida with laugh animation — art/avatar animation/frida-laugh.html */
 .frida-tap {
@@ -376,6 +375,170 @@ button:disabled { cursor: default; }
   font-size: 18px;
   letter-spacing: 3px;
   color: var(--muted);
+}
+
+/* ---------- bospad (docs/bospad.md) ----------
+ * The leerpad runs through a forest. The statbar and bottomnav stay cream; `main.bos` and
+ * every fase's <section> are moss, and each section carries a season on data-season that
+ * recolours the scenery, the path and the canopy through the custom properties below.
+ * The sprites themselves are in components/Bos.tsx and paint through these class → var
+ * rules, so a season is nothing but a different set of values.
+ */
+.bos, [data-season='lente'] {
+  --bos-grond: #DCE8C6;
+  --bos-blad-1: #3E8E5E;
+  --bos-blad-2: #2F7A4E;
+  --bos-blad-3: #256B42;
+  --bos-blad-licht: #6BBF84;
+  --bos-gras: #4CA36E;
+  --bos-kruin-1: #2F7A4E;
+  --bos-kruin-2: #256B42;
+  --bos-aarde: #C9A272;
+  --bos-aarde-licht: #E1C293;
+  --bos-kiezel: #F3E3C2;
+  --bos-accent: #E2542F;
+  --bos-lijn: rgba(37, 107, 66, 0.22);
+  --bos-tekst: #3F6B3A;
+}
+[data-season='zomer'] {
+  --bos-grond: #CFE0B0;
+  --bos-blad-1: #2F8A4A;
+  --bos-blad-2: #22703A;
+  --bos-blad-3: #1B5A2E;
+  --bos-blad-licht: #58B36A;
+  --bos-gras: #3E9C55;
+  --bos-kruin-1: #22703A;
+  --bos-kruin-2: #1B5A2E;
+  --bos-aarde: #C29A66;
+  --bos-aarde-licht: #DBB985;
+  --bos-kiezel: #F1DFBC;
+  --bos-accent: #F5A03C;
+  --bos-lijn: rgba(27, 90, 46, 0.22);
+  --bos-tekst: #2E5C2A;
+}
+[data-season='herfst'] {
+  --bos-grond: #E8DDB5;
+  --bos-blad-1: #D98A2B;
+  --bos-blad-2: #C4652A;
+  --bos-blad-3: #9E4A1F;
+  --bos-blad-licht: #F2B84B;
+  --bos-gras: #B7A05A;
+  --bos-kruin-1: #C4652A;
+  --bos-kruin-2: #9E4A1F;
+  --bos-aarde: #C9A272;
+  --bos-aarde-licht: #E1C293;
+  --bos-kiezel: #F3E3C2;
+  --bos-accent: #E2542F;
+  --bos-lijn: rgba(158, 74, 31, 0.22);
+  --bos-tekst: #7A4B1E;
+}
+[data-season='winter'] {
+  --bos-grond: #E6EDEF;
+  --bos-blad-1: #5A8F7A;
+  --bos-blad-2: #46786A;
+  --bos-blad-3: #345C52;
+  --bos-blad-licht: #A9CBBF;
+  --bos-gras: #9FB5AE;
+  --bos-kruin-1: #46786A;
+  --bos-kruin-2: #345C52;
+  --bos-aarde: #BFB4A4;
+  --bos-aarde-licht: #D9D0C2;
+  --bos-kiezel: #F6F3EC;
+  --bos-accent: #E2542F;
+  --bos-lijn: rgba(52, 92, 82, 0.22);
+  --bos-tekst: #3E5A54;
+}
+/* the same in every season: wood, stone, and the locked coin */
+.bos {
+  --bos-hout: #A9703F;
+  --bos-hout-licht: #C89B72;
+  --bos-hout-donker: #6B4226;
+  --bos-steen: #BDB4A3;
+  --bos-steen-schaduw: #8F877A;
+  --bos-steen-icon: #F7F1E4;
+  --bos-label: #FFF7E6;
+  --bos-label-rand: #E4D4BC;
+  --bos-label-tekst: #7A5A3C;
+}
+
+main.bos { flex: 1; background: var(--bos-grond); }
+.bos section { background: var(--bos-grond); position: relative; }
+/* Where one season meets the next, the ground ends in a scalloped edge instead of a ruler
+   line: a strip in the section's own colour, hung just past its bottom, over the next one. */
+.bos section::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 14px;
+  z-index: 1; /* the next section is positioned too and later in the DOM: without this it paints over the edge */
+  pointer-events: none;
+  background: radial-gradient(circle at 50% -6px, var(--bos-grond) 0 20px, transparent 21px);
+  background-size: 44px 14px;
+  background-repeat: repeat-x;
+}
+.bos section:last-child::after { display: none; }
+.bos-canopy { display: block; width: 100%; height: 46px; }
+.bos-kruin-1 { fill: var(--bos-kruin-1); }
+.bos-kruin-2 { fill: var(--bos-kruin-2); }
+.bos .path-greeting { color: var(--bos-tekst); margin: 10px 22px -2px; }
+
+/* scenery: behind the coins in the section's own stacking context, never in the way of a tap */
+.bos-sprite { position: absolute; pointer-events: none; z-index: -1; }
+.bos-blad-1 { fill: var(--bos-blad-1); }
+.bos-blad-2 { fill: var(--bos-blad-2); }
+.bos-blad-3 { fill: var(--bos-blad-3); }
+.bos-blad-licht { fill: var(--bos-blad-licht); }
+.bos-stam { fill: var(--bos-hout-donker); }
+.bos-gras { stroke: var(--bos-gras); }
+.bos-creme { fill: #FFF7E6; }
+.bos-accent { fill: var(--bos-accent); }
+.bos-steen { fill: var(--bos-steen); }
+.bos-steen-licht { fill: #D6CFC2; }
+.bos-hout { fill: var(--bos-hout-donker); }
+.bos-hout-licht { fill: var(--bos-hout-licht); }
+.bos-hout-mid { fill: var(--bos-hout); }
+.bos-hout-nerf { stroke: #4E2E18; }
+/* Frida's log: under her, over the ground — the one sprite that is not pushed behind */
+.bos-log { left: 28px; top: 262px; width: 130px; height: 42px; z-index: auto; }
+
+/* a locked lesson is a stepping stone; active stays teal and done stays gold, as before */
+.bos .coin { background: var(--bos-steen); box-shadow: 0 6px 0 var(--bos-steen-schaduw); }
+.bos .coin-label {
+  background: var(--bos-label);
+  border: 2px solid var(--bos-label-rand);
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: var(--bos-label-tekst);
+  box-shadow: 0 2px 0 var(--locked-shadow);
+}
+.bos .coin-item.active .coin-label { color: var(--teal-shadow); border-color: var(--teal-pill-border); }
+
+/* the unit card is a wooden signpost, the letters divider a trail marker */
+.bos .unit-card {
+  background: var(--bos-hout);
+  box-shadow: 0 4px 0 var(--bos-hout-donker), inset 0 0 0 3px var(--bos-hout-licht);
+  position: relative;
+  z-index: 1;
+}
+.bos .unit-card .kicker { color: #F3DDB8; }
+.bos .unit-card .title { color: #FFF7E6; }
+.bos .unit-card .divider { background: var(--bos-hout-donker); }
+.bos .unit-post {
+  width: 12px;
+  height: 22px;
+  margin: -2px auto 0;
+  background: var(--bos-hout-donker);
+  border-radius: 0 0 4px 4px;
+}
+.bos .letters-divider .line { background: var(--bos-lijn); }
+.bos .letters-divider .letters {
+  background: var(--bos-hout);
+  color: #FFF7E6;
+  padding: 4px 14px;
+  border-radius: 10px;
+  box-shadow: 0 3px 0 var(--bos-hout-donker);
 }
 
 /* ---------- bottom nav ---------- */

@@ -36,3 +36,31 @@ test('the viewport is configured for iPhone safe areas', async ({ page }) => {
   const content = await page.locator('meta[name="viewport"]').getAttribute('content')
   expect(content).toContain('viewport-fit=cover')
 })
+
+test('the leerpad runs through the forest, one season per deel', async ({ page }) => {
+  await skipOnboarding(page)
+  await page.goto('/')
+  await expect(page.locator('.coin-item').first()).toBeVisible()
+
+  // four fases make a year, and the fifth starts a new one (docs/bospad.md §3.6)
+  const seasons = await page.locator('main.bos > section').evaluateAll((els) =>
+    els.map((el) => el.getAttribute('data-season')),
+  )
+  expect(seasons.length).toBeGreaterThan(4)
+  const perFase = [...new Set(seasons)]
+  expect(perFase.slice(0, 4)).toEqual(['lente', 'zomer', 'herfst', 'winter'])
+  expect(seasons[seasons.length - 1]).toBeTruthy()
+
+  // every unit has its scenery, and none of it can get in the way of a tap on a coin
+  for (const section of await page.locator('.path-section').all()) {
+    expect(await section.locator('.bos-sprite').count()).toBeGreaterThan(8)
+  }
+  const sprite = page.locator('.bos-sprite').first()
+  expect(await sprite.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none')
+
+  // the path is three strokes of one curve, all drawn from the same measured points
+  const strokes = page.locator('.path-section').first().locator('.path-track path')
+  await expect(strokes).toHaveCount(3)
+  const ds = await strokes.evaluateAll((els) => els.map((el) => el.getAttribute('d')))
+  expect(new Set(ds).size).toBe(1)
+})
