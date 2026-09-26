@@ -1,11 +1,12 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import type { Lesson, Unit } from '@shared/src/types'
-import { path, allLessons } from '../data/path'
+import { path, allLessons, seasonOf } from '../data/path'
 import { useProgress, daysThisWeek } from '../state/progress'
 import { useAvatar } from '../state/avatar'
 import { AvatarView } from '../components/AvatarView'
 import { FridaTap } from '../components/FridaTap'
+import { BosCanopy, BosLog, BosScenery } from '../components/Bos'
 import { GemFlight } from '../components/GemFlight'
 import { useGemLanding } from './gemLanding'
 import {
@@ -33,7 +34,7 @@ function pointsEqual(a: Point[], b: Point[]): boolean {
   return a.every((p, i) => Math.abs(p.x - b[i].x) < 0.5 && Math.abs(p.y - b[i].y) < 0.5)
 }
 
-/** Smooth S-curve through consecutive coin centers — the "road" under the path. */
+/** Smooth S-curve through consecutive coin centers — the dirt path under the coins. */
 function buildTrackPath(points: Point[]): string {
   if (points.length < 2) return ''
   let d = `M ${points[0].x} ${points[0].y}`
@@ -48,14 +49,16 @@ function buildTrackPath(points: Point[]): string {
 
 interface UnitPathProps {
   unit: Unit
+  /** the unit's index down the whole leerpad — what decides where its trees stand */
+  seed: number
   activeLessonId: string | null
   coinState: (lesson: Lesson) => CoinState
   iconFill: (state: CoinState) => string
   navigate: ReturnType<typeof useNavigate>
 }
 
-/** One unit's zig-zag lesson coins, with a dotted road drawn through their measured centers. */
-function UnitPath({ unit, activeLessonId, coinState, iconFill, navigate }: UnitPathProps) {
+/** One unit's zig-zag lesson coins, with a dirt path drawn through their measured centers. */
+function UnitPath({ unit, seed, activeLessonId, coinState, iconFill, navigate }: UnitPathProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLDivElement | null)[]>([])
   const [points, setPoints] = useState<Point[]>([])
@@ -93,10 +96,19 @@ function UnitPath({ unit, activeLessonId, coinState, iconFill, navigate }: UnitP
 
   return (
     <div className="path-section" ref={containerRef}>
+      {/* the path is three strokes of the same curve: the dirt, its worn middle, the pebbles */}
       <svg className="path-track" aria-hidden="true">
-        <path d={buildTrackPath(points)} />
+        <path className="dirt" d={buildTrackPath(points)} />
+        <path className="dirt-2" d={buildTrackPath(points)} />
+        <path className="pebbles" d={buildTrackPath(points)} />
       </svg>
-      {hasActive && <FridaTap className="frida-path" />}
+      <BosScenery seed={seed} />
+      {hasActive && (
+        <>
+          <BosLog />
+          <FridaTap className="frida-path" />
+        </>
+      )}
       {unit.lessons.map((lesson, i) => {
         const state = coinState(lesson)
         const clickable = state !== 'locked'
@@ -192,10 +204,16 @@ export function PathScreen() {
     return testMode ? 'done' : 'locked'
   }
 
+  // how many units come before each fase, so a unit's seed is its index down the whole path
+  const unitsBefore = path.reduce<number[]>((acc, _fase, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + path[i - 1].units.length)
+    return acc
+  }, [])
+
   function iconFill(state: CoinState): string {
     if (state === 'active') return '#FFFFFF'
     if (state === 'done') return 'var(--gold-icon)'
-    return 'var(--muted)'
+    return 'var(--bos-steen-icon)'
   }
 
   return (
@@ -224,11 +242,14 @@ export function PathScreen() {
         </button>
       </header>
 
-      <main>
+      {/* The forest (docs/bospad.md): the chrome above and below stays cream, the world in
+          between is moss, and every fase walks through its own season. */}
+      <main className="bos">
+        <BosCanopy />
         {playerName && <p className="path-greeting">Hoi, {playerName}!</p>}
         {path.map((fase, faseIdx) =>
           fase.units.map((unit, unitIdx) => (
-            <section key={unit.id}>
+            <section key={unit.id} data-season={seasonOf(faseIdx)}>
               {(faseIdx > 0 || unitIdx > 0) && (
                 <div className="letters-divider">
                   <div className="line" />
@@ -248,8 +269,10 @@ export function PathScreen() {
                   <ListIcon />
                 </button>
               </div>
+              <div className="unit-post" aria-hidden="true" />
               <UnitPath
                 unit={unit}
+                seed={unitsBefore[faseIdx] + unitIdx}
                 activeLessonId={activeLessonId}
                 coinState={coinState}
                 iconFill={iconFill}
