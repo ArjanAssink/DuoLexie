@@ -81,3 +81,34 @@ Vuurvliegjes rond de actieve node zijn een idee voor later, mét reduced-motion-
 - Handmatig in Chromium op 390px en op de desktop-kaart (1280px): lente, zomer, herfst en
   winter, Frida op haar stam, de grote bomen die van de kaartrand aflopen, en de
   afgeronde hoeken van de kaart die dat overleven. Nog niet op haar eigen tablet.
+
+## 7. Na de merge: het bos maakte het leerpad traag om te verschijnen
+
+PR #20 was groen op zijn eigen CI-run, maar de run op `main` na de merge verloor zes keer op
+rij (twee runs, drie pogingen elk) dezelfde iPad-test: `reward-celebration.spec.ts › after a
+real round, a tap and then Verder leaves cleanly` — na Verder verscheen `.coin-item` niet
+binnen de vijf seconden. De laatste `main`-run vóór de merge had nul failures, dus dit was
+van het bos. Lokaal nagemeten in Chromium op iPad-formaat met CPU-throttling (de tijd tussen
+de tik op Verder en de eerste zichtbare munt):
+
+| | ×1 | ×8 |
+|---|---|---|
+| zonder bos (`f5198f8`) | 235 ms | 2,4 s |
+| met bos, zoals gemerged | 455 ms | 4,3 s |
+| met bos, na de fix hieronder | 280 ms | 2,2 s |
+
+Twee oorzaken, allebei in de manier waarop het decor gerenderd werd, niet in het decor zelf:
+
+1. **Alles tegelijk.** Zestien sprites × twintig-plus units werden bij het mounten in één
+   keer gerenderd, terwijl er hooguit twee units in beeld zijn. Nu groeit het bos per unit
+   pas aan als die sectie in de buurt van het scherm komt (`IntersectionObserver`, 600px
+   marge, eenmalig — eens aangekleed blijft aangekleed). De munten wachten nergens op: een
+   sectie zonder decor is een sectie op kale mos.
+2. **Elke meting rendert opnieuw.** `UnitPath` meet zijn munten na iedere render (mount,
+   elke ResizeObserver-tik) en zet daarbij state; `BosScenery` werd daardoor telkens opnieuw
+   gereconcilieerd. Nu `memo`: de seed verandert nooit, dus het decor ook niet.
+
+De e2e-test in `ux-polish.spec.ts` vraagt sindsdien decor bij de eerste sectie, en bij de
+laatste nadat ernaartoe gescrold is, in plaats van bij allemaal tegelijk.
+
+*Fix door Claude Fable 5.1, dezelfde sessie.*

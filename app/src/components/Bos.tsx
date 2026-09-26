@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 
 /**
  * The forest the leerpad runs through (docs/bospad.md).
@@ -152,8 +152,13 @@ function rng(seed: number): () => number {
  * `seed` is the unit's index down the whole leerpad: the same unit always gets the same
  * forest, and no two units get quite the same one. Render it inside the positioned
  * `.path-section`, before the coins.
+ *
+ * Memoised on purpose: UnitPath re-renders every time it re-measures its coins (on mount,
+ * on every ResizeObserver tick), and sixteen sprites × twenty-odd units reconciled on each
+ * of those was a measurable share of what made the leerpad slow to appear after a round
+ * (docs/bospad.md §7). The seed never changes, so the scenery never needs to.
  */
-export function BosScenery({ seed }: { seed: number }): ReactNode {
+export const BosScenery = memo(function BosScenery({ seed }: { seed: number }): ReactNode {
   const next = rng(seed + 1)
   return (
     <>
@@ -175,7 +180,7 @@ export function BosScenery({ seed }: { seed: number }): ReactNode {
       })}
     </>
   )
-}
+})
 
 /** The log Frida sits on, beside the active unit's path. Positioned by `.bos-log`. */
 export function BosLog(): ReactNode {
