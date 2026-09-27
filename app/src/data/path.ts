@@ -148,6 +148,17 @@ function buildLessons(
   nextUnitSounds: string[],
 ): Lesson[] {
   const pool = cumulative
+  /*
+   * A unit alternates between klanken and words rather than front-loading the klanken:
+   * Flitsen (new klanken) → Lezen → Mix (klanken again, mixed) → Maak het woord af →
+   * Weetje. Two Flitsen nodes in a row was the Tijdrit-shaped hole left when Tijdrit came
+   * off the path; split by the reading node, the second one is a return rather than a
+   * repeat.
+   *
+   * The ids keep their historical numbers (`l1`, `l5`, `l3`) rather than being renumbered
+   * to match the new order: they are the keys of her completedLessons, and `l2`/`l4` were
+   * Tijdrit's. Tijdrit itself is still playable from /#/proberen (TIJDRIT_TRY_LESSON).
+   */
   const lessons: Lesson[] = [
     {
       id: `${unitId}-l1`,
@@ -158,36 +169,6 @@ function buildLessons(
       newSounds: unitDef.sounds,
       soundPool: pool,
       exerciseCount: FLITS_DECK_SIZE,
-    },
-    {
-      id: `${unitId}-l2`,
-      unitId,
-      kind: 'les',
-      title: 'Tijdrit',
-      gameType: 'tijdrit',
-      newSounds: unitDef.sounds,
-      soundPool: pool,
-      exerciseCount: 0, // Tijdrit is time-based, not count-based
-    },
-    {
-      id: `${unitId}-l3`,
-      unitId,
-      kind: 'herhaling',
-      title: 'Mix',
-      gameType: 'flitsen',
-      newSounds: [],
-      soundPool: pool,
-      exerciseCount: FLITS_DECK_SIZE,
-    },
-    {
-      id: `${unitId}-l4`,
-      unitId,
-      kind: 'tijdrit-uitdaging',
-      title: 'Uitdaging',
-      gameType: 'tijdrit',
-      newSounds: [],
-      soundPool: pool,
-      exerciseCount: 0,
     },
   ]
 
@@ -205,7 +186,18 @@ function buildLessons(
     })
   }
 
-  // A spelling node per pair, after Lezen and before the Weetje (§7).
+  lessons.push({
+    id: `${unitId}-l3`,
+    unitId,
+    kind: 'herhaling',
+    title: 'Mix',
+    gameType: 'flitsen',
+    newSounds: [],
+    soundPool: pool,
+    exerciseCount: FLITS_DECK_SIZE,
+  })
+
+  // A spelling node per pair, after the Mix and before the Weetje (§7).
   lessons.push(...spellingLessonsFor(unitId, pool))
 
   /*
@@ -427,8 +419,24 @@ function tryPoolFor(needs: string[]): string[] {
   return [...cumulative]
 }
 
+/**
+ * Tijdrit, off the path. It was every unit's second and fourth node until Arjan took it
+ * off (the grading-by-a-parent format never sat right); the game itself stays, reachable
+ * from `/#/proberen` only, over the whole of fase 1 like the Proefronde.
+ */
+export const TIJDRIT_TRY_LESSON: Lesson = {
+  id: 'proef-tijdrit',
+  unitId: TRY_UNIT_ID,
+  kind: 'les',
+  title: 'Tijdrit',
+  gameType: 'tijdrit',
+  newSounds: [],
+  soundPool: PROEFRONDE_LESSON.soundPool,
+  exerciseCount: 0, // time-based, not count-based
+}
+
 /** Every lesson reachable by URL that is not on the path. */
-const OFF_PATH_LESSONS: Lesson[] = [PROEFRONDE_LESSON, ...SPELLING_TRY_LESSONS]
+const OFF_PATH_LESSONS: Lesson[] = [PROEFRONDE_LESSON, TIJDRIT_TRY_LESSON, ...SPELLING_TRY_LESSONS]
 
 export function lessonById(id: string): Lesson | undefined {
   return OFF_PATH_LESSONS.find((l) => l.id === id) ?? allLessons.find((l) => l.id === id)

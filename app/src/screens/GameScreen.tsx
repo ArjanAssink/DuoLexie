@@ -69,7 +69,6 @@ const GAMES: Record<GameType, ComponentType<GameProps>> = {
   'hardop-lezen': HardopLezen,
   weetjes: Weetjes,
   'maak-het-woord-af': MaakHetWoordAf,
-  'welke-klank': NotImplementedGame,
   woordbouwer: NotImplementedGame,
 }
 

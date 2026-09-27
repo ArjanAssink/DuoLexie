@@ -1,11 +1,10 @@
 import { test, expect } from '@playwright/test'
 
 /**
- * The Tijdrit (speed drill) node of fase1's first unit — the only game that grades.
- * Unit ids are stable/sounds-derived, not positional (data/path.ts A3) — this is
- * "fase1" + the unit's sounds ("a-e-o-u-i") + "-l2", not the old fase1-u1-l2.
+ * The Tijdrit (speed drill) try-round. Tijdrit is no longer on the path, so this is the
+ * off-path lesson the probeermenu launches (data/path.ts TIJDRIT_TRY_LESSON).
  */
-const TIJDRIT = '/#/les/fase1-a-e-o-u-i-l2'
+const TIJDRIT = '/#/les/proef-tijdrit'
 
 async function startRound(page: import('@playwright/test').Page) {
   await page.goto(TIJDRIT)

@@ -38,7 +38,7 @@
       "ending": "d",
       "langer": "honden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "hand",
@@ -47,7 +47,7 @@
       "ending": "d",
       "langer": "handen",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "land",
@@ -56,7 +56,7 @@
       "ending": "d",
       "langer": "landen",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kind",
@@ -65,7 +65,7 @@
       "ending": "d",
       "langer": "kinderen",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "mond",
@@ -74,7 +74,7 @@
       "ending": "d",
       "langer": "monden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "tand",
@@ -83,7 +83,7 @@
       "ending": "d",
       "langer": "tanden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "rand",
@@ -92,7 +92,7 @@
       "ending": "d",
       "langer": "randen",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "bord",
@@ -101,7 +101,7 @@
       "ending": "d",
       "langer": "borden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "brand",
@@ -110,7 +110,7 @@
       "ending": "d",
       "langer": "branden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "bed",
@@ -119,7 +119,7 @@
       "ending": "d",
       "langer": "bedden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "koud",
@@ -128,7 +128,7 @@
       "ending": "d",
       "langer": "koude",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "blad",
@@ -137,7 +137,7 @@
       "ending": "d",
       "langer": "bladen",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "brood",
@@ -146,7 +146,7 @@
       "ending": "d",
       "langer": "broden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "hoofd",
@@ -155,7 +155,7 @@
       "ending": "d",
       "langer": "hoofden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "eend",
@@ -164,7 +164,7 @@
       "ending": "d",
       "langer": "eenden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vriend",
@@ -173,7 +173,7 @@
       "ending": "d",
       "langer": "vrienden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "hoed",
@@ -182,7 +182,7 @@
       "ending": "d",
       "langer": "hoeden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "draad",
@@ -191,7 +191,7 @@
       "ending": "d",
       "langer": "draden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "oud",
@@ -200,7 +200,7 @@
       "ending": "d",
       "langer": "oude",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "rood",
@@ -209,7 +209,7 @@
       "ending": "d",
       "langer": "rode",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "goed",
@@ -218,7 +218,7 @@
       "ending": "d",
       "langer": "goede",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "breed",
@@ -227,7 +227,7 @@
       "ending": "d",
       "langer": "brede",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "dood",
@@ -236,7 +236,7 @@
       "ending": "d",
       "langer": "dode",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "strand",
@@ -245,7 +245,7 @@
       "ending": "d",
       "langer": "stranden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "mand",
@@ -254,7 +254,7 @@
       "ending": "d",
       "langer": "manden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "rond",
@@ -263,7 +263,7 @@
       "ending": "d",
       "langer": "ronde",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "blond",
@@ -272,7 +272,7 @@
       "ending": "d",
       "langer": "blonde",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "beeld",
@@ -281,7 +281,7 @@
       "ending": "d",
       "langer": "beelden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "hemd",
@@ -290,7 +290,7 @@
       "ending": "d",
       "langer": "hemden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zwaard",
@@ -299,7 +299,7 @@
       "ending": "d",
       "langer": "zwaarden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "tijd",
@@ -308,7 +308,7 @@
       "ending": "d",
       "langer": "tijden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "bad",
@@ -317,7 +317,7 @@
       "ending": "d",
       "langer": "baden",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kat",
@@ -326,7 +326,7 @@
       "ending": "t",
       "langer": "katten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "mat",
@@ -335,7 +335,7 @@
       "ending": "t",
       "langer": "matten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "pot",
@@ -344,7 +344,7 @@
       "ending": "t",
       "langer": "potten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "put",
@@ -353,7 +353,7 @@
       "ending": "t",
       "langer": "putten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "hut",
@@ -362,7 +362,7 @@
       "ending": "t",
       "langer": "hutten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kast",
@@ -371,7 +371,7 @@
       "ending": "t",
       "langer": "kasten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "slot",
@@ -380,7 +380,7 @@
       "ending": "t",
       "langer": "sloten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "plat",
@@ -389,7 +389,7 @@
       "ending": "t",
       "langer": "platte",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "sport",
@@ -398,7 +398,7 @@
       "ending": "t",
       "langer": "sporten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "plant",
@@ -407,7 +407,7 @@
       "ending": "t",
       "langer": "planten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "klant",
@@ -416,7 +416,7 @@
       "ending": "t",
       "langer": "klanten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "krant",
@@ -425,7 +425,7 @@
       "ending": "t",
       "langer": "kranten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "borst",
@@ -434,7 +434,7 @@
       "ending": "t",
       "langer": "borsten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "worst",
@@ -443,7 +443,7 @@
       "ending": "t",
       "langer": "worsten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "poot",
@@ -452,7 +452,7 @@
       "ending": "t",
       "langer": "poten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "taart",
@@ -461,7 +461,7 @@
       "ending": "t",
       "langer": "taarten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kaart",
@@ -470,7 +470,7 @@
       "ending": "t",
       "langer": "kaarten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "straat",
@@ -479,7 +479,7 @@
       "ending": "t",
       "langer": "straten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "gat",
@@ -488,7 +488,7 @@
       "ending": "t",
       "langer": "gaten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "net",
@@ -497,7 +497,7 @@
       "ending": "t",
       "langer": "netten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "pet",
@@ -506,7 +506,7 @@
       "ending": "t",
       "langer": "petten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "nat",
@@ -515,7 +515,7 @@
       "ending": "t",
       "langer": "natte",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "wit",
@@ -524,7 +524,7 @@
       "ending": "t",
       "langer": "witte",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vet",
@@ -533,7 +533,7 @@
       "ending": "t",
       "langer": "vette",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "groot",
@@ -542,7 +542,7 @@
       "ending": "t",
       "langer": "grote",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "heet",
@@ -551,7 +551,7 @@
       "ending": "t",
       "langer": "hete",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zoet",
@@ -560,7 +560,7 @@
       "ending": "t",
       "langer": "zoete",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "tent",
@@ -569,7 +569,7 @@
       "ending": "t",
       "langer": "tenten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "punt",
@@ -578,7 +578,7 @@
       "ending": "t",
       "langer": "punten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kist",
@@ -587,7 +587,7 @@
       "ending": "t",
       "langer": "kisten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "feest",
@@ -596,7 +596,7 @@
       "ending": "t",
       "langer": "feesten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "beest",
@@ -605,7 +605,7 @@
       "ending": "t",
       "langer": "beesten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "nest",
@@ -614,7 +614,7 @@
       "ending": "t",
       "langer": "nesten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kust",
@@ -623,7 +623,7 @@
       "ending": "t",
       "langer": "kusten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "staart",
@@ -632,7 +632,7 @@
       "ending": "t",
       "langer": "staarten",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "lucht",
@@ -641,7 +641,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "nacht",
@@ -650,7 +650,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zacht",
@@ -659,7 +659,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kracht",
@@ -668,7 +668,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "bocht",
@@ -677,7 +677,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vocht",
@@ -686,7 +686,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "echt",
@@ -695,7 +695,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "recht",
@@ -704,7 +704,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "slecht",
@@ -713,7 +713,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vlecht",
@@ -722,7 +722,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "knecht",
@@ -731,7 +731,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "gracht",
@@ -740,7 +740,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "wacht",
@@ -749,7 +749,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "jacht",
@@ -758,7 +758,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "dicht",
@@ -767,7 +767,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zicht",
@@ -776,7 +776,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "tocht",
@@ -785,7 +785,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vrucht",
@@ -794,7 +794,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vlucht",
@@ -803,7 +803,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "kocht",
@@ -812,7 +812,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "dacht",
@@ -821,7 +821,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "bracht",
@@ -830,7 +830,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zocht",
@@ -839,7 +839,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "lacht",
@@ -848,7 +848,7 @@
       "ending": "cht",
       "langer": null,
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zegt",
@@ -857,7 +857,7 @@
       "ending": "gt",
       "langer": "ik zeg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "legt",
@@ -866,7 +866,7 @@
       "ending": "gt",
       "langer": "ik leg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "draagt",
@@ -875,7 +875,7 @@
       "ending": "gt",
       "langer": "ik draag",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vliegt",
@@ -884,7 +884,7 @@
       "ending": "gt",
       "langer": "ik vlieg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zaagt",
@@ -893,7 +893,7 @@
       "ending": "gt",
       "langer": "ik zaag",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "vraagt",
@@ -902,7 +902,7 @@
       "ending": "gt",
       "langer": "ik vraag",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "veegt",
@@ -911,7 +911,7 @@
       "ending": "gt",
       "langer": "ik veeg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "buigt",
@@ -920,7 +920,7 @@
       "ending": "gt",
       "langer": "ik buig",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zuigt",
@@ -929,7 +929,7 @@
       "ending": "gt",
       "langer": "ik zuig",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "krijgt",
@@ -938,7 +938,7 @@
       "ending": "gt",
       "langer": "ik krijg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "stijgt",
@@ -947,7 +947,7 @@
       "ending": "gt",
       "langer": "ik stijg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "zwijgt",
@@ -956,7 +956,7 @@
       "ending": "gt",
       "langer": "ik zwijg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "jaagt",
@@ -965,7 +965,7 @@
       "ending": "gt",
       "langer": "ik jaag",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "klaagt",
@@ -974,7 +974,7 @@
       "ending": "gt",
       "langer": "ik klaag",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "weegt",
@@ -983,7 +983,7 @@
       "ending": "gt",
       "langer": "ik weeg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "voegt",
@@ -992,7 +992,7 @@
       "ending": "gt",
       "langer": "ik voeg",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     },
     {
       "wordId": "dreigt",
@@ -1001,7 +1001,7 @@
       "ending": "gt",
       "langer": "ik dreig",
       "zin": null,
-      "reviewed": false
+      "reviewed": true
     }
   ]
 }
