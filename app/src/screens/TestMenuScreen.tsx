@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import type { GameType } from '@shared/src/types'
 import {
-  allLessons, PROEFRONDE_LESSON, SPELLING_TRY_LESSONS, spellingDraftCount,
+  allLessons, PROEFRONDE_LESSON, SPELLING_TRY_LESSONS, TIJDRIT_TRY_LESSON, spellingDraftCount,
 } from '../data/path'
 import { getSpellingPair } from '../spelling'
 import { haptic, hapticBackend, type HapticBackend } from '../audio/haptics'
@@ -12,21 +12,23 @@ const GAME_ORDER: GameType[] = [
   'hardop-lezen',
   'weetjes',
   'maak-het-woord-af',
-  'welke-klank',
   'woordbouwer',
 ]
 
 const GAME_LABELS: Record<GameType, string> = {
   flitsen: 'Flitsen — kaarten omdraaien (CardFlash-port)',
-  tijdrit: 'Tijdrit — 60s Goed/Nog even, klanken per minuut',
+  // Off the path since Arjan dropped it; this button is the only way in (data/path.ts).
+  tijdrit: 'Tijdrit — 60s Goed/Nog even, klanken per minuut (niet meer op het pad)',
   'hardop-lezen': 'Hardop lezen — woord lezen, swipe goed/fout',
   weetjes: 'Weetjes — dyslexie-feitjes: luister, doe, bewaar',
-  // Disabled until the seed words are reviewed, because until then there is no node of
-  // this type on the path at all — the two buttons under "Proberen met haar" are the way
-  // in. Worded so it reads right on both sides of that (docs/maak-het-woord-af.md §12.1).
-  'maak-het-woord-af': 'Maak het woord af — d of t in het gat; op het pad zodra de woorden nagekeken zijn',
-  'welke-klank': 'Welke klank? — nog niet gebouwd',
+  'maak-het-woord-af': 'Maak het woord af — d of t in het gat',
   woordbouwer: 'Woordbouwer — nog niet gebouwd',
+}
+
+/** Where "Per spelmodus" sends each game: its first path node, or its try-round when it has none. */
+function lessonForGame(type: GameType) {
+  if (type === 'tijdrit') return TIJDRIT_TRY_LESSON
+  return allLessons.find((l) => l.gameType === type)
 }
 
 /**
@@ -110,7 +112,7 @@ export function TestMenuScreen() {
       <section className="avatar-picker">
         <h2>Per spelmodus</h2>
         {GAME_ORDER.map((type) => {
-          const lesson = allLessons.find((l) => l.gameType === type)
+          const lesson = lessonForGame(type)
           return (
             <button
               key={type}

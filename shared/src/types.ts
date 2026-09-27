@@ -31,13 +31,12 @@ export interface WordCurriculum {
 export type GameType =
   | 'flitsen'
   | 'tijdrit'
-  | 'welke-klank'
   | 'woordbouwer'
   | 'hardop-lezen'
   | 'weetjes'
   | 'maak-het-woord-af'
 
-export type LessonKind = 'les' | 'tijdrit-uitdaging' | 'herhaling' | 'eindbaas' | 'weetje'
+export type LessonKind = 'les' | 'herhaling' | 'eindbaas' | 'weetje'
 
 export interface Lesson {
   id: string
