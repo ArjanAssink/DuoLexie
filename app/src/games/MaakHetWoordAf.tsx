@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import confetti from 'canvas-confetti'
-import type { Lesson, SpellingPair, SpellingResult, SpellingWord } from '@shared/src/types'
+import type {
+  Lesson, SpellingPair, SpellingResult, SpellingStrategy, SpellingWord,
+} from '@shared/src/types'
 import type { GameResult } from '../screens/GameScreen'
 import { buildSpellingRound } from '../engine/exerciseSelector'
 import { TRY_UNIT_ID } from '../data/path'
@@ -10,8 +12,10 @@ import {
   allSpellingWords,
   getSpellingPair,
   getSpellingWord,
-  langerClipId,
+  hasPrompt,
   regelClipId,
+  revealForm,
+  revealSpeech,
   strategyLine,
 } from '../spelling'
 import { getWord } from '../words'
@@ -121,8 +125,8 @@ function boxOf(el: Element): Box {
  *
  * It starts with the two pairs where the *sound* gives no help at all — `hond`/`hont` and
  * `lucht`/`lugt` are pronounced the same — so every item comes with a **strategy** she can
- * call on rather than a rule she has to remember: *Maak langer* for d/t, the cht/gt rule for
- * the other. The badge is free, always available, and never affects the score.
+ * call on rather than a rule she has to remember: *Maak langer* for d/t, *Haal de t eraf*
+ * for cht/gt. The badge is free, always available, and never affects the score.
  *
  * **The wrong spelling is never formed.** A wrong tile bumps against the gap and bounces
  * back to its slot; it does not enter, so `hont` never appears on the card. That is the one
@@ -357,15 +361,15 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
    * The strategy badge (§4). Free, and never scored — it may be used before or after
    * choosing, as often as she likes.
    *
-   * For a `langer` pair it is two steps: Frida asks her to make the word longer and waits,
-   * because RID's move is that *she* produces the longer word; only the second tap (or
-   * LANGER_REVEAL_MS of not tapping) shows and speaks it. A `regel` pair has nothing for her
-   * to produce, so one tap tells her the rule.
+   * For a `langer` or `korter` pair it is two steps: Frida asks her to make the word longer
+   * (or take the `t` off) and waits, because RID's move is that *she* produces the form;
+   * only the second tap (or LANGER_REVEAL_MS of not tapping) shows and speaks it. A `regel`
+   * pair has nothing for her to produce, so one tap tells her the rule.
    */
   async function tapStrategy(): Promise<void> {
     if (!pair || !current) return
     playEffect('pop')
-    if (pair.strategy === 'regel' || strategy === 'prompt') return void openReveal()
+    if (!hasPrompt(pair.strategy) || strategy === 'prompt') return void openReveal()
     if (strategy === 'reveal') return void speakReveal()
 
     setStrategy('prompt')
@@ -384,12 +388,12 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
     void speakReveal()
   }
 
-  /** What the reveal step says out loud: the longer form, or the rule when there is none. */
+  /** What the reveal step says out loud (`revealSpeech`): the produced form, or the rule. */
   async function speakReveal(): Promise<void> {
     if (!pair || !current) return
     stopNarration()
-    if (current.langer) await playSpelling(langerClipId(current.wordId), [current.langer])
-    else await playSpelling(regelClipId(pair.id), [pair.rule])
+    const speech = revealSpeech(pair, current)
+    await playSpelling(speech.clipId, [speech.text])
   }
 
   // ---- the gesture: the tile is a carried object (docs/flitsen-swipe.md §3) ----
@@ -616,8 +620,9 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
     // The strategy opens by itself, straight at the reveal step: a correction is not the
     // moment to quiz her (§4).
     setStrategy('reveal')
-    // "hond… honden" — in that order, because the order is the strategy.
-    await speakCorrection(current)
+    // "hond… honden" / "vliegt… vlieg, dus gt" — in that order, because the order is the
+    // strategy.
+    await speakCorrection(pair, current)
     if (stale()) return
 
     await wait(NEXT_WRONG_MS)
@@ -629,13 +634,17 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
   }
 
   /**
-   * The word, then its longer form — the correction, spoken (§2). Each half gets its own
-   * ceiling, so a word that never reports back cannot cost the longer form its turn.
+   * The word, then what the strategy makes of it — the correction, spoken (§2). Each half
+   * gets its own ceiling, so a word that never reports back cannot cost the strategy its
+   * turn. A `regel` word with nothing of its own to say stops after the word: repeating the
+   * whole rule after every miss is a lecture, not a correction.
    */
-  async function speakCorrection(word: SpellingWord): Promise<void> {
+  async function speakCorrection(p: SpellingPair, word: SpellingWord): Promise<void> {
     await within(CORRECTION_BUDGET_MS, playWord(word.wordId, getWord(word.wordId).text))
-    if (cancelled.current || !word.langer) return
-    await within(CORRECTION_BUDGET_MS, playSpelling(langerClipId(word.wordId), [word.langer]))
+    if (cancelled.current) return
+    if (p.strategy === 'regel' && !word.langer) return
+    const speech = revealSpeech(p, word)
+    await within(CORRECTION_BUDGET_MS, playSpelling(speech.clipId, [speech.text]))
   }
 
   /**
@@ -820,9 +829,10 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
             </span>
           </span>
 
-          {/* The langer form appears under the stem at the reveal step (§4). */}
-          {strategy === 'reveal' && current.langer && (
-            <span className="spel-langer">{current.langer}</span>
+          {/* The produced form (longer, or without its t) appears under the stem at the
+              reveal step (§4). */}
+          {strategy === 'reveal' && revealForm(pair, current) && (
+            <span className="spel-langer">{revealForm(pair, current)}</span>
           )}
 
           <button
@@ -842,14 +852,14 @@ export function MaakHetWoordAf({ lesson, onComplete, onQuit }: Props) {
             // The label matches what the button says, not the pair's own title: a button
             // reading "Maak langer" that announces itself as "d of t?" is two different
             // controls depending on whether you can see it.
-            aria-label={pair.strategy === 'langer' ? 'Maak het woord langer' : pair.title}
+            aria-label={BADGE_ARIA[pair.strategy] ?? pair.title}
             onClick={() => void tapStrategy()}
             onPointerDown={(e) => {
               resumeAudio()
               e.stopPropagation()
             }}
           >
-            {pair.strategy === 'langer' ? 'Maak langer' : pair.title} ↗
+            {BADGE_TEXT[pair.strategy] ?? pair.title} ↗
           </button>
         </div>
 
@@ -929,14 +939,32 @@ function widestOption(pair: SpellingPair): string {
 }
 
 /**
+ * The badge's text and its accessible name, per strategy — a `regel` pair falls back to
+ * its title. The label matches what the button says: a button reading "Maak langer" that
+ * announces itself as "d of t?" is two different controls depending on whether you can see
+ * it.
+ */
+const BADGE_TEXT: Partial<Record<SpellingStrategy, string>> = {
+  langer: 'Maak langer',
+  korter: 'Haal de t eraf',
+}
+const BADGE_ARIA: Partial<Record<SpellingStrategy, string>> = {
+  langer: 'Maak het woord langer',
+  korter: 'Haal de t van het woord af',
+}
+
+/**
  * What the bubble says at the reveal step.
  *
  * For a `langer` pair the longer form is already printed under the stem, so the bubble
  * carries the pair's written rule — the reminder behind the question it just asked. For a
- * `regel` pair the rule *is* the reveal, and a `gt` verb adds its own `ik`-form, which is
+ * `korter` pair the bubble is the verdict itself ("vlieg. Ja, nog hetzelfde woord, dus gt."):
+ * the shortened word alone, printed under the stem, does not say which way the test went.
+ * For a `regel` pair the rule *is* the reveal, and a word with a `langer` adds it, which is
  * the half of the rule that applies to the word actually on the card (§4).
  */
 function revealText(pair: SpellingPair, word: SpellingWord): string {
   if (pair.strategy === 'langer') return pair.rule
+  if (pair.strategy === 'korter') return revealSpeech(pair, word).text
   return word.langer ? `${pair.rule} Dit woord: ${word.langer}.` : pair.rule
 }

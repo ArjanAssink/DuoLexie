@@ -265,9 +265,14 @@ export interface WeetjeCurriculum {
  *
  * - `langer` — two steps: Frida asks her to say the longer word herself, and only then is
  *   it shown and spoken. RID's move is that *she* produces it.
+ * - `korter` — two steps the other way, RID's cht/gt test: Frida asks her to take the `t`
+ *   off and say what is left; then the shortened word is shown and spoken, with the
+ *   verdict — still the same word (*vliegt → vlieg*), so `gt`; a different word or no word
+ *   at all (*tocht → toch*), so `cht`. The shortened form is derived from the card
+ *   (`stem` + the ending minus its `t`), not stored.
  * - `regel` — one step: the pair's `rule` is spoken. There is nothing for her to produce.
  */
-export type SpellingStrategy = 'langer' | 'regel'
+export type SpellingStrategy = 'langer' | 'korter' | 'regel'
 
 /**
  * One confusable spelling pair — `d`/`t`, `cht`/`gt`, and later `ei`/`ij` and `au`/`ou`

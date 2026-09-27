@@ -21,8 +21,8 @@
         "cht",
         "gt"
       ],
-      "strategy": "regel",
-      "rule": "Hoor je /cht/? Dan schrijf je cht. Behalve bij een werkwoord met een g: ik lig, hij ligt.",
+      "strategy": "korter",
+      "rule": "Haal de t eraf. Is het nog hetzelfde woord? Dan schrijf je gt. Is het een ander woord? Dan schrijf je cht.",
       "needs": [
         "ch",
         "g",
@@ -836,15 +836,6 @@
       "wordId": "zocht",
       "pair": "cht-gt",
       "stem": "zo",
-      "ending": "cht",
-      "langer": null,
-      "zin": null,
-      "reviewed": true
-    },
-    {
-      "wordId": "lacht",
-      "pair": "cht-gt",
-      "stem": "la",
       "ending": "cht",
       "langer": null,
       "zin": null,

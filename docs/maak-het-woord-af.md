@@ -126,7 +126,8 @@ the card is that strategy made tappable:
 | pair | badge | what it does |
 |---|---|---|
 | **d/t** | **Maak langer** | **Two steps** *(decided)*. First tap: Frida says "Maak het woord langer. Zeg het maar." and waits — RID's move is that *she* produces the longer word. Second tap, or after `LANGER_REVEAL_MS` (2000) without one: the `langer` form appears under the stem and is spoken: "honden". |
-| **cht/gt** | **cht of gt?** | Frida's bubble speaks the pair's `rule`: "Hoor je /cht/? Dan schrijf je cht. Behalve bij een werkwoord met een g: ik lig, hij ligt." For a `gt` word the bubble adds the word's own `langer`: "ik lig". One step; there is nothing for her to produce. |
+| **cht/gt** | **Haal de t eraf** | *(changed 2026-09-27, by Claude Fable 5.1, at Arjan's request — this is the test RID actually uses.)* **Two steps**, the mirror of Maak langer. First tap: Frida says "Haal de t eraf. Zeg het maar." and waits — *she* takes the `t` off. Second tap, or after `LANGER_REVEAL_MS`: the shortened word appears under the stem and is spoken with the verdict — "vlieg. Ja, nog hetzelfde woord, dus gt." / "toch. Nee, dat is een ander woord, dus cht." The shortened form is derived (`stem` + ending minus `t`), not stored; strategy id `korter`. The pair's written `rule` says the same in one sentence. A `cht` word whose stem already ends in `ch` (*lacht → lach*, still the same word) breaks the test and may not be in the file; `lacht` was removed for that reason, and a unit test guards it. |
+| *(any later pair)* | *title* | `regel`: one step, the pair's `rule` is spoken. There is nothing for her to produce. Still supported; no shipped pair uses it. |
 
 The badge never affects the score or the streak. After a wrong answer the bubble opens by
 itself (§2), straight to the reveal step — the correction is not the moment to quiz her. The
@@ -174,8 +175,9 @@ on purpose.
   as for reading. The reward screen's stat card works unchanged once `spellingResults` is
   mapped to the shape it reads. Its missed-word chips get one new behaviour *(decided)*: for
   a spelling round a tap speaks the word **and its longer form** — "hond… honden" — so the
-  strategy rides along one last time for exactly the words she got wrong. For `cht` words,
-  which have no `langer`, the chip speaks the word only.
+  strategy rides along one last time for exactly the words she got wrong. For cht/gt words
+  *(since the `korter` change, §4)* it speaks the word and the test's verdict — "tocht…
+  toch. Nee, dat is een ander woord, dus cht."
 - **Stats**: `state/progress.ts` gains `spellingStats: Record<wordId, { seen, missed }>`
   (persist version **5**, migration adds `{}`); the selector prefers words she has missed
   before (weight `1 + missed`). Nothing else reads it yet.
@@ -285,7 +287,8 @@ Deliberately **not** in: `zand` (no natural longer form), `stad` (steden changes
 
 **cht/gt — `cht`**: lucht, nacht, zacht, kracht, bocht, vocht, echt, recht, slecht, vlecht,
 knecht, gracht, wacht *(ww)*, jacht, dicht, zicht, tocht, vrucht, vlucht, kocht *(ww)*,
-dacht *(ww)*, bracht *(ww)*, zocht *(ww)*, lacht *(ww: lachen → cht, the stem has ch)*.
+dacht *(ww)*, bracht *(ww)*, zocht *(ww)*. ~~lacht~~ *(removed with the `korter` strategy,
+§4: lachen → lach is still the same word, so "take the t off" would answer gt)*.
 
 **cht/gt — `gt`** *(all ww; langer = ik-form)*: ligt→ik lig, zegt→ik zeg, legt→ik leg,
 draagt→ik draag, vliegt→ik vlieg, zaagt→ik zaag, vraagt→ik vraag, veegt→ik veeg,
@@ -437,8 +440,10 @@ or answer the card, while it is still talking.
 
 - The word: `playWord(id, text)` — recording if it exists, TTS otherwise, as everywhere.
 - The `langer` form and the pair `rule`: `utter()` (TTS) with the 6s backstop. A recording
-  set **"Spelling"** for the studio (`/opnemen`): one cue per `langer` string and one per
-  `rule`, written to `app/public/audio/spelling/<wordId>-langer.mp3` / `<pairId>-regel.mp3`,
+  set **"Spelling"** for the studio (`/opnemen`): one cue per `langer` string, one per
+  `korter` verdict line (`<wordId>-korter.mp3`, "vlieg. Ja, nog hetzelfde woord, dus gt.")
+  and one per `rule`, written to `app/public/audio/spelling/<wordId>-langer.mp3` /
+  `<pairId>-regel.mp3`,
   addressed through `audio/recorded.ts` like the Weetjes clips. Building the studio set is
   part of this change; recording it is Arjan's.
 

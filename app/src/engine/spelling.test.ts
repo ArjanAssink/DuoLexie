@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 import type { Lesson, SpellingStats } from '@shared/src/types'
 import { GAP_SLACK_PX, overGap, requeue, type Box } from './spelling'
 import { buildSpellingRound } from './exerciseSelector'
-import { allSpellingWords, spellingPairs, spellingWordsForPool } from '../spelling'
+import {
+  KORTER_PROMPT, allSpellingWords, korterForm, korterLine, revealForm, revealSpeech,
+  spellingPairs, spellingWordsForPool, strategyLine,
+} from '../spelling'
 import { words } from '../words'
 
 // ---------------------------------------------------------------- §3, the gesture
@@ -106,7 +109,7 @@ describe('shared/curriculum/spelling.json', () => {
     for (const pair of spellingPairs) {
       expect(pair.options, pair.id).toHaveLength(2)
       expect(new Set(pair.options).size, pair.id).toBe(2)
-      expect(['langer', 'regel'], pair.id).toContain(pair.strategy)
+      expect(['langer', 'korter', 'regel'], pair.id).toContain(pair.strategy)
       expect(pair.rule.length, pair.id).toBeGreaterThan(10)
       expect(pair.needs.length, pair.id).toBeGreaterThan(0)
     }
@@ -180,6 +183,53 @@ describe('shared/curriculum/spelling.json', () => {
 
   it('ships no zin items in the first release (§6 rule 3)', () => {
     expect(allSpellingWords.every((w) => w.zin === null)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------- §4, the korter strategy
+
+describe('the cht/gt test — take the t off (§4)', () => {
+  const chtGt = spellingPairs.find((p) => p.id === 'cht-gt')!
+  const byId = (id: string) => allSpellingWords.find((w) => w.pair === 'cht-gt' && w.wordId === id)!
+
+  it('is the strategy cht/gt uses', () => {
+    expect(chtGt.strategy).toBe('korter')
+    expect(strategyLine(chtGt)).toBe(KORTER_PROMPT)
+  })
+
+  it('shortens a gt word to the same word, and says so', () => {
+    expect(korterForm(byId('vliegt'))).toBe('vlieg')
+    expect(korterLine(byId('vliegt'))).toBe('vlieg. Ja, nog hetzelfde woord, dus gt.')
+  })
+
+  it('shortens a cht word to something else, and says so', () => {
+    expect(korterForm(byId('tocht'))).toBe('toch')
+    expect(korterLine(byId('tocht'))).toBe('toch. Nee, dat is een ander woord, dus cht.')
+  })
+
+  it('reveals the shortened form under the stem and speaks the verdict', () => {
+    expect(revealForm(chtGt, byId('lucht'))).toBe('luch')
+    expect(revealSpeech(chtGt, byId('lucht'))).toEqual({
+      clipId: 'lucht-korter',
+      text: 'luch. Nee, dat is een ander woord, dus cht.',
+    })
+  })
+
+  it('leaves the d/t reveal as the longer form', () => {
+    const dt = spellingPairs.find((p) => p.id === 'd-t')!
+    const hond = allSpellingWords.find((w) => w.pair === 'd-t' && w.wordId === 'hond')!
+    expect(revealForm(dt, hond)).toBe('honden')
+    expect(revealSpeech(dt, hond)).toEqual({ clipId: 'hond-langer', text: 'honden' })
+  })
+
+  it('has no cht word the test gets wrong: one whose stem already ends in ch', () => {
+    // `lacht → lach` is still the same word, so "take the t off" would say gt. Such a word
+    // (lacht, juicht) cannot be dealt under this strategy; it must stay out of the file.
+    for (const word of allSpellingWords) {
+      if (word.pair !== 'cht-gt' || word.ending !== 'cht') continue
+      expect(word.stem.endsWith('ch'), word.wordId).toBe(false)
+      expect(wordIds.has(korterForm(word)), `${word.wordId} → ${korterForm(word)} is a word the app teaches`).toBe(false)
+    }
   })
 })
 

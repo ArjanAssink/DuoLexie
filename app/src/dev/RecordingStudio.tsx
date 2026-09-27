@@ -3,7 +3,8 @@ import { allSounds } from '../curriculum'
 import { wordsInRecordingOrder } from '../data/path'
 import { dealableWeetjes, narrationLines, type WeetjePart } from '../weetjes'
 import {
-  allSpellingWords, langerClipId, regelClipId, spellingPairs, strategyLine,
+  allSpellingWords, getSpellingPair, korterClipId, korterLine, langerClipId, regelClipId,
+  spellingPairs, strategyLine,
 } from '../spelling'
 import { clipSrc } from '../audio/recorded'
 import {
@@ -78,7 +79,8 @@ function weetjeCues(): { ids: string[]; labels: Record<string, string> } {
  *
  * The rules come first, because there are two of them and they are the cues most likely to
  * need a second take — a rule is a sentence with a colon in it, read to a nine-year-old.
- * A `cht` word has no longer form and so no cue; `licht`/`ligt` are not in the file at all.
+ * Every cht/gt word has a cue — the RID test applies to both sides of that pair — while a
+ * `regel` word without a `langer` has none; `licht`/`ligt` are not in the file at all.
  *
  * Every word, not only the reviewed ones. The Weetjes set deliberately leaves unreviewed
  * cards out because their *copy* may still change; a longer form is not copy — `honden` is
@@ -94,6 +96,15 @@ function spellingCues(): { ids: string[]; labels: Record<string, string> } {
     labels[id] = strategyLine(pair)
   }
   for (const word of allSpellingWords) {
+    const pair = getSpellingPair(word.pair)
+    // A `korter` word's cue is the shortened form *and* the verdict ("vlieg. Ja, nog
+    // hetzelfde woord, dus gt."): one clip, because the game speaks them as one line.
+    if (pair?.strategy === 'korter') {
+      const id = korterClipId(word.wordId)
+      ids.push(id)
+      labels[id] = korterLine(word)
+      continue
+    }
     if (!word.langer) continue
     const id = langerClipId(word.wordId)
     ids.push(id)
@@ -706,9 +717,10 @@ export function RecordingStudio() {
               </>
             ) : kind === 'spelling' ? (
               <>
-                De twee regels zijn zinnen; lees ze zoals je ze tegen haar zou zeggen. De rest
-                zijn losse woorden — het langere woord alleen, dus <b>honden</b>, niet
-                {' '}<i>hond, honden</i>.{' '}
+                De twee regels zijn zinnen; lees ze zoals je ze tegen haar zou zeggen. De
+                d/t-woorden zijn losse woorden — het langere woord alleen, dus <b>honden</b>,
+                niet <i>hond, honden</i>. De cht/gt-cues zijn het woord zonder t plus het
+                oordeel, in één adem: <b>vlieg. Ja, nog hetzelfde woord, dus gt.</b>{' '}
               </>
             ) : (
               <>Lees elk woord één keer, rustig, zodra het verschijnt. </>

@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti'
 import type { AnswerRecord, LessonKind, SpellingResult, WordResult } from '@shared/src/types'
 import type { Reward } from '../engine/reward'
 import { getWord } from '../words'
-import { allSpellingWords, langerClipId } from '../spelling'
+import { allSpellingWords, getSpellingPair, revealSpeech } from '../spelling'
 import { haptic, playEffect, playSpelling, playWord } from '../audio/audio'
 import { Frida } from '../components/Frida'
 import { TreasureChest } from '../components/TreasureChest'
@@ -80,16 +80,22 @@ const WEETJE_SUBLINE = 'Vertel het vanavond aan iemand thuis.'
 /**
  * A missed-word chip, spoken.
  *
- * For a reading round that is the word. For a spelling round it is the word **and its
- * longer form** — "hond… honden" — so the strategy rides along one last time for exactly
- * the words she got wrong (docs/maak-het-woord-af.md §5). A `cht` word has no longer form
- * and is simply spoken.
+ * For a reading round that is the word. For a spelling round it is the word **and what the
+ * strategy makes of it** — "hond… honden", "tocht… toch, nee, dus cht" — so the strategy
+ * rides along one last time for exactly the words she got wrong
+ * (docs/maak-het-woord-af.md §5).
  */
 async function playChip(wordId: string, spelling: boolean): Promise<void> {
   await playWord(wordId, getWord(wordId).text)
   if (!spelling) return
-  const langer = allSpellingWords.find((w) => w.wordId === wordId)?.langer
-  if (langer) await playSpelling(langerClipId(wordId), [langer])
+  const word = allSpellingWords.find((w) => w.wordId === wordId)
+  const pair = word && getSpellingPair(word.pair)
+  if (!word || !pair) return
+  // The same line the correction spoke during the round (MaakHetWoordAf speakCorrection):
+  // the strategy's own form, and nothing for a `regel` word without one.
+  if (pair.strategy === 'regel' && !word.langer) return
+  const speech = revealSpeech(pair, word)
+  await playSpelling(speech.clipId, [speech.text])
 }
 
 /**
