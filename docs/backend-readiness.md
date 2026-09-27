@@ -139,8 +139,9 @@ the state. Two new games (Tijdrit, Bliksemsprint) landed *during* this review.
   chain falling through to a default (`Flitsen`, not the original `Klankenjacht` — the game
   it falls through to has changed twice already since this was written, which is itself a
   small illustration of why a silent fallback is worth removing). Replaced with
-  `const GAMES: Record<GameType, ComponentType<GameProps>>`; the two not-yet-built types
-  (`welke-klank`, `woordbouwer`) map to a small `NotImplementedGame` placeholder — an honest
+  `const GAMES: Record<GameType, ComponentType<GameProps>>`; the not-yet-built types (then
+  `welke-klank` and `woordbouwer`; `welke-klank` has since been dropped) map to a small
+  `NotImplementedGame` placeholder — an honest
   "dit spel bestaat nog niet" screen instead of silently rendering the wrong game. **Proved
   the guarantee, not just written it**: removed the `woordbouwer` entry, confirmed
   `npm run build` genuinely fails with `TS2741: Property 'woordbouwer' is missing`, then

@@ -36,7 +36,7 @@ interface GameProps {
 }
 
 /**
- * Placeholder for a GameType with no real component yet (`welke-klank`, `woordbouwer`) — an
+ * Placeholder for a GameType with no real component yet (`woordbouwer`) — an
  * honest "not built" screen, not the previous fallback of silently rendering whichever game
  * happened to sit last in a ternary chain.
  */
