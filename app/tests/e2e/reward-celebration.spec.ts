@@ -474,9 +474,13 @@ test('after a real round, a tap and then Verder leaves cleanly', async ({ page }
   })
   await expect(page.locator('.reward-verder')).toBeVisible()
 
-  // §9.6
+  // §9.6. The same 15s budget `finishRound` gives the reward screen, not the 5s default:
+  // this is the one place a test asks the leerpad to appear at the *end* of a real round,
+  // with the whole session's state to hydrate behind it, and on the ipad profile it sits at
+  // 3–4s under ×8 CPU throttling — inside the default when the runner is idle, outside it
+  // when the run shares the machine with two other projects (docs/bospad.md §7).
   await page.locator('.reward-verder').click()
-  await expect(page.locator('.coin-item').first()).toBeVisible()
+  await expect(page.locator('.coin-item').first()).toBeVisible({ timeout: 15_000 })
   await expect(page.locator('.reward-screen')).toHaveCount(0)
   expect(errors, 'no console errors on the way out').toEqual([])
 })

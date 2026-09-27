@@ -112,3 +112,17 @@ De e2e-test in `ux-polish.spec.ts` vraagt sindsdien decor bij de eerste sectie, 
 laatste nadat ernaartoe gescrold is, in plaats van bij allemaal tegelijk.
 
 *Fix door Claude Fable 5.1, dezelfde sessie.*
+
+**Nagekomen (2026-09-27, PR #22 → main):** dezelfde iPad-test verloor de `main`-run opnieuw
+(drie pogingen), terwijl de PR-run én de geplande run op precies dezelfde commit groen
+waren, en in die ene run ook drie andere Hardop-lezen-tests op fase-timeouts strandden
+(één klik hing 150 s). Opnieuw gemeten met dezelfde methode, drie keer per cel:
+
+| | ×1 | ×8 |
+|---|---|---|
+| vóór PR #22 (`af23c9d`) | 295 / 243 / 309 ms | 3,1 / 3,2 / 3,3 s |
+| na PR #22 | 247 / 250 / 243 ms | 2,8 / 2,6 / 3,8 s |
+
+Geen regressie dus, maar 3–4 s onder ×8 zit te dicht op de 5 s die de assertie standaard
+krijgt zodra de runner de drie projecten tegelijk draait. De test krijgt nu dezelfde 15 s
+die `finishRound` het beloningsscherm al gaf. *Meting en fix door Claude Fable 5.1.*
